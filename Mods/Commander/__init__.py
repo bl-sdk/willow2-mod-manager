@@ -13,9 +13,9 @@ class Commander(bl2sdk.BL2MOD):
         "By mopioid.\n\nPerform various changes to the game using keybindings."
     )
 
-    SettingsPath = os.path.join(
-        os.path.dirname(sys.executable), "Plugins\\Python\\commander.json"
-    )
+    LocalModDir = os.path.dirname(os.path.realpath(__file__))
+
+    SettingsPath = os.path.join(LocalModDir, "settings.json")
     """The path to the file in which we store our settings."""
 
     def __init__(self):
