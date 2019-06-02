@@ -26,7 +26,7 @@ class Grenadoer(bl2sdk.BL2MOD):
             )
             for inventory in inventoryManager.Backpack:
                 if (
-                    inventory.Class == bl2sdk.FindObject("Class", "WillowGrenadeMod")
+                    inventory.Class == bl2sdk.FindClass("WillowGrenadeMod")
                     and inventory.Mark == 2
                 ):
                     inventoryManager.ReadyBackpackInventory(inventory, 0)
