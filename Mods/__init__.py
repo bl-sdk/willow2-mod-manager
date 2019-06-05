@@ -909,7 +909,7 @@ def HookValueChange(caller: UObject, function: UFunction, params: FStruct) -> bo
                 option.CurrentValue = int(params.NewChoiceIndex)
                 break
     DoInjectedCallNext()
-    return False
+    return True
 
 
 RunHook(
