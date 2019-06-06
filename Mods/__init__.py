@@ -308,7 +308,7 @@ class BL2MOD:
                 del ModOptionsBinding.OptionList[Option]
                 return
 
-    def ModOptionChanged(self, Option: Options, newValue: float):
+    def ModOptionChanged(self, Option: Options, newValuet):
         """Called when the user changes the value of our option for the given setting. 
 		Mods may define this method, if for example they want to save the state of a given setting:
 			
@@ -320,7 +320,7 @@ class BL2MOD:
 		----------
 		Option: Options
 			A class that is used to specify a type of a given setting. 
-		newValue: float
+		newValue: bool, int, float
 			A float value that is the new value that the setting was changed in. 
 			If the changed option is a boolean/spinner option, it's the index in the `Choices` array.
 			If the changed option is a slider option, the value of the slider that the value was changed to. """
@@ -621,11 +621,10 @@ def HookInitKeyBinding(caller: UObject, function: UFunction, params: FStruct) ->
         modName = GameInputBinding.ByMod[tag]
         if lastModName != modName:
             lastModName = modName
-            nameOfSeperator = "------ " + modName + " ------"
-            seperatorNames.append(nameOfSeperator)
-            caller.AddKeyBindEntry(nameOfSeperator, nameOfSeperator, nameOfSeperator)
+            seperatorNames.append(modName)
+            caller.AddKeyBindEntry(modName, modName, modName)
         DoInjectedCallNext()
-        caller.AddKeyBindEntry(tag, tag, binding.Name)
+        caller.AddKeyBindEntry(tag, tag, str("        " + binding.Name))
     return True
 
 
@@ -689,9 +688,7 @@ RunHook(
 """ A function that changes a mod's keybinds in the configuration menu. """
 
 
-def HookBindCurrentSelection(
-    caller: UObject, function: UFunction, params: FStruct
-) -> bool:
+def HookBindCurrentSelection(caller: UObject, function: UFunction, params: FStruct) -> bool:
     selectedKeyBind = caller.KeyBinds[caller.CurrentKeyBindSelection]
     if selectedKeyBind.Tag in seperatorNames:
         return False
@@ -905,8 +902,12 @@ def HookValueChange(caller: UObject, function: UFunction, params: FStruct) -> bo
                 option.CurrentValue = float(params.NewSliderValue)
                 break
             elif params.NewChoiceIndex != None:
-                mod.ModOptionChanged(option, float(params.NewChoiceIndex))
-                option.CurrentValue = int(params.NewChoiceIndex)
+                if type(option) is Option.BooleanOption:
+                    option.CurrentValue = bool(int(params.NewChoiceIndex))
+                    mod.ModOptionChanged(option, bool(params.NewChoiceIndex))
+                else:
+                    option.CurrentValue = int(params.NewChoiceIndex)
+                    mod.ModOptionChanged(option, int(params.NewChoiceIndex))
                 break
     DoInjectedCallNext()
     return True
