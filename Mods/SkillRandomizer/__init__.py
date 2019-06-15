@@ -5,8 +5,9 @@ import random
 import json
 import os
 
+from ..ModManager import BL2MOD, RegisterMod
 
-class CrossSkillRandomizer(bl2sdk.BL2MOD):
+class CrossSkillRandomizer(BL2MOD):
     Description = "Randomize all the skills!"
 
     LocalModDir = os.path.dirname(os.path.realpath(__file__))
@@ -350,13 +351,13 @@ class CrossSkillRandomizer(bl2sdk.BL2MOD):
 
 rando = CrossSkillRandomizer()
 
-bl2sdk.Mods.append(rando)
+RegisterMod(rando)
 
 if os.path.isfile(rando.LocalModDir + "\\log.json"):
     with open(rando.LocalModDir + "\\log.json", "r") as f:
         seeds = json.loads(f.read())
         for seed in seeds:
-            bl2sdk.Mods.append(CrossSkillRandomizer(seed))
+            RegisterMod(CrossSkillRandomizer(seed))
 else:
     with open(rando.LocalModDir + "\\log.json", "w") as f:
         f.write("[]")

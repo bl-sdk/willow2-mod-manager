@@ -5,8 +5,10 @@ import math
 import json
 from fractions import Fraction
 
+from ..ModManager import BL2MOD, RegisterMod
 
-class Commander(bl2sdk.BL2MOD):
+
+class Commander(BL2MOD):
 
     Name = "Commander"
     Description = (
@@ -52,6 +54,8 @@ class Commander(bl2sdk.BL2MOD):
             "Quit Without Saving": ("End", self.QuitWithoutSaving),
         }
 
+        self.Keybinds = [[key, value[0]] for key, value in self.GameInputs.items()]
+
     def SaveSettings(self):
         """Saves the current settings in JSON format to our settings file."""
 
@@ -60,15 +64,6 @@ class Commander(bl2sdk.BL2MOD):
         # Save the settings dictionary to our settings file in JSON format.
         with open(self.SettingsPath, "w") as settingsFile:
             json.dump(settings, settingsFile, indent=4)
-
-    def Enable(self):
-        for name, (key, _) in self.GameInputs.items():
-            key = self.Bindings.get(name, key)
-            self.RegisterGameInput(name, key)
-
-    def Disable(self):
-        for name in self.GameInputs:
-            self.UnregisterGameInput(name)
 
     def GameInputPressed(self, input):
         self.GameInputs[input.Name][1]()
@@ -261,4 +256,4 @@ class Commander(bl2sdk.BL2MOD):
         self.ConsoleCommand("disconnect")
 
 
-bl2sdk.Mods.append(Commander())
+RegisterMod(Commander())

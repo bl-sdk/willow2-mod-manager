@@ -4,8 +4,9 @@ import sys
 import json
 import re
 
+from ..ModManager import BL2MOD, RegisterMod
 
-class LegacyMod(bl2sdk.BL2MOD):
+class LegacyMod(BL2MOD):
 
     BinariesDirectory = os.path.dirname(os.path.dirname(sys.executable))
     """The path to the game's Binaries directory; this is the parent directory from
@@ -76,7 +77,7 @@ class LegacyMod(bl2sdk.BL2MOD):
                     continue
                 # Create the new legacy mod object and add it to the mods menu.
                 mod = LegacyMod(filename)
-                bl2sdk.Mods.append(mod)
+                RegisterMod(mod)
 
             # Create a set to store a list of any and all mods we determine this
             # mod to conflict with.
