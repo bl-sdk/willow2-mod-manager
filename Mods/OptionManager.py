@@ -3,6 +3,7 @@ from bl2sdk import *
 import json
 
 from .Util import getLoadedMods
+from .SaveManager import storeModSettings
 
 class Options:
     """ A generic helper class that stores all of the option types available in the `PLUGINS` menu. """
@@ -71,6 +72,7 @@ class Options:
     class Hidden:
         """ This class is a type of option that is never shown to the user but is specified in the settings.json file. 
         You can use this to store things the user has no need to see but is still important to have persistent. """
+        EventID = -700000
         OptionType = -1
 
         def __init__(self, valueName: str, StartingValue):
@@ -84,6 +86,7 @@ class Options:
         @CurrentValue.setter
         def CurrentValue(self, value):
             self._currentValue = value
+            storeModSettings()
 
 
 bl2sdk.Options = Options
@@ -144,10 +147,10 @@ def PopulateGameOptions(caller: UObject, function: UFunction, params: FStruct) -
     if Options.isMenuPluginMenu == True:
         for mod in getLoadedMods():
             for option in mod.Options:
-                caption = (mod.Name + ": " + option.Caption).upper()
-                option.EventID = startingIndex
                 if option.OptionType == -1:
                     continue
+                caption = (mod.Name + ": " + option.Caption).upper()
+                option.EventID = startingIndex
                 if option.OptionType == 0:
                     if type(option) is Options.Spinner:
                         params.TheList.AddSpinnerListItem(
@@ -184,8 +187,8 @@ def HookValueChange(caller: UObject, function: UFunction, params: FStruct) -> bo
         for option in mod.Options:
             if option.EventID == params.EventID:
                 if params.NewSliderValue != None:
-                    mod.ModOptionChanged(option, float(params.NewSliderValue))
                     option.CurrentValue = float(params.NewSliderValue)
+                    mod.ModOptionChanged(option, float(params.NewSliderValue))
                     return True
                 elif params.NewChoiceIndex != None:
                     if type(option) is Options.Boolean:
@@ -194,6 +197,8 @@ def HookValueChange(caller: UObject, function: UFunction, params: FStruct) -> bo
                     elif type(option) is Options.Spinner:
                         option.CurrentValue = option.Choices[params.NewChoiceIndex]
                         mod.ModOptionChanged(option, option.Choices[params.NewChoiceIndex])
+                    elif type(option) is Options.Hidden:
+                        continue
                     else:
                         option.CurrentValue = int(params.NewChoiceIndex)
                         mod.ModOptionChanged(option, int(params.NewChoiceIndex))

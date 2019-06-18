@@ -98,6 +98,8 @@ class BL2MOD:
             self.Status = "Enabled"
             self.SettingsInputs = {"Enter": "Disable"}
             self.Enable()
+            for option in self.Options:
+                self.ModOptionChanged(option, option.CurrentValue)
         elif name == "Disable":
             self.Status = "Disabled"
             self.SettingsInputs = {"Enter": "Enable"}
