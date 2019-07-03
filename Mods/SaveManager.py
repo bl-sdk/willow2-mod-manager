@@ -36,3 +36,21 @@ def HookOnPop(caller: UObject, function: UFunction, params: FStruct) -> bool:
     return True
 
 RunHook("WillowGame.WillowScrollingListDataProviderOptionsBase.OnPop", "HookOnPop", HookOnPop)
+
+
+# def SaveUnsaveableItems(caller: UObject, function: UFunction, params: FStruct) -> bool:
+#     saveGame = caller.GeneratePlayerSaveGame()
+#     # SaveItemSaveGameData
+#     # SaveWeaponSaveGameData
+#     for weapon in saveGame.WeaponData:
+#         if not caller.ValidateWeaponDefinition(weapon.WeaponDefinitionData):
+#             pass
+#             # weapon fails sanity-check
+#     for item in saveGame.ItemData:
+#         if not caller.ValidateItemDefinition(weapon.DefinitionData):
+#             pass
+#             # item fails sanity-check
+#     return True
+
+
+# RunHook("WillowGame.WillowPlayerController.GeneratePlayerSaveGame", "SaveUnsaveableItems", SaveUnsaveableItems)

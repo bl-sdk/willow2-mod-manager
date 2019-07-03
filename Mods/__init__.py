@@ -11,12 +11,14 @@ from .KeybindManager import *
 from .ModMenuManager import *
 from .SaveManager import *
 
+from .General import *
+
 import os, importlib
 
 
 for module in os.listdir(os.path.dirname(__file__)):
     absolute_file = f"{os.path.dirname(__file__)}\\{module}"
-    if not os.path.isdir(absolute_file):
+    if not os.path.isdir(absolute_file) or module == 'General':
         continue
     try:
         importlib.import_module(f".{module}", "Mods")

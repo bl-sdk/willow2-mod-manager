@@ -183,23 +183,6 @@ class BL2MOD:
             If the changed option is a slider option, the value of the slider (float) that the value was changed to. """
         pass
 
-class DefaultMod(BL2MOD):
-
-    Name = "General"
-    Status = ""
-    Description = "Welcome to the Borderlands 2 Mod Manager\n\nSee below for options."
-    SettingsInputs = {"O": "Open Mods Folder", "R": "Reload Mods", "H": "Help"}
-    Types = []
-    Author = "Abahbob"
-
-    def SettingsInputPressed(self, name):
-        if name == "Open Mods Folder":
-            os.startfile(ModsDirectory)
-        elif name == "Reload Mods":
-            pass
-        elif name == "Help":
-            webbrowser.open("https://github.com/bl-sdk/BL2-Python-Plugins/wiki")
-
 def getModModule(mod):
     modModule = ""
     modules = [m for m in sys.modules.values() if m]
@@ -212,7 +195,7 @@ def getModModule(mod):
         except AttributeError: continue 
     return modModule
 
-bl2sdk.Mods = [DefaultMod()]
+bl2sdk.Mods = []
 
 def RegisterMod(mod: BL2MOD):
     modModule = getModModule(mod)
