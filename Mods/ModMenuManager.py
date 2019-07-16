@@ -174,3 +174,10 @@ def HookModSelected(caller: UObject, function: UFunction, params: FStruct) -> bo
 
 
 RunHook("WillowGame.MarketplaceGFxMovie.extOnOfferingChanged","HookModSelected", HookModSelected)
+
+def HookContentMenu(caller: UObject, function: UFunction, params: FStruct) -> bool:
+    WPCOwner = bl2sdk.GetEngine().GamePlayers[0].Actor
+    caller.CheckDownloadableContentListCompleted(WPCOwner.GetMyControllerId(), True)
+    return False
+
+RunHook("WillowGame.FrontendGFxMovie.ShowMarketplaceMovie","HookContentMenu", HookContentMenu)
