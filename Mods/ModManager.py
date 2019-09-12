@@ -1,4 +1,4 @@
-import bl2sdk
+import unrealsdk
 import webbrowser
 from enum import Enum
 import sys
@@ -195,7 +195,7 @@ def getModModule(mod):
         except AttributeError: continue 
     return modModule
 
-bl2sdk.Mods = []
+unrealsdk.Mods = []
 
 def RegisterMod(mod: BL2MOD):
     modModule = getModModule(mod)
@@ -208,7 +208,7 @@ def RegisterMod(mod: BL2MOD):
             for optionName, optionValue in options.items():
                 for option in mod.Options:
                     if optionName in option.Caption:
-                        if type(option) != bl2sdk.Options.Hidden:
+                        if type(option) != unrealsdk.Options.Hidden:
                             if isinstance(optionValue, bool):
                                 option.CurrentValue = optionValue
                             elif isinstance(optionValue, str):
@@ -222,10 +222,10 @@ def RegisterMod(mod: BL2MOD):
                 for GameInput in mod.Keybinds:
                     if keybindName == GameInput[0]:
                         GameInput[1] = str(keybind)
-    bl2sdk.Mods.append(mod)
+    unrealsdk.Mods.append(mod)
 
 
-bl2sdk.BL2MOD = BL2MOD
-bl2sdk.ModTypes = ModTypes
-bl2sdk.ModMenuOpened = []
-bl2sdk.RegisterMod = RegisterMod
+unrealsdk.BL2MOD = BL2MOD
+unrealsdk.ModTypes = ModTypes
+unrealsdk.ModMenuOpened = []
+unrealsdk.RegisterMod = RegisterMod

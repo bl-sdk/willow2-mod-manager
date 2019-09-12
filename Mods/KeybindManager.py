@@ -1,5 +1,5 @@
-import bl2sdk
-from bl2sdk import *
+import unrealsdk
+from unrealsdk import *
 from collections import namedtuple
 
 from .Util import getLoadedMods
@@ -11,11 +11,11 @@ KeybindBinding = namedtuple('KeybindBinding', ['Name', 'Key'])
 def HookInitKeyBinding(caller: UObject, function: UFunction, params: FStruct) -> bool:
     for mod in getLoadedMods():
         if mod.Keybinds:
-            tag = f"bl2sdk.seperator.{mod.Name}"
+            tag = f"unrealsdk.seperator.{mod.Name}"
             caller.AddKeyBindEntry(tag, tag, mod.Name)
         for GameInput in mod.Keybinds:
             InputName, InputKey = GameInput
-            tag = f"bl2sdk.input.{mod.Name}.{InputName}"
+            tag = f"unrealsdk.input.{mod.Name}.{InputName}"
             caller.AddKeyBindEntry(tag, tag, f"        {InputName}")
     return True
 
@@ -44,15 +44,15 @@ def HookOnPopulateKeys(caller: UObject, function: UFunction, params: FStruct) ->
     translationContext = GetEngine().GamePlayers[0].GetTranslationContext()
 
     for keyBind in caller.KeyBinds:
-        if keyBind.Tag.startswith("bl2sdk"):
-            if keyBind.Tag.startswith("bl2sdk.seperator"):
+        if keyBind.Tag.startswith("unrealsdk"):
+            if keyBind.Tag.startswith("unrealsdk.seperator"):
                 keyBind.Object.SetString("value", "")
                 keyBind.Object.SetVisible(False)
             else:
                 for mod in getLoadedMods():
                     if mod.Name == keyBind.Tag.split('.')[2]:
                         for GameInput in mod.Keybinds:
-                            if keyBind.Tag == f"bl2sdk.input.{mod.Name}.{GameInput[0]}":
+                            if keyBind.Tag == f"unrealsdk.input.{mod.Name}.{GameInput[0]}":
                                 keyBind.CurrentKey = GameInput[1]
         if keyBind.CurrentKey != "None":
             for mod in getLoadedMods():
@@ -74,7 +74,7 @@ RunHook("WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions.extOnPop
 
 def HookBindCurrentSelection(caller: UObject, function: UFunction, params: FStruct) -> bool:
     selectedKeyBind = caller.KeyBinds[caller.CurrentKeyBindSelection]
-    if selectedKeyBind.Tag.startswith("bl2sdk.seperator"):
+    if selectedKeyBind.Tag.startswith("unrealsdk.seperator"):
         return False
 
     PreviousKeyBinds = {bind.Tag: bind.CurrentKey for bind in caller.KeyBinds}
@@ -83,11 +83,11 @@ def HookBindCurrentSelection(caller: UObject, function: UFunction, params: FStru
     caller.BindCurrentSelection(params.Key)
 
     for bind in caller.KeyBinds:
-        if bind.Tag.startswith("bl2sdk") and bind.Tag in PreviousKeyBinds.keys() and PreviousKeyBinds[bind.Tag] != bind.CurrentKey:
+        if bind.Tag.startswith("unrealsdk") and bind.Tag in PreviousKeyBinds.keys() and PreviousKeyBinds[bind.Tag] != bind.CurrentKey:
             for mod in getLoadedMods():
                 if mod.Name == bind.Tag.split('.')[2]:
                     for GameInput in mod.Keybinds:
-                        if bind.Tag == f"bl2sdk.input.{mod.Name}.{GameInput[0]}":
+                        if bind.Tag == f"unrealsdk.input.{mod.Name}.{GameInput[0]}":
                             GameInput[1] = bind.CurrentKey
                             mod.GameInputRebound(GameInput[0], bind.CurrentKey)
 
@@ -107,7 +107,7 @@ RunHook("WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions.BindCurr
 
 
 def HookDoBind(caller: UObject, function: UFunction, params: FStruct) -> bool:
-    if caller.KeyBinds[caller.CurrentKeyBindSelection].Tag.startswith("bl2sdk.seperator"):
+    if caller.KeyBinds[caller.CurrentKeyBindSelection].Tag.startswith("unrealsdk.seperator"):
         return False
     return True
 

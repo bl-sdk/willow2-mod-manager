@@ -2,7 +2,7 @@ from ..ModManager import BL2MOD, RegisterMod
 from importlib import reload
 from sys import modules
 
-import bl2sdk
+import unrealsdk
 
 class DefaultMod(BL2MOD):
 
@@ -20,7 +20,7 @@ class DefaultMod(BL2MOD):
             for mod in list(modules.keys()):
                 if mod.startswith('Mods.'):
                     del modules[mod]
-            bl2sdk.Mods = []
+            unrealsdk.Mods = []
             modules["Mods"] = reload(modules["Mods"])
         elif name == "Help":
             webbrowser.open("https://github.com/bl-sdk/BL2-Python-Plugins/wiki")

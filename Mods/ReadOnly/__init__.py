@@ -1,4 +1,4 @@
-from bl2sdk import *
+from unrealsdk import *
 from ..ModManager import BL2MOD, RegisterMod
 import math
 

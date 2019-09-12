@@ -1,7 +1,7 @@
 import os
 import json
-from bl2sdk import *
-import bl2sdk
+from unrealsdk import *
+import unrealsdk
 from .Util import getLoadedMods
 
 from .OptionManager import *
@@ -16,7 +16,7 @@ def storeModSettings():
         modSettings["Options"] = {}
         modSettings["Keybinds"] = {}
         for setting in mod.Options:
-            if type(setting) is bl2sdk.Options.Spinner:
+            if type(setting) is unrealsdk.Options.Spinner:
                 currentVal = setting.Choices[setting.Choices.index(setting.CurrentValue)]
                 modSettings["Options"].update( {setting.Caption : currentVal } )
             else:

@@ -1,5 +1,5 @@
-import bl2sdk
-from bl2sdk import *
+import unrealsdk
+from unrealsdk import *
 import sys
 import random
 import json
@@ -30,13 +30,13 @@ class CrossSkillRandomizer(BL2MOD):
             f.truncate()
             self.Name = "Cross Class Skill Randomizer ({})".format(self.Seed)
             NewRando = CrossSkillRandomizer()
-            bl2sdk.Mods.insert(0, NewRando)
+            unrealsdk.Mods.insert(0, NewRando)
 
     def Enable(self):
         def InjectSkills(caller: UObject, function: UFunction, params: FStruct) -> bool:
             if not self.Seed:
                 self.Seed = random.randrange(sys.maxsize)
-                bl2sdk.Log("Randomizing with seed '{}'".format(self.Seed))
+                unrealsdk.Log("Randomizing with seed '{}'".format(self.Seed))
                 self.RNG = random.Random(self.Seed)
                 self.RecordSeed()
             else:
@@ -44,12 +44,12 @@ class CrossSkillRandomizer(BL2MOD):
             self.RandomizeTree(params.SkillTreeDef)
             return True
 
-        bl2sdk.RegisterHook(
+        unrealsdk.RegisterHook(
             "WillowGame.PlayerSkillTree.Initialize", "InjectSkills", InjectSkills
         )
 
     def Disable(self):
-        bl2sdk.RemoveHook("WillowGame.PlayerSkillTree.Initialize", "InjectSkills")
+        unrealsdk.RemoveHook("WillowGame.PlayerSkillTree.Initialize", "InjectSkills")
 
     def PreloadPackages(self):
         packages = [
@@ -62,7 +62,7 @@ class CrossSkillRandomizer(BL2MOD):
         ]
 
         for package in packages:
-            bl2sdk.LoadPackage(package)
+            unrealsdk.LoadPackage(package)
 
     def RandomizeTree(self, SkillTreeDef):
         # SkillTreeDef.Root = GD_<Class>_Skills.SkillTree.Branch_ActionSkill_<ActionSkill>
@@ -94,7 +94,7 @@ class CrossSkillRandomizer(BL2MOD):
                     TierLayout[Skill] = True
                     SkillDefNum = self.RNG.randint(0, len(self.ValidSkills) - 1)
                     SkillDefName = self.ValidSkills.pop(SkillDefNum)
-                    SkillDef = bl2sdk.FindObject("SkillDefinition", SkillDefName)
+                    SkillDef = unrealsdk.FindObject("SkillDefinition", SkillDefName)
                     MaxPoints += SkillDef.MaxGrade
                     NewSkills.append(SkillDef)
                     HasHellborn = HasHellborn or "Hellborn" in SkillDef.GetFullName()
@@ -108,19 +108,19 @@ class CrossSkillRandomizer(BL2MOD):
                         self.ValidSkills += self.AnarchySkills
             if HasBloodlust:
                 NewSkills.append(
-                    bl2sdk.FindObject(
+                    unrealsdk.FindObject(
                         "SkillDefinition", "GD_Lilac_Skills_Bloodlust.Skills._Bloodlust"
                     )
                 )
             if HasHellborn:
                 NewSkills.append(
-                    bl2sdk.FindObject(
+                    unrealsdk.FindObject(
                         "SkillDefinition",
                         "GD_Lilac_Skills_Hellborn.Skills.FireStatusDetector",
                     )
                 )
                 NewSkills.append(
-                    bl2sdk.FindObject(
+                    unrealsdk.FindObject(
                         "SkillDefinition",
                         "GD_Lilac_Skills_Hellborn.Skills.AppliedStatusEffectListener",
                     )

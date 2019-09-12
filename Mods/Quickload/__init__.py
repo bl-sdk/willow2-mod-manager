@@ -1,4 +1,4 @@
-from bl2sdk import *
+from unrealsdk import *
 
 
 class MapLoader(BL2MOD):

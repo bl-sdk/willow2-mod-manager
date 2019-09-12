@@ -1,8 +1,8 @@
 import traceback
-import bl2sdk
+import unrealsdk
 
 """ Increment this version any time you update ANY core Python API """
-bl2sdk.PythonManagerVersion = 1
+unrealsdk.PythonManagerVersion = 1
 
 
 from .ModManager import *
@@ -23,8 +23,8 @@ for module in os.listdir(os.path.dirname(__file__)):
     try:
         importlib.import_module(f".{module}", "Mods")
     except Exception as ex:
-        bl2sdk.Log(f"Failed to import mod: {module}")
+        unrealsdk.Log(f"Failed to import mod: {module}")
         tb = traceback.format_exc()
         tb = tb.split('\n')
-        bl2sdk.Log("    " + tb[len(tb) - 3].strip())
-        bl2sdk.Log("    " + tb[len(tb) - 2].strip())
+        unrealsdk.Log("    " + tb[len(tb) - 3].strip())
+        unrealsdk.Log("    " + tb[len(tb) - 2].strip())

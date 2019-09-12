@@ -1,5 +1,5 @@
-import bl2sdk
-from bl2sdk import *
+import unrealsdk
+from unrealsdk import *
 import json
 
 from .Util import getLoadedMods
@@ -89,7 +89,7 @@ class Options:
             storeModSettings()
 
 
-bl2sdk.Options = Options
+unrealsdk.Options = Options
 
 """ This function adds the `PLUGINS` menu into the options menu. """
 

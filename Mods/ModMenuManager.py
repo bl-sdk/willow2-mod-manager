@@ -1,5 +1,5 @@
-import bl2sdk
-from bl2sdk import *
+import unrealsdk
+from unrealsdk import *
 import mypy
 
 
@@ -15,7 +15,7 @@ def LoadModList(caller: UObject, function: UFunction, params: FStruct) -> bool:
     caller.SetStoreHeader("Mods", 0, "By Abahbob", "Mod Manager")
 
     translationContext = GetEngine().GamePlayers[0].GetTranslationContext()
-    for idx, mod in enumerate(bl2sdk.Mods):
+    for idx, mod in enumerate(unrealsdk.Mods):
         obj, _ = caller.CreateMarketplaceItem(())
         obj.SetString(caller.Prop_offeringId, str(idx), translationContext)
         obj.SetString(caller.Prop_contentTitleText, mod.Name, translationContext)
@@ -65,7 +65,7 @@ def HookShopInputKey(caller: UObject, function: UFunction, params: FStruct) -> b
     except:
         return False
 
-    mod = bl2sdk.Mods[modIndex]
+    mod = unrealsdk.Mods[modIndex]
 
     if key in mod.SettingsInputs:
         if event == 0:
@@ -126,7 +126,7 @@ def ReplaceDLCWithMods(caller: UObject, function: UFunction, params: FStruct) ->
 """ An efficient function that notifies us when we're in the main menu to populate the DLC menu. """
 
 def HookMainMenuPopulateForMods(caller: UObject, function: UFunction, params: FStruct) -> bool:
-    for modFunc in bl2sdk.ModMenuOpened:
+    for modFunc in unrealsdk.ModMenuOpened:
         try:
             modFunc()
         except:
@@ -153,7 +153,7 @@ def HookModSelected(caller: UObject, function: UFunction, params: FStruct) -> bo
     except TypeError:
         return
 
-    mod = bl2sdk.Mods[modIndex]
+    mod = unrealsdk.Mods[modIndex]
 
     inputs = mod.SettingsInputs.copy()
     inputs["Escape"] = "Cancel"
@@ -176,7 +176,7 @@ def HookModSelected(caller: UObject, function: UFunction, params: FStruct) -> bo
 RunHook("WillowGame.MarketplaceGFxMovie.extOnOfferingChanged","HookModSelected", HookModSelected)
 
 def HookContentMenu(caller: UObject, function: UFunction, params: FStruct) -> bool:
-    WPCOwner = bl2sdk.GetEngine().GamePlayers[0].Actor
+    WPCOwner = unrealsdk.GetEngine().GamePlayers[0].Actor
     caller.CheckDownloadableContentListCompleted(WPCOwner.GetMyControllerId(), True)
     return False
 

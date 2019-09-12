@@ -1,4 +1,4 @@
-import bl2sdk
+import unrealsdk
 import sys
 import os
 import math
@@ -74,9 +74,9 @@ class Commander(BL2MOD):
 
     def GetPlayerController(self):
         """Return the current WillowPlayerController object for the local player."""
-        return bl2sdk.GetEngine().GamePlayers[0].Actor
+        return unrealsdk.GetEngine().GamePlayers[0].Actor
 
-    DefaultGameInfo = bl2sdk.FindObject(
+    DefaultGameInfo = unrealsdk.FindObject(
         "WillowCoopGameInfo", "WillowGame.Default__WillowCoopGameInfo"
     )
     """A reference to the WillowCoopGameInfo template object."""
@@ -134,7 +134,7 @@ class Commander(BL2MOD):
         speed = self.DefaultGameInfo.GameSpeed
         if speed > 0.0625:
             speed /= 2
-            worldInfo = bl2sdk.GetEngine().GetCurrentWorldInfo()
+            worldInfo = unrealsdk.GetEngine().GetCurrentWorldInfo()
             worldInfo.TimeDilation = speed
             self.DefaultGameInfo.GameSpeed = speed
         self.Feedback("Game Speed: " + str(Fraction(speed)))
@@ -143,13 +143,13 @@ class Commander(BL2MOD):
         speed = self.DefaultGameInfo.GameSpeed
         if speed < 32:
             speed *= 2
-            worldInfo = bl2sdk.GetEngine().GetCurrentWorldInfo()
+            worldInfo = unrealsdk.GetEngine().GetCurrentWorldInfo()
             worldInfo.TimeDilation = speed
             self.DefaultGameInfo.GameSpeed = speed
         self.Feedback("Game Speed: " + str(Fraction(speed)))
 
     def ResetGameSpeed(self):
-        worldInfo = bl2sdk.GetEngine().GetCurrentWorldInfo()
+        worldInfo = unrealsdk.GetEngine().GetCurrentWorldInfo()
         worldInfo.TimeDilation = 1.0
         self.DefaultGameInfo.GameSpeed = 1.0
         self.Feedback("Game Speed: 1")
@@ -157,7 +157,7 @@ class Commander(BL2MOD):
     def ToggleHUD(self):
         self.ConsoleCommand("ToggleHUD")
 
-    DamageNumberEmitterObject = bl2sdk.FindObject(
+    DamageNumberEmitterObject = unrealsdk.FindObject(
         "ParticleSystem", "FX_CHAR_Damage_Matrix.Particles.Part_Dynamic_Number"
     )
     DamageNumberEmitters = list(DamageNumberEmitterObject.Emitters)
@@ -190,7 +190,7 @@ class Commander(BL2MOD):
             self.Feedback("Damage Numbers: Off")
 
     def GetMapName(self):
-        return bl2sdk.GetEngine().GetCurrentWorldInfo().GetMapName(True)
+        return unrealsdk.GetEngine().GetCurrentWorldInfo().GetMapName(True)
 
     def GetRotationAndLocation(self):
         # Assume our local player controller is the first in the engine's list.
@@ -243,7 +243,7 @@ class Commander(BL2MOD):
 
     def TogglePlayersOnly(self):
         # Get the current WorldInfo object from the engine.
-        worldInfo = bl2sdk.GetEngine().GetCurrentWorldInfo()
+        worldInfo = unrealsdk.GetEngine().GetCurrentWorldInfo()
         # Get the WorldInfo's current players only state.
         playersOnly = worldInfo.bPlayersOnly
 

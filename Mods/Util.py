@@ -1,6 +1,6 @@
 import sys
-import bl2sdk
-from bl2sdk import *
+import unrealsdk
+from unrealsdk import *
 
 """ A list of the currently loaded modules. """ 
 def getLoadedMods():
@@ -11,7 +11,7 @@ def getLoadedMods():
             # We don't want ourselves.
             if module.__file__.find("Win32\\Mods") != -1 and module.__file__.find("Win32\\Mods\\__init__.py") == -1:
                 properties = module.__dir__()
-                for mod in bl2sdk.Mods: 
+                for mod in unrealsdk.Mods: 
                     if mod.Status != "Disabled" and mod.__class__.__name__ in properties:
                         loadedMods[mod] = module
                         break

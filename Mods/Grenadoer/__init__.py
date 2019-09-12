@@ -1,4 +1,4 @@
-import bl2sdk
+import unrealsdk
 
 from ..ModManager import BL2MOD, RegisterMod
 
@@ -19,11 +19,11 @@ class Grenadoer(BL2MOD):
 		pressed in-game."""
         if input.Name == "Swap Grenade":
             inventoryManager = (
-                bl2sdk.GetEngine().GamePlayers[0].Actor.GetPawnInventoryManager()
+                unrealsdk.GetEngine().GamePlayers[0].Actor.GetPawnInventoryManager()
             )
             for inventory in inventoryManager.Backpack:
                 if (
-                    inventory.Class == bl2sdk.FindClass("WillowGrenadeMod")
+                    inventory.Class == unrealsdk.FindClass("WillowGrenadeMod")
                     and inventory.Mark == 2
                 ):
                     inventoryManager.ReadyBackpackInventory(inventory, 0)
