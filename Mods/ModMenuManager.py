@@ -1,7 +1,5 @@
 import unrealsdk
 from unrealsdk import *
-import mypy
-
 
 """ Here we populate our mod manager with all of our mods that we've got loaded. """
 
