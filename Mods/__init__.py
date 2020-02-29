@@ -1,6 +1,10 @@
 import traceback
 import unrealsdk
 
+# Hack for backwards compatibility
+import sys
+sys.modules['bl2sdk'] = unrealsdk
+
 """ Increment this version any time you update ANY core Python API """
 unrealsdk.PythonManagerVersion = 1
 
