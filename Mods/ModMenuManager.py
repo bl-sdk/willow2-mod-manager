@@ -54,8 +54,29 @@ def HookShopInputKey(caller: UObject, function: UFunction, params: FStruct) -> b
     key = params.ukey
     event = params.uevent
 
-    if key in ["Escape", "Up", "Down"]:
+    ControllerKeyMap = {
+        "Gamepad_LeftStick_Up": "Up",
+        "Gamepad_LeftStick_Down": "Down",
+        "XboxTypeS_A": "Enter",
+        "XboxTypeS_B": "Escape",
+        "XboxTypeS_Y": "Q",
+        "XboxTypeS_LeftTrigger": "PageUp",
+        "XboxTypeS_RightTrigger": "PageDown"
+    }
+    if key in ControllerKeyMap:
+        key = ControllerKeyMap[key]
+
+    if key in ("Escape", "Up", "Down"):
         return True
+
+    if event == 0 or event == 2:
+        # These two are bugged on gearbox's end, we manually fix them
+        if key == "PageUp":
+            caller.ScrollDescription(True)
+            return False
+        elif key == "PageDown":
+            caller.ScrollDescription(False)
+            return False
 
     selectedObject = caller.GetSelectedObject()
     try:
@@ -100,7 +121,7 @@ def HookShopInputKey(caller: UObject, function: UFunction, params: FStruct) -> b
                 pass
             caller.RefreshDLC()
 
-    elif key != "Enter":
+    elif key not in ("Enter", "E", "XboxTypeS_Start", "XboxTypes_X"):
         return True
 
     return False
@@ -179,3 +200,12 @@ def HookContentMenu(caller: UObject, function: UFunction, params: FStruct) -> bo
     return False
 
 RunHook("WillowGame.FrontendGFxMovie.ShowMarketplaceMovie","HookContentMenu", HookContentMenu)
+
+
+def HookMainMenuInput(caller: UObject, function: UFunction, params: FStruct) -> bool:
+    if params.ukey == "M" and params.uevent == 1:
+        caller.ShowMarketplaceMovie()
+    return True
+
+
+RunHook("WillowGame.FrontendGFxMovie.SharedHandleInputKey", "ModMenuBind", HookMainMenuInput)
