@@ -194,6 +194,24 @@ def HookModSelected(caller: UObject, function: UFunction, params: FStruct) -> bo
 
 RunHook("WillowGame.MarketplaceGFxMovie.extOnOfferingChanged","HookModSelected", HookModSelected)
 
+def HookHandleClick(caller: UObject, function: UFunction, params: FStruct) -> bool:
+    if params.EventID == 4:
+        gfxmovie = params.TheList.MyOwnerMovie
+        if(gfxmovie.IsOverlayMenuOpen() == False):
+            WPCOwner = unrealsdk.GetEngine().GamePlayers[0].Actor
+            gfxmovie.CheckDownloadableContentListCompleted(WPCOwner.GetMyControllerId(), True)
+        return False
+    else:
+        return True
+
+RunHook("WillowGame.WillowScrollingListDataProviderFrontEnd.HandleClick", "HookHandleClick", HookHandleClick)
+
+
+def HookGetSubmenuForEvent(caller: UObject, function: UFunction, params: FStruct) -> bool:
+    return (params.EventID != 4)
+
+RunHook("WillowGame.WillowScrollingListDataProviderFrontEnd.GetSubmenuForEvent", "HookGetSubmenuForEvent", HookGetSubmenuForEvent)
+
 def HookContentMenu(caller: UObject, function: UFunction, params: FStruct) -> bool:
     WPCOwner = unrealsdk.GetEngine().GamePlayers[0].Actor
     caller.CheckDownloadableContentListCompleted(WPCOwner.GetMyControllerId(), True)
@@ -204,7 +222,10 @@ RunHook("WillowGame.FrontendGFxMovie.ShowMarketplaceMovie","HookContentMenu", Ho
 
 def HookMainMenuInput(caller: UObject, function: UFunction, params: FStruct) -> bool:
     if params.ukey == "M" and params.uevent == 1:
-        caller.ShowMarketplaceMovie()
+        gfxmovie = caller
+        if(gfxmovie.IsOverlayMenuOpen() == False):
+            WPCOwner = unrealsdk.GetEngine().GamePlayers[0].Actor
+            gfxmovie.CheckDownloadableContentListCompleted(WPCOwner.GetMyControllerId(), True)
     return True
 
 
