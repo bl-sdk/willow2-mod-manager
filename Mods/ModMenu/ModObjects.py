@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import unrealsdk
 import copy
 import enum
+import sys
 from abc import ABCMeta
+from os import path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import KeybindManager
@@ -71,7 +72,13 @@ class Game(enum.Flag):
     @staticmethod
     def GetCurrent() -> Game:
         """ Gets the current game. """
-        return Game.BL2 if unrealsdk.GetEngine().GetEngineVersion() == 8639 else Game.TPS
+        exe = path.basename(sys.executable)
+        exe_lower = exe.lower()
+        if exe_lower == "borderlands2.exe":
+            return Game.BL2
+        elif exe_lower == "borderlandspresequel.exe":
+            return Game.TPS
+        raise RuntimeError(f"Unknown executable name '{exe}'!")
 
 
 class _ModMeta(ABCMeta):

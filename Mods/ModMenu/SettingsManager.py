@@ -96,7 +96,7 @@ def LoadModSettings(mod: ModObjects.SDKMod) -> None:
     try:
         with open(GetSettingsFilePath(mod)) as file:
             settings = json.load(file)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         return
 
     def load_options_dict(options: Sequence[Options.Base], settings: Dict[str, Any]) -> None:
@@ -129,7 +129,7 @@ def LoadModSettings(mod: ModObjects.SDKMod) -> None:
             elif isinstance(option, Options.Nested):
                 load_options_dict(option.Children, value)
 
-    load_options_dict(mod.Options, settings.get(_KEYBINDS_CATEGORY_NAME, {}))
+    load_options_dict(mod.Options, settings.get(_OPTIONS_CATEGORY_NAME, {}))
 
     saved_keybinds = settings.get(_KEYBINDS_CATEGORY_NAME, {})
     for input in mod.Keybinds:
