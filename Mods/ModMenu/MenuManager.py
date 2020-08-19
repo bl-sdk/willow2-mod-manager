@@ -155,6 +155,7 @@ def _FrontEndPopulate(caller: unrealsdk.UObject, function: unrealsdk.UFunction, 
         Using it cause it simplifies the code to replace the caption.
         """
         if params.Caption == "$WillowMenu.WillowScrollingListDataProviderFrontEnd.DLC":
+            unrealsdk.DoInjectedCallNext()
             caller.AddListItem(_MODS_EVENT_ID, _MODS_MENU_NAME, False, False)
             return False
 
@@ -166,6 +167,30 @@ def _FrontEndPopulate(caller: unrealsdk.UObject, function: unrealsdk.UFunction, 
     caller.Populate(params.TheList)
 
     unrealsdk.RemoveHook("WillowGame.WillowScrollingList.AddListItem", "ModMenu.MenuManager")
+    return False
+
+
+def _RefreshDLC(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
+    """
+    This function is called to refresh the DLC menu. We're mostly interested in it because Gearbox
+     has amazing code, and calls `OnDownloadableContentListRead` twice if you're offline.
+
+    This happens right at the end of the function, so it's easiest to just recreate it.
+
+    We can ignore the filter stuff, `OnDownloadableContentListRead` overwrites it right after, and
+     we can also remove the small meaningless loading message that some people get hung up on.
+    """
+    if caller.bDelegateFired:
+        caller.ShowMarketplaceElements(False)
+        caller.SetShoppingTooltips(False, False, False, False, True)
+        caller.SetContentData()
+        caller.bDelegateFired = False
+
+        # Here's the issue: earlier they setup a delegate for this call, but when it fails they
+        #  also manually call the delgate again - we just don't
+        caller.WPCOwner.OnlineSub.ContentInterface.ObjectPointer.ReadDownloadableContentList(
+            caller.WPCOwner.GetMyControllerId()
+        )
     return False
 
 
@@ -189,7 +214,7 @@ def _OnDownloadableContentListRead(caller: unrealsdk.UObject, function: unrealsd
 
     for idx, mod in enumerate(_current_mod_list):
         # This is weird and crashes if you don't have the second arg, but also crashes most the time
-        #  when you try to access something on it
+        #  when you try to access something on it - seems like a garbage pointer
         item, _ = caller.CreateMarketplaceItem()
 
         item.SetString(caller.Prop_offeringId, str(idx), translation_context)
@@ -248,7 +273,7 @@ def _ShopInputKey(caller: unrealsdk.UObject, function: unrealsdk.UFunction, para
         #  were, but we have to call this to actually update the visuals
         # This also resets filters, and for some reason none of the filter functions want to work
         #  right now either :/
-        caller.RefreshDLC()
+        _RefreshDLC(caller, None, None)
 
     if key == "Q":
         if event == KeybindManager.InputEvent.Released:
@@ -386,6 +411,7 @@ def _FrontEndUpdateTooltips(caller: unrealsdk.UObject, function: unrealsdk.UFunc
 
 
 unrealsdk.RunHook("WillowGame.WillowScrollingListDataProviderFrontEnd.Populate", "ModMenu.MenuManager", _FrontEndPopulate)
+unrealsdk.RunHook("WillowGame.MarketplaceGFxMovie.RefreshDLC", "ModMenu.MenuManager", _RefreshDLC)
 unrealsdk.RunHook("WillowGame.MarketplaceGFxMovie.OnDownloadableContentListRead", "ModMenu.MenuManager", _OnDownloadableContentListRead)
 unrealsdk.RunHook("WillowGame.MarketplaceGFxMovie.ShopInputKey", "ModMenu.MenuManager", _ShopInputKey)
 unrealsdk.RunHook("WillowGame.MarketplaceGFxMovie.extOnOfferingChanged", "ModMenu.MenuManager", _extOnOfferingChanged)

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Any, Optional, Sequence, Tuple
 
 from . import DeprecationHelper as dh
-from . import SettingsManager
 
 
 class Base(ABC):
@@ -71,8 +70,6 @@ class Hidden(Value):
         StartingValue: The default value of the option.
         IsHidden: If the option is hidden from the options menu. This is forced to True.
     """
-    _current_value: Any
-
     def __init__(
         self,
         Caption: str,
@@ -107,15 +104,6 @@ class Hidden(Value):
     @IsHidden.setter
     def IsHidden(self, val: bool) -> None:
         pass
-
-    @property
-    def CurrentValue(self) -> Any:
-        return self._current_value
-
-    @CurrentValue.setter
-    def CurrentValue(self, val: Any) -> None:
-        self._current_value = val
-        SettingsManager.SaveAllModSettings()
 
 
 class Slider(Value):

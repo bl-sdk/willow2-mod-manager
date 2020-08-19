@@ -6,18 +6,22 @@ import json
 import os
 
 from ..ModManager import BL2MOD, RegisterMod
+from Mods.ModMenu import Game
 
 class CrossSkillRandomizer(BL2MOD):
+    Name = "Cross Class Skill Randomizer ({})"
     Description = "Randomize all the skills!"
+    
+    SupportedGames = Game.BL2
 
     LocalModDir = os.path.dirname(os.path.realpath(__file__))
 
     def __init__(self, seed=None):
         self.Seed = seed
         if seed:
-            self.Name = "Cross Class Skill Randomizer ({})".format(self.Seed)
+            self.Name = self.Name.format(self.Seed)
         else:
-            self.Name = "Cross Class Skill Randomizer (New Seed)"
+            self.Name = self.Name.format("New Seed")
 
     def RecordSeed(self):
         with open(self.LocalModDir + "\\log.json", "r+") as f:
