@@ -3,7 +3,7 @@ from unrealsdk import *
 
 class MapLoader(BL2MOD):
 	Name = "Borderlands 2 Map Reloader"
-	Description = "Quickly Farm Items in Borderlands 2!"
+	Description = "Quickly Farm Items in Borderlands 2!\nSee Options for more info!"
 	Types = [ModTypes.Utility]
 	Author = "FromDarkHell"
 
@@ -31,8 +31,8 @@ class MapLoader(BL2MOD):
 	Keybinds = [ 
 		["Quickload w/o Saving", "F7"],
 		["Quickload w/ Saving", "F8"],
-		["Toggle Quickload Save States", "F10"],
-		["Consistent Location States", "F5"]
+		["Toggle Location Saving", "F10"],
+		["Save Location", "F5"]
 	]
 
 	def reloadCurrentMap(self, skipSave):
@@ -78,7 +78,7 @@ class MapLoader(BL2MOD):
 		name = input.Name
 		if name == "Quickload w/o Saving" or name == "Quickload w/ Saving":
 			self.reloadCurrentMap(name == "Quickload w/o Saving")
-		elif name == "Toggle Quickload Save States":
+		elif name == "Toggle Location Saving":
 			self.saveLocation = not self.saveLocation
 			state = "Location Saving is now {}".format("enabled" if self.saveLocation else "disabled")
 			Log(state)
@@ -87,10 +87,10 @@ class MapLoader(BL2MOD):
 			# Show a training text for our location state.
 			HUDMovie.ClearTrainingText()
 			HUDMovie.AddTrainingText(state, "Map Loader", 2.0 * self.DefaultGameInfo.GameSpeed, (), "", False, 0, pc.PlayerReplicationInfo, True, 0, 0)
-		elif name == "Consistent Location States":
+		elif name == "Save Location":
 			self.toggledLocation = True
 			self.consistentLocation = not self.consistentLocation
-			state = "Consistent Location States is now {}".format("enabled" if self.consistentLocation else "disabled")
+			state = "Save Location is now {} (will happen on quickload quit)".format("enabled" if self.consistentLocation else "disabled")
 			Log(state)
 			pc = GetEngine().GamePlayers[0].Actor
 			HUDMovie = pc.myHUD.HUDMovie
