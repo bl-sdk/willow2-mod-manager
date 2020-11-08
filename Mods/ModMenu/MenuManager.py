@@ -380,8 +380,9 @@ def _FrontEndUpdateTooltips(caller: unrealsdk.UObject, function: unrealsdk.UFunc
     if caller.WPCOwner.WorldInfo.NetMode == 3:
         # There's no easy len() :/
         count = 0
-        for i in caller.TheList.DataProviderStack:
-            count += 1
+        if caller.TheList is not None:
+            for i in caller.TheList.DataProviderStack:
+                count += 1
         if count <= 1:
             cancel = caller.DisconnectString
     tooltip += caller.TooltipSpacing + caller.CancelTooltip.replace("%PLAYER1", cancel)
