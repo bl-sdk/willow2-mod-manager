@@ -1,13 +1,30 @@
 import unrealsdk
 import inspect
+import functools
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import ClassVar, Dict
+from typing import Callable, ClassVar, Dict, Optional, Union
 
 from . import DeprecationHelper as dh
 from . import MenuManager
 from . import ModObjects
 from . import SettingsManager
+
+
+class InputEvent(IntEnum):
+    """
+    Any enum holding the various input event types.
+
+    Sourced from https://docs.unrealengine.com/en-US/API/Runtime/Engine/Engine/EInputEvent/index.html
+    """
+    Pressed = 0
+    Released = 1
+    Repeat = 2
+    DoubleClick = 3
+    Axis = 4
+
+
+KeybindCallback = Union[Callable[[], None], Callable[[InputEvent], None]]
 
 
 @dataclass
@@ -20,10 +37,25 @@ class Keybind:
         Key:
             The key this bind is currently bound to. See the following link for reference.
             https://api.unrealengine.com/udk/Three/KeyBinds.html#Mappable%20keys
+        IsRebindable:
+            If this bind can be rebound. If not, it also won't be placed in the settings file. Note
+             that this does not prevent changing the value on this object manually.
+        IsHidden: If the keybind should be hidden from the keybinds menu.
+
+        OnPress:
+            A callback for when the key is pressed. If provided, it will be called instead of the
+             mod's `GameInputPressed`. If it accepts an argument, it will get passed an `InputEvent`
+             value, and be called on any event. If it doesn't, it will only be called on `Pressed`
+             events.
+
         DefaultKey: The original value of Key. You do not provide this, it is set automatically.
     """
     Name: str
     Key: str = "None"
+    IsRebindable: bool = True
+    IsHidden: bool = False
+
+    OnPress: Optional[KeybindCallback] = None
 
     DefaultKey: str = field(default=Key, init=False)
 
@@ -57,19 +89,6 @@ class Keybind:
             raise IndexError("list index out of range")
 
 
-class InputEvent(IntEnum):
-    """
-    Any enum holding the various input event types.
-
-    Sourced from https://docs.unrealengine.com/en-US/API/Runtime/Engine/Engine/EInputEvent/index.html
-    """
-    Pressed = 0
-    Released = 1
-    Repeat = 2
-    DoubleClick = 3
-    Axis = 4
-
-
 """
 We put all keybinds into their own "MODDED KEYBINDS" menu.
 It's important to realize however that, internally, it's still the exact same menu as the one for
@@ -88,6 +107,7 @@ _MODDED_KEYBINDS_CAPTION: str = _MODDED_CONTROLLER_NAME.upper()
 
 _TAG_MODDED: str = "unrealsdk"
 _TAG_SEPERATOR: str = f"{_TAG_MODDED}.seperator"
+_TAG_UNREBINDABLE: str = f"{_TAG_MODDED}.unrebindable"
 _TAG_INPUT: str = f"{_TAG_MODDED}.input"
 
 _INDENT: int = 4
@@ -185,25 +205,36 @@ def _extOnPopulateKeys(caller: unrealsdk.UObject, function: unrealsdk.UFunction,
         if not mod.IsEnabled:
             continue
 
-        if len(mod.Keybinds) > 0:
-            tag = f"{_TAG_SEPERATOR}.{mod.Name}"
-            idx = caller.AddKeyBindEntry(tag, tag, mod.Name)
-            caller.KeyBinds[idx].CurrentKey = "None"
+        if all(k.IsHidden for k in mod.Keybinds):
+            continue
+
+        tag = f"{_TAG_SEPERATOR}.{mod.Name}"
+        idx = caller.AddKeyBindEntry(tag, tag, mod.Name)
+        caller.KeyBinds[idx].CurrentKey = "None"
 
         for input in mod.Keybinds:
             name: str
             key: str
+            rebindable: bool
             if isinstance(input, Keybind):
+                if input.IsHidden:
+                    continue
                 name = input.Name
                 key = input.Key
+                rebindable = input.IsRebindable
             else:
                 dh.PrintWarning(Keybind._list_deprecation_warning)
                 name = input[0]
                 key = input[1]
+                rebindable = True
 
-            tag = f"{_TAG_INPUT}.{mod.Name}.{name}"
+            tag = (_TAG_INPUT if rebindable else _TAG_UNREBINDABLE) + f".{mod.Name}.{name}"
             idx = caller.AddKeyBindEntry(tag, tag, " " * _INDENT + name)
+
             _modded_keybind_map[idx] = input
+
+            if not rebindable:
+                key = "[ ]" if key == "None" else f"[ {key} ]"
             caller.KeyBinds[idx].CurrentKey = key
 
     return False
@@ -250,8 +281,12 @@ def _HandleSelectionChangeRollover(caller: unrealsdk.UObject, function: unrealsd
 
 
 def _DoBind(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
-    """ This function is called when you start rebinding a key, going to block it on seperators. """
-    if caller.KeyBinds[caller.CurrentKeyBindSelection].Tag.startswith(_TAG_SEPERATOR):
+    """
+    This function is called when you start rebinding a key, blocking it on seperators and uneditable
+    keybinds.
+    """
+    tag = caller.KeyBinds[caller.CurrentKeyBindSelection].Tag
+    if tag.startswith(_TAG_SEPERATOR) or tag.startswith(_TAG_UNREBINDABLE):
         return False
     return True
 
@@ -412,13 +447,17 @@ def _InputKey(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: 
             if returned_input.Key != params.Key:
                 continue
 
-            # Legacy callbacks only have one argument, and only respond to pressed events
-            if len(inspect.signature(mod.GameInputPressed).parameters) == 1:
+            # Prefer the callback
+            function = (
+                returned_input.OnPress or functools.partial(mod.GameInputPressed, returned_input)
+            )
+
+            if len(inspect.signature(function).parameters) == 0:
                 if params.Event == InputEvent.Pressed:
-                    mod.GameInputPressed(returned_input)  # type: ignore
+                    function()
                     return False
             else:
-                mod.GameInputPressed(returned_input, params.Event)
+                function(InputEvent(params.Event))
                 return False
     return True
 

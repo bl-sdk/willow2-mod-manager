@@ -55,10 +55,12 @@ def SaveModSettings(mod: ModObjects.SDKMod) -> None:
 
         mod_settings[_OPTIONS_CATEGORY_NAME] = create_options_dict(mod.Options)
 
-    if len(mod.Keybinds) > 0:
+    if any(k.IsRebindable for k in mod.Keybinds):
         mod_settings[_KEYBINDS_CATEGORY_NAME] = {}
         for input in mod.Keybinds:
             if isinstance(input, KeybindManager.Keybind):
+                if not input.IsRebindable:
+                    continue
                 mod_settings[_KEYBINDS_CATEGORY_NAME][input.Name] = input.Key
             else:
                 dh.PrintWarning(KeybindManager.Keybind._list_deprecation_warning)
