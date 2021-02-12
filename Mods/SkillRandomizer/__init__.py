@@ -8,13 +8,14 @@ import os
 from ..ModManager import BL2MOD, RegisterMod
 from Mods.ModMenu import Game
 
-class CrossSkillRandomizer(BL2MOD):
-    Name = "Cross Class Skill Randomizer ({})"
-    Description = "Randomize all the skills!"
-    
-    SupportedGames = Game.BL2
 
-    LocalModDir = os.path.dirname(os.path.realpath(__file__))
+class CrossSkillRandomizer(BL2MOD):
+    Name: str = "Cross Class Skill Randomizer ({})"
+    Description: str = "Randomize all the skills!"
+    Version: str = "1.1"
+    Author: str = "Abahbob"
+    SupportedGames = Game.BL2
+    LocalModDir: str = os.path.dirname(os.path.realpath(__file__))
 
     def __init__(self, seed=None):
         self.Seed = seed
@@ -23,7 +24,7 @@ class CrossSkillRandomizer(BL2MOD):
         else:
             self.Name = self.Name.format("New Seed")
 
-    def RecordSeed(self):
+    def RecordSeed(self) -> None:
         with open(self.LocalModDir + "\\log.json", "r+") as f:
             history = json.loads(f.read())
             if self.Seed in history:
@@ -36,26 +37,25 @@ class CrossSkillRandomizer(BL2MOD):
             NewRando = CrossSkillRandomizer()
             unrealsdk.Mods.insert(0, NewRando)
 
-    def Enable(self):
-        def InjectSkills(caller: UObject, function: UFunction, params: FStruct) -> bool:
-            if not self.Seed:
-                self.Seed = random.randrange(sys.maxsize)
-                unrealsdk.Log("Randomizing with seed '{}'".format(self.Seed))
-                self.RNG = random.Random(self.Seed)
-                self.RecordSeed()
-            else:
-                self.RNG = random.Random(self.Seed)
-            self.RandomizeTree(params.SkillTreeDef)
-            return True
+    @Hook("WillowGame.PlayerSkillTree.Initialize")
+    def InjectSkills(caller: UObject, function: UFunction, params: FStruct) -> bool:
+        if not self.Seed:
+            self.Seed = random.randrange(sys.maxsize)
+            unrealsdk.Log("Randomizing with seed '{}'".format(self.Seed))
+            self.RNG = random.Random(self.Seed)
+            self.RecordSeed()
+        else:
+            self.RNG = random.Random(self.Seed)
+        self.RandomizeTree(params.SkillTreeDef)
+        return True
 
-        unrealsdk.RegisterHook(
-            "WillowGame.PlayerSkillTree.Initialize", "InjectSkills", InjectSkills
-        )
+    def Enable(self) -> None:
+        super().Enable()
 
-    def Disable(self):
-        unrealsdk.RemoveHook("WillowGame.PlayerSkillTree.Initialize", "InjectSkills")
+    def Disable(self) -> None:
+        ModMenu.RemoveHooks(self)
 
-    def PreloadPackages(self):
+    def PreloadPackages(self) -> None:
         packages = [
             "GD_Assassin_Streaming_SF",
             "GD_Mercenary_Streaming_SF",
@@ -68,7 +68,7 @@ class CrossSkillRandomizer(BL2MOD):
         for package in packages:
             unrealsdk.LoadPackage(package)
 
-    def RandomizeTree(self, SkillTreeDef):
+    def RandomizeTree(self, SkillTreeDef) -> None:
         # SkillTreeDef.Root = GD_<Class>_Skills.SkillTree.Branch_ActionSkill_<ActionSkill>
         CurrentClass = SkillTreeDef.Root.Outer.Outer.GetName().split("_")[-2]
         self.ValidSkills = self.ClassSkills[CurrentClass].copy()
@@ -76,7 +76,7 @@ class CrossSkillRandomizer(BL2MOD):
         for Branch in SkillTreeDef.Root.Children:
             self.RandomizeBranch(Branch)
 
-    def RandomizeBranch(self, SkillTreeBranchDef):
+    def RandomizeBranch(self, SkillTreeBranchDef) -> None:
         self.PreloadPackages()
         TierCountOdds = [95, 40, 80, 30, 80, 40]
         HasBloodlust = False
@@ -87,11 +87,7 @@ class CrossSkillRandomizer(BL2MOD):
             MaxPoints = 0
             NewSkills = []
             for Skill in range(3):
-                if (
-                    self.RNG.randint(0, 100) < TierCountOdds[Tier]
-                    or Skill == 2
-                    and Pity
-                ):
+                if self.RNG.randint(0, 100) < TierCountOdds[Tier] or Skill == 2 and Pity:
                     if Skill == 2 and Pity:
                         Skill = self.RNG.randint(0, 2)
                     Pity = False
@@ -111,11 +107,7 @@ class CrossSkillRandomizer(BL2MOD):
                     if SkillDef.GetName() == "Anarchy":
                         self.ValidSkills += self.AnarchySkills
             if HasBloodlust:
-                NewSkills.append(
-                    unrealsdk.FindObject(
-                        "SkillDefinition", "GD_Lilac_Skills_Bloodlust.Skills._Bloodlust"
-                    )
-                )
+                NewSkills.append(unrealsdk.FindObject("SkillDefinition", "GD_Lilac_Skills_Bloodlust.Skills._Bloodlust"))
             if HasHellborn:
                 NewSkills.append(
                     unrealsdk.FindObject(

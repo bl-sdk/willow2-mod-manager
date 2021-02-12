@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import copy
 import enum
+import json
 import sys
 from abc import ABCMeta
 from os import path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
+from . import HookManager
 from . import KeybindManager
+from . import NetworkManager
 from . import OptionManager
 from . import SettingsManager
 
@@ -100,6 +103,8 @@ class _ModMeta(ABCMeta):
         "SettingsInputs",
         "Options",
         "Keybinds",
+        "_server_functions",
+        "_client_functions",
         "_is_enabled",
     )
 
@@ -108,6 +113,15 @@ class _ModMeta(ABCMeta):
 
         for name in _ModMeta.Attributes:
             setattr(cls, name, copy.copy(getattr(cls, name)))
+
+        functions = (attribute for attribute in cls.__dict__.values() if callable(attribute))
+        for function in functions:
+            method_sender = NetworkManager._find_method_sender(function)
+            if method_sender is not None:
+                if method_sender._is_server:
+                    cls._server_functions.add(method_sender)
+                if method_sender._is_client:
+                    cls._client_functions.add(method_sender)
 
 
 class SDKMod(metaclass=_ModMeta):
@@ -161,6 +175,9 @@ class SDKMod(metaclass=_ModMeta):
     Options: Sequence[OptionManager.Options.Base] = []
     Keybinds: Sequence[KeybindManager.Keybind] = []
 
+    _server_functions: Set[Callable[..., None]] = set()
+    _client_functions: Set[Callable[..., None]] = set()
+
     _is_enabled: Optional[bool] = None
 
     @property
@@ -194,14 +211,25 @@ class SDKMod(metaclass=_ModMeta):
             inst.Description += (
                 f"<font color=\"#FF0000\">Incompatible with {Game.GetCurrent().name}!</font>"
             )
+
         return inst
 
     def Enable(self) -> None:
-        """ Called by the mod manager to enable the mod. """
+        """
+        Called by the mod manager to enable the mod. The default implementation calls
+        ModMenu.RegisterHooks(self) and ModMenu.RegisterNetworkMethods(self) on the mod.
+        """
+        HookManager.RegisterHooks(self)
+        NetworkManager.RegisterNetworkMethods(self)
         pass
 
     def Disable(self) -> None:
-        """ Called by the mod manager to disable the mod. """
+        """
+        Called by the mod manager to disable the mod. The default implementation calls
+        ModMenu.UnregisterHooks(self) and ModMenu.UnregisterNetworkMethods(self) on the mod.
+        """
+        HookManager.RemoveHooks(self)
+        NetworkManager.UnregisterNetworkMethods(self)
         pass
 
     def SettingsInputPressed(self, action: str) -> None:
@@ -272,3 +300,32 @@ class SDKMod(metaclass=_ModMeta):
             new_value: The new value which `option.CurrentValue` will be updated to.
         """
         pass
+
+    @staticmethod
+    def NetworkSerialize(arguments: dict) -> str:
+        """
+        Called when instances of this class invoke methods decorated with `@ModMenu.ServerMethod`
+        or `@ModMenu.ClientMethod`, performing the serialization of any arguments passed to said
+        methods. The default implementation uses `json.dumps()`.
+        Arguments:
+            arguments:
+                The arguments that need to be serialized. The top-level object passed will be a
+                `dict` keyed with `str`, containing a `list` as well as another `dict`.
+        Returns:
+            The arguments serialized into a text string.
+        """
+        return json.dumps(arguments)
+
+    @staticmethod
+    def NetworkDeserialize(serialized: str) -> dict:
+        """
+        Called when instances of this class receive requests for methods decorated with
+        `@ModMenu.ServerMethod` or `@ModMenu.ClientMethod`, performing the deserialization of any
+        arguments passed to said methods. The default implementation uses `json.loads()`.
+        Arguments:
+            serialized:
+                The string containing the serialized arguments as returned by 'NetworkSerialize'.
+        Returns:
+            The deserialized arguments in the same format as they were passed to `NetworkSerialize`.
+        """
+        return json.loads(serialized)

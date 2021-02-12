@@ -1,162 +1,173 @@
+import unrealsdk
 from unrealsdk import *
+from Mods import ModMenu
+from Mods.ModMenu import EnabledSaveType, Mods, ModTypes, Options, RegisterMod, SDKMod, Hook
+from typing import List
 
 
-class MapLoader(BL2MOD):
-	Name = "Borderlands 2 Map Reloader"
-	Description = "Quickly Farm Items in Borderlands 2!\nSee Options for more info!"
-	Types = [ModTypes.Utility]
-	Author = "FromDarkHell"
-
-	def __init__(self):
-		# Our rotation etc etc
-		self.X = 0
-		self.Y = 0
-		self.Z = 0
-		self.Pitch = 0
-		self.Yaw = 0
-		self.Roll = 0
-
-		# It might be a good idea to restore our position after a load.
-		self.saveLocation = True
-		self.loading = False
-		self.consistentLocation = False
-		self.toggledLocation = False
-
-		# Store some data that we can use to reload the map
-		self.currentSelectedDifficulty = 0
-		self.currentSelectedOverpowerLevel = 0
-
-		self.DefaultGameInfo = UObject.FindObjectsContaining("WillowCoopGameInfo WillowGame.Default__WillowCoopGameInfo")[0]
-
-	Keybinds = [ 
-		["Quickload w/o Saving", "F7"],
-		["Quickload w/ Saving", "F8"],
-		["Toggle Location Saving", "F10"],
-		["Save Location", "F5"]
-	]
-
-	def reloadCurrentMap(self, skipSave):
-		PC = GetEngine().GamePlayers[0].Actor
-		if self.toggledLocation:
-			if self.consistentLocation:
-				locale = PC.Pawn.Location
-				self.X = locale.X
-				self.Y = locale.Y
-				self.Z = locale.Z
-				rotate = PC.Rotation
-				self.Pitch = rotate.Pitch
-				self.Yaw = rotate.Yaw
-				self.Roll = rotate.Roll
-		else:
-			if not self.consistentLocation:
-				locale = PC.Pawn.Location
-				self.X = locale.X
-				self.Y = locale.Y
-				self.Z = locale.Z
-				rotate = PC.Rotation
-				self.Pitch = rotate.Pitch
-				self.Yaw = rotate.Yaw
-				self.Roll = rotate.Roll
-
-		self.toggledLocation = False
-		# Our currently selected difficulty for the main menu
-		self.currentSelectedDifficulty = PC.GetCurrentPlaythrough()
-		# Get our current save game we'll need it for the OP levels
-		wsg = PC.GetCachedSaveGame()
-		# Our current OP level if we need it, game is weird
-		if wsg.LastOverpowerChoice and wsg.NumOverpowerLevelsUnlocked:
-			self.currentSelectedOverpowerLevel = max(min(wsg.LastOverpowerChoice, wsg.NumOverpowerLevelsUnlocked), 0)
-		else: 
-			self.currentSelectedOverpowerLevel = -1
-
-		# Load Map
-		self.loading = True
-		# This is the function that BL2 uses for save quits.
-		PC.ReturnToTitleScreen(skipSave, False)
-
-	def GameInputPressed(self,  input):
-		name = input.Name
-		if name == "Quickload w/o Saving" or name == "Quickload w/ Saving":
-			self.reloadCurrentMap(name == "Quickload w/o Saving")
-		elif name == "Toggle Location Saving":
-			self.saveLocation = not self.saveLocation
-			state = "Location Saving is now {}".format("enabled" if self.saveLocation else "disabled")
-			Log(state)
-			pc = GetEngine().GamePlayers[0].Actor
-			HUDMovie = pc.myHUD.HUDMovie
-			# Show a training text for our location state.
-			HUDMovie.ClearTrainingText()
-			HUDMovie.AddTrainingText(state, "Map Loader", 2.0 * self.DefaultGameInfo.GameSpeed, (), "", False, 0, pc.PlayerReplicationInfo, True, 0, 0)
-		elif name == "Save Location":
-			self.toggledLocation = True
-			self.consistentLocation = not self.consistentLocation
-			state = "Save Location is now {} (will happen on quickload quit)".format("enabled" if self.consistentLocation else "disabled")
-			Log(state)
-			pc = GetEngine().GamePlayers[0].Actor
-			HUDMovie = pc.myHUD.HUDMovie
-			# Show a training text for our location state.
-			HUDMovie.ClearTrainingText()
-			HUDMovie.AddTrainingText(state, "Map Loader", 2.0 * self.DefaultGameInfo.GameSpeed, (), "", False, 0, pc.PlayerReplicationInfo, True, 0, 0)
-
-	def GameInputRebound(self, name, key):
-		"""Invoked by the SDK when one of the inputs we have registered for is
-		rebound by the user. Use it to save our settings for the key binding."""
-		pass
-
-	def Enable(self):
-
-		def map_load_hook(caller: UObject, function: UFunction, params: FStruct):
-			if self.saveLocation and self.loading:
-				pc = GetEngine().GamePlayers[0].Actor
-				HUDMovie = pc.myHUD.HUDMovie
-				# PC is sometimes none when the hooked function is called, this means this execution of the hook is running to early.
-				# Same thing with the HUDMovie.
-				if pc.Pawn is None or HUDMovie is None:
-					return True
-				# Restore our location.
-				locale = pc.Pawn.Location
-				locale.X = self.X
-				locale.Y = self.Y
-				locale.Z = self.Z
-				rotate = pc.Rotation
-				rotate.Roll = self.Roll
-				rotate.Pitch = self.Pitch
-				rotate.Yaw = self.Yaw
-
-				HUDMovie.ClearTrainingText()
-				HUDMovie.AddTrainingText("Farming Location Restored", "Map Loader", 3.0 * self.DefaultGameInfo.GameSpeed, (), "", False, 0, pc.PlayerReplicationInfo, True, 0, 0)
-				# Restore our rotation to the saved values.
-
-			self.loading = False
-			return True
-		   
-		def main_menu_hook(caller: UObject, function: UFunction, params: FStruct):
-			try:
-				if self.loading:
-					PC = GetEngine().GamePlayers[0].Actor
-					# We'll need this to reload to the current difficulty.
-					gfx = UObject.FindObjectsContaining("FrontendGFxMovie ")[1]
-					if gfx is None or PC is None:
-						return True
-					# This is how the game knows what OP level we're on.
-					if self.currentSelectedOverpowerLevel != -1:
-						PC.OnSelectOverpowerLevel(PC.GetCachedSaveGame(), self.currentSelectedOverpowerLevel)
-						# I don't *think* this does anything, might want to do it just in case. Weird Game.
-						gfx.CurrentSelectedOverpowerLevel = self.currentSelectedOverpowerLevel
-					Log("[Map Loader] Loading WSG on playthrough %s at OP %s" % (self.currentSelectedDifficulty, self.currentSelectedOverpowerLevel))
-					# Here we reload our save, like how the `Continue` button does.
-					gfx.LaunchSaveGame(self.currentSelectedDifficulty)
-			except: pass
-			return True
-
-		# This is how we know that we're in the main menu. Its slightly janky, but it works.
-		RegisterHook("WillowGame.FrontendGFxMovie.OnTick", "HookMainMenu", main_menu_hook)
-		# This is how we know that we've loaded a new map. Once again, janky.
-		RegisterHook("WillowGame.WillowHUD.CreateWeaponScopeMovie", "MapHookLoad", map_load_hook)
-
-	def Disable(self):
-		RemoveHook("WillowGame.FrontendGFxMovie.OnTick", "HookMainMenu")
-		RemoveHook("WillowGame.WillowHUD.CreateWeaponScopeMovie", "MapHookLoad")
+_DefaultGameInfo = UObject.FindObjectsContaining("WillowCoopGameInfo WillowGame.Default__WillowCoopGameInfo")[0]
 
 
-RegisterMod(MapLoader())
+def _DisplayFeedback(message, time=2.0) -> None:
+    playerController = GetEngine().GamePlayers[0].Actor
+    HUDMovie = playerController.GetHUDMovie()
+    if HUDMovie is None:
+        return
+    duration = time * _DefaultGameInfo.GameSpeed
+    HUDMovie.ClearTrainingText()
+    HUDMovie.AddTrainingText(
+        message, "Map Loader", duration, (), "", False, 0, playerController.PlayerReplicationInfo, True
+    )
+
+
+def _StoreLocation() -> None:
+    PC = GetEngine().GamePlayers[0].Actor
+    locale = PC.Pawn.Location
+    _Position = [locale.X, locale.Y, locale.Z]
+    _ModInstance.Coords[0] = locale.X
+    _ModInstance.Coords[1] = locale.Y
+    _ModInstance.Coords[2] = locale.Z
+    rotate = PC.Rotation
+    _ModInstance.Rotation[0] = rotate.Pitch
+    _ModInstance.Rotation[1] = rotate.Roll
+    _ModInstance.Rotation[2] = rotate.Yaw
+    Log(f"[Map Loader] Storing location: ({_ModInstance.Coords}), ({_ModInstance.Rotation})")
+
+
+def _RestoreLocation() -> None:
+    PC = GetEngine().GamePlayers[0].Actor
+    # Restore our location.
+    PC.Pawn.Location.X = _ModInstance.Coords[0]
+    PC.Pawn.Location.Y = _ModInstance.Coords[1]
+    PC.Pawn.Location.Z = _ModInstance.Coords[2]
+    Log(f"[Map Loader] Restoring location: ({_ModInstance.Coords}), ({_ModInstance.Rotation})")
+    rotate = PC.Rotation
+    rotate.Pitch = _ModInstance.Rotation[0]
+    rotate.Roll = _ModInstance.Rotation[1]
+    rotate.Yaw = _ModInstance.Rotation[2]
+
+
+def _ReloadCurrentMap(skipSave):
+    PC = GetEngine().GamePlayers[0].Actor
+    if _ModInstance.toggledLocation:
+        if _ModInstance.consistentLocation:
+            _StoreLocation()
+    else:
+        if not _ModInstance.consistentLocation:
+            _StoreLocation()
+
+    _ModInstance.toggledLocation = False
+    # Our currently selected difficulty for the main menu
+    _ModInstance.SelectedDifficulty = PC.GetCurrentPlaythrough()
+    # Get our current save game we'll need it for the OP levels
+    wsg = PC.GetCachedSaveGame()
+
+    # Our current OP level if we need it, game is weird
+    if wsg.LastOverpowerChoice and wsg.NumOverpowerLevelsUnlocked:
+        _ModInstance.OverpoweredLevel = max(min(wsg.LastOverpowerChoice, wsg.NumOverpowerLevelsUnlocked), 0)
+    else:
+        _ModInstance.OverpoweredLevel = -1
+
+    # Load Map
+    _ModInstance.loading = True
+    # This is the function that BL2 uses for save quits.
+    # ReturnToTitleScreen(optional bool bSkipSave, optional bool bRemoveSplitPlayer)
+    #   (In the SDK, optional arguments aren't optional)
+
+    PC.ReturnToTitleScreen(skipSave, False)
+
+
+@Hook("WillowGame.WillowHUD.CreateWeaponScopeMovie")
+def _MapLoadHook(caller: UObject, function: UFunction, params: FStruct) -> None:
+    if _ModInstance.restoreLocation and _ModInstance.loading:
+        pc = GetEngine().GamePlayers[0].Actor
+        HUDMovie = pc.myHUD.HUDMovie
+        # PC is sometimes none when the hooked function is called, this means that the hook is running to early.
+        # Same thing with the HUDMovie.
+        if pc.Pawn is None or HUDMovie is None:
+            return True
+        _RestoreLocation()
+        _DisplayFeedback("Farming Location Restored", 3.0)
+        _ModInstance.loading = False
+    return True
+
+
+# This is how we know that we're in the main menu. Its slightly janky, but it works.
+@Hook("WillowGame.FrontendGFxMovie.OnTick")
+def _MainMenuHook(caller: UObject, function: UFunction, params: FStruct) -> None:
+    try:
+        if _ModInstance.loading == True:
+            PC = GetEngine().GamePlayers[0].Actor
+            # We'll need this to reload to the current difficulty.
+            gfx = UObject.FindObjectsContaining("FrontendGFxMovie ")[1]
+            if gfx is None or PC is None:
+                return True
+            # This is how the game knows what OP level we're on.
+            if _ModInstance.OverpoweredLevel != -1:
+                PC.OnSelectOverpowerLevel(PC.GetCachedSaveGame(), _ModInstance.OverpoweredLevel)
+                # I don't *think* this does anything, might want to do it just in case. Weird Game.
+                gfx.CurrentSelectedOverpowerLevel = _ModInstance.OverpoweredLevel
+            Log(f"[Map Loader] Loading WSG @ {_ModInstance.SelectedDifficulty}, OP{_ModInstance.OverpoweredLevel}")
+            # Here we reload our save, like how the `Continue` button does.
+            gfx.LaunchSaveGame(_ModInstance.SelectedDifficulty)
+    except:
+        pass
+    return True
+
+
+class MapLoader(SDKMod):
+    Name: str = "Borderlands 2 Map Reloader"
+    Version: str = "1.1"
+    Author: str = "FromDarkHell"
+    Description: str = "Quickly farm items and save quit at a button press!\n\nLocation Restore: Whether to restore location on quickload"
+    Types: ModTypes = ModTypes.Utility
+    SaveEnabledState: EnabledSaveType = EnabledSaveType.LoadWithSettings
+
+    Keybinds: List[ModMenu.Keybind] = [
+        ModMenu.Keybind("Quickload w/o Saving", "F7"),
+        ModMenu.Keybind("Quickload w/ Saving", "F8"),
+        ModMenu.Keybind("Toggle Location Restore", "F10"),
+        ModMenu.Keybind("Save Location", "F5"),
+    ]
+
+    def __init__(self):
+        # It might be a good idea to restore our position after a load.
+        self.restoreLocation = True
+        self.loading = False
+        self.consistentLocation = False
+        self.toggledLocation = False
+        # Store some data that we can use to reload the map
+        self.SelectedDifficulty = 0
+        self.OverpoweredLevel = 0
+        self.Coords = [0, 0, 0]  # X, Y, Z
+        self.Rotation = [0, 0, 0]  # Pitch, Roll, Yaw
+
+    def GameInputPressed(self, input) -> None:
+        name = input.Name
+        if name == "Quickload w/o Saving":
+            _ReloadCurrentMap(True)
+        elif name == "Quickload w/ Saving":
+            _ReloadCurrentMap(False)
+        elif name == "Toggle Location Restore":
+            self.restoreLocation = not self.restoreLocation
+            state = "Location restoration is now {}".format("enabled" if self.restoreLocation else "disabled")
+            Log(f"[Map Loader] {state}")
+            _DisplayFeedback(state)
+        elif name == "Save Location":
+            self.toggledLocation = True
+            self.consistentLocation = not self.consistentLocation
+            state = "Save Location is now {}".format(
+                "enabled (Saves on quickload quit)" if self.consistentLocation else "disabled"
+            )
+            Log(f"[Map Loader] {state}")
+            _DisplayFeedback(state)
+
+    def Enable(self) -> None:
+        super().Enable()
+
+    def Disable(self) -> None:
+        ModMenu.RemoveHooks(self)
+
+
+_ModInstance = MapLoader()
+RegisterMod(_ModInstance)
