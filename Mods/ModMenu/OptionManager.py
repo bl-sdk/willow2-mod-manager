@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import unrealsdk
-from typing import Any, List, Sequence
+from typing import Any, List, Sequence, Tuple
 
-from . import MenuManager
-from . import ModObjects
-from . import Options
-from . import SettingsManager
+from . import MenuManager, ModObjects, Options, SettingsManager
+
+__all__: Tuple[str, ...] = ()
+
 
 _modded_data_provider_stack: List[unrealsdk.UObject] = []
 _nested_options_stack: List[Options.Nested] = []
@@ -117,11 +117,13 @@ def _WillowScrollingListOnClikEvent(caller: unrealsdk.UObject, function: unreals
         elif isinstance(option, Options.Field):
             return False
 
-    elif provider.Class.Name == "WillowScrollingListDataProviderTopLevelOptions":
-        if caller.IndexToEventId[params.Data.Index] == _MOD_OPTIONS_EVENT_ID:
-            caller.MyOwnerMovie.PlayUISound("MenuOpen")
-            caller.PushDataProvider(_create_data_provider(_MOD_OPTIONS_MENU_NAME))
-            return False
+    elif (
+        provider.Class.Name == "WillowScrollingListDataProviderTopLevelOptions"
+        and caller.IndexToEventId[params.Data.Index] == _MOD_OPTIONS_EVENT_ID
+    ):
+        caller.MyOwnerMovie.PlayUISound("MenuOpen")
+        caller.PushDataProvider(_create_data_provider(_MOD_OPTIONS_MENU_NAME))
+        return False
 
     return True
 
@@ -225,15 +227,14 @@ def _HandleSpinnerSliderChange(caller: unrealsdk.UObject, function: unrealsdk.UF
         raise RuntimeError(f"Option of bad type '{type(changed_option)}' somehow changed value.")
 
     def in_option_list(option_list: Sequence[Options.Base]) -> bool:
-        for option in option_list:
-            if option == changed_option:
-                return True
-            elif isinstance(option, Options.Nested):
-                if in_option_list(option.Children):
-                    return True
-        return False
+        return any(
+            in_option_list(option.Children)
+            if isinstance(option, Options.Nested)
+            else option == changed_option
+            for option in option_list
+        )
 
-    for mod in unrealsdk.Mods:
+    for mod in ModObjects.Mods:
         if in_option_list(mod.Options):
             # Calling this before updating the value
             mod.ModOptionChanged(changed_option, new_value)

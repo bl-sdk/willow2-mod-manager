@@ -6,14 +6,22 @@ import inspect
 import traceback
 from collections import deque
 from time import time
-from typing import Any, Callable
+from typing import Any, Callable, Deque, Dict, Optional, Set, Tuple, Union
 
 from . import ModObjects
 
+__all__: Tuple[str, ...] = (
+    "ClientMethod",
+    "NetworkArgsDict",
+    "RegisterNetworkMethods",
+    "ServerMethod",
+    "UnregisterNetworkMethods",
+)
 
-_message_queue = deque()
+NetworkArgsDict = Dict[str, Union[Dict[str, Any], Tuple[Any, ...]]]
 
-class _message():
+
+class _Message():
     """
     A simple class that tracks the various pieces of information involved in, and facilitates the
     # sending of, a network message.
@@ -27,7 +35,14 @@ class _message():
         timeout: `None` if the message has been sent, otherwise a float representing the real time
             it will time out.
     """
-    def __init__(self, PC: unrealsdk.UObject, message_type: str, arguments: str, server: bool):
+    ID: str
+    PC: unrealsdk.UObject
+    message_type: str
+    arguments: str
+    server: bool
+    timeout: Optional[float]
+
+    def __init__(self, PC: unrealsdk.UObject, message_type: str, arguments: str, server: bool) -> None:
         """
         Create a new message.
 
@@ -54,13 +69,18 @@ class _message():
         self.timeout = time() + self.PC.PlayerReplicationInfo.ExactPing * 4
 
 
-def _PlayerTick(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct):
-    if time() > _message_queue[0].timeout:
+_message_queue: Deque[_Message] = deque()
+
+
+def _PlayerTick(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
+    timeout = _message_queue[0].timeout
+    if timeout is not None and timeout < time():
         _dequeue_message()
     return True
 
-def _enqueue_message(message: _message) -> None:
-    """Add a message to the message queue, sending it if message queue is empty."""
+
+def _enqueue_message(message: _Message) -> None:
+    """ Add a message to the message queue, sending it if message queue is empty. """
     _message_queue.append(message)
 
     # If this was the first message to be added to the queue, send it now, and register our tick
@@ -69,8 +89,9 @@ def _enqueue_message(message: _message) -> None:
         message.send()
         unrealsdk.RunHook("Engine.PlayerController.PlayerTick", "ModMenu.NetworkManager", _PlayerTick)
 
+
 def _dequeue_message() -> None:
-    """Remove the frontmost message from the message queue, sending the following one, if any."""
+    """ Remove the frontmost message from the message queue, sending the following one, if any. """
     _message_queue.popleft()
 
     # If the queue is not empty, send the now-frontmost message.
@@ -82,6 +103,7 @@ def _dequeue_message() -> None:
 
 
 _method_senders = set()
+
 
 def _find_method_sender(function: Callable[..., Any]) -> Callable[..., Any]:
     """
@@ -97,7 +119,8 @@ def _find_method_sender(function: Callable[..., Any]) -> Callable[..., Any]:
         function = getattr(function, "__wrapped__", None)
     return function
 
-def _create_method_sender(function: Callable[..., None]) -> Callable[..., None]:
+
+def _create_method_sender(function: Callable[..., None]) -> Optional[Callable[..., None]]:
     """
     Create a new function that will replace ones decorated as network methods, intercepting their
     local calls, and instead transmitting a request to remote copies of the mod.
@@ -124,15 +147,18 @@ def _create_method_sender(function: Callable[..., None]) -> Callable[..., None]:
     # "Wrap" the original function. Among other things, this assigns the original function to the
     # __wrapped__ attribute of the new one.
     @functools.wraps(function)
-    def method_sender(self: ModObjects.SDKMod, *args, **kwargs) -> None:
+    def method_sender(self: ModObjects.SDKMod, *args: Any, **kwargs: Any) -> None:
         # Get the current world info, and from that, the current list of replicated players.
         world_info = unrealsdk.GetEngine().GetCurrentWorldInfo()
         PRIs = list(world_info.GRI.PRIArray)
 
         # Determine whether this message should be sent to a server and whether it should be sent to
         # client(s). If neither, we have nothing to send.
-        send_server = (method_sender._is_server and world_info.NetMode == 3) # ENetMode.NM_Client
-        send_client = (method_sender._is_client and world_info.NetMode != 3 and len(PRIs) > 1)
+        # ENetMode.NM_Client == 3
+        send_server = (method_sender._is_server and world_info.NetMode == 3)  # type: ignore
+        send_client = (
+            method_sender._is_client and world_info.NetMode != 3 and len(PRIs) > 1  # type: ignore
+        )
         if not (send_server or send_client):
             return
 
@@ -151,17 +177,17 @@ def _create_method_sender(function: Callable[..., None]) -> Callable[..., None]:
 
         # If we're sending a message to the server, send it using our own player controller.
         if send_server:
-            _enqueue_message(_message(local_pc, message_type, arguments, True))
+            _enqueue_message(_Message(local_pc, message_type, arguments, True))
 
         # If we're sending to a client, and the mapped arguments do specify a specific player
         # controller to message, we will spend this message to it.
         elif send_client and remote_pc is not None:
             if type(remote_pc) is unrealsdk.UObject and remote_pc.Class.Name == "WillowPlayerController":
-                _enqueue_message(_message(remote_pc, message_type, arguments, False))
+                _enqueue_message(_Message(remote_pc, message_type, arguments, False))
             else:
                 raise TypeError(
-                    f"Invalid player controller specified for {message_type}. Expected " +
-                    f"unrealsdk.UObject of UClass WillowPlayerController, received {remote_pc}."
+                    f"Invalid player controller specified for {message_type}. Expected"
+                    f" unrealsdk.UObject of UClass WillowPlayerController, received {remote_pc}."
                 )
 
         # If no player controller was specified, send a message to each replicated player that has a
@@ -169,12 +195,12 @@ def _create_method_sender(function: Callable[..., None]) -> Callable[..., None]:
         elif send_client:
             for PRI in PRIs:
                 if PRI.Owner is not None and PRI.Owner is not local_pc:
-                    _enqueue_message(_message(PRI.Owner, message_type, arguments, False))
+                    _enqueue_message(_Message(PRI.Owner, message_type, arguments, False))
 
     # Assign the server and client attributes to identify this method's role.
-    method_sender._message_type = message_type
-    method_sender._is_server = False
-    method_sender._is_client = False
+    method_sender._message_type = message_type  # type: ignore
+    method_sender._is_server = False  # type: ignore
+    method_sender._is_client = False  # type: ignore
 
     _method_senders.add(method_sender)
     return method_sender
@@ -192,6 +218,9 @@ def ServerMethod(function: Callable[..., None]) -> Callable[..., None]:
     The decorated function may optionally include a parameter named `PC`. If it does, upon
     invokation on the server, its value will contain the `unrealsdk.UObject`
     `WillowPlayerController` for the client who requested the method.
+
+    Args:
+        function: The function to decorate.
     """
 
     # Check if the function already has a method sender. If it doesn't, create one now.
@@ -201,8 +230,9 @@ def ServerMethod(function: Callable[..., None]) -> Callable[..., None]:
         if method_sender is None:
             return function
 
-    method_sender._is_server = True
+    method_sender._is_server = True  # type: ignore
     return method_sender
+
 
 def ClientMethod(function: Callable[..., None]) -> Callable[..., None]:
     """
@@ -217,6 +247,9 @@ def ClientMethod(function: Callable[..., None]) -> Callable[..., None]:
     `unrealsdk.UObject` `WillowPlayerController` associated with a given client is specified when
     calling this method on the server, the invokation will be sent to that client. In the absense of
     a specified client, the request is sent to all clients.
+
+    Args:
+        function: The function to decorate.
     """
 
     # Check if the function already has a method sender. If it doesn't, create one now.
@@ -226,12 +259,13 @@ def ClientMethod(function: Callable[..., None]) -> Callable[..., None]:
         if method_sender is None:
             return function
 
-    method_sender._is_client = True
+    method_sender._is_client = True  # type: ignore
     return method_sender
 
 
-_server_message_types = {}
-_client_message_types = {}
+_server_message_types: Dict[str, Set[Callable[..., None]]] = {}
+_client_message_types: Dict[str, Set[Callable[..., None]]] = {}
+
 
 def RegisterNetworkMethods(mod: ModObjects.SDKMod) -> None:
     """
@@ -248,18 +282,13 @@ def RegisterNetworkMethods(mod: ModObjects.SDKMod) -> None:
     # For each network method in this mod's class, create a bound version for this mod instance, and
     # add it to the set associated with the method's message type, creating one if necessary.
     for function in cls._server_functions:
-        method = function.__wrapped__.__get__(mod, cls)
-        if function._message_type in _server_message_types:
-            _server_message_types[function._message_type].add(method)
-        else:
-            _server_message_types[function._message_type] = {method}
+        method = function.__wrapped__.__get__(mod, cls)  # type: ignore
+        _server_message_types.setdefault(function._message_type, set()).add(method)  # type: ignore
 
     for function in cls._client_functions:
-        method = function.__wrapped__.__get__(mod, cls)
-        if function._message_type in _client_message_types:
-            _client_message_types[function._message_type].add(method)
-        else:
-            _client_message_types[function._message_type] = {method}
+        method = function.__wrapped__.__get__(mod, cls)  # type: ignore
+        _client_message_types.setdefault(function._message_type, set()).add(method)  # type: ignore
+
 
 def UnregisterNetworkMethods(mod: ModObjects.SDKMod) -> None:
     """
@@ -276,21 +305,21 @@ def UnregisterNetworkMethods(mod: ModObjects.SDKMod) -> None:
     # method's message type. Discard any method that matches one bound to this mod instance. If none
     # remain in the set, remove it as well.
     for function in cls._server_functions:
-        methods = _server_message_types.get(function._message_type)
+        methods = _server_message_types.get(function._message_type)  # type: ignore
         if methods is not None:
-            methods.discard(function.__wrapped__.__get__(mod, cls))
+            methods.discard(function.__wrapped__.__get__(mod, cls))  # type: ignore
             if len(methods) == 0:
-                del _server_message_types[function._message_type]
+                del _server_message_types[function._message_type]  # type: ignore
 
     for function in cls._client_functions:
-        methods = _client_message_types.get(function._message_type)
+        methods = _client_message_types.get(function._message_type)  # type: ignore
         if methods is not None:
-            methods.discard(function.__wrapped__.__get__(mod, cls))
+            methods.discard(function.__wrapped__.__get__(mod, cls))  # type: ignore
             if len(methods) == 0:
-                del _client_message_types[function._message_type]
+                del _client_message_types[function._message_type]  # type: ignore
 
 
-def _server_speech(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct):
+def _server_speech(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
     message = params.Callsign
     message_type = params.Type
     if message_type is None or not message_type.startswith("unrealsdk."):
@@ -314,8 +343,8 @@ def _server_speech(caller: unrealsdk.UObject, function: unrealsdk.UFunction, par
     if methods is not None and len(methods) > 0:
         # All of the methods in this set are known to be identical functions, just bound to
         # different instances. Retrieve any one of them, and get the mod's class from it.
-        sampleMethod = next(iter(methods))
-        cls = type(sampleMethod.__self__)
+        sample_method = next(iter(methods))
+        cls = type(sample_method.__self__)  # type: ignore
 
         # Attempt to use the class's deserializer callable to deserialize the message's arguments.
         arguments = None
@@ -327,10 +356,12 @@ def _server_speech(caller: unrealsdk.UObject, function: unrealsdk.UFunction, par
             unrealsdk.Log(f"    {tb[-4].strip()}")
             unrealsdk.Log(f"    {tb[-3].strip()}")
             unrealsdk.Log(f"    {tb[-2].strip()}")
-        
+
         if arguments is not None:
             # Use the inspect module to correctly map the received arguments to their parameters.
-            bindings = inspect.signature(sampleMethod).bind(*arguments["args"], **arguments["kwargs"])
+            bindings = inspect.signature(sample_method).bind(
+                *arguments["args"], **arguments["kwargs"]
+            )
             # If this method has a parameter through which to pass a player controller, assign the
             # caller to it.
             if bindings.signature.parameters.get("PC") is not None:
@@ -351,7 +382,8 @@ def _server_speech(caller: unrealsdk.UObject, function: unrealsdk.UFunction, par
     caller.ClientMessage("unrealsdk.__serverack__", message_id)
     return False
 
-def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct):
+
+def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
     message = params.S
     message_type = params.Type
     if message_type is None or not message_type.startswith("unrealsdk."):
@@ -369,8 +401,8 @@ def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, pa
 
     methods = _client_message_types.get(message_type)
     if methods is not None and len(methods) > 0:
-        sampleMethod = next(iter(methods))
-        cls = type(sampleMethod.__self__)
+        sample_method = next(iter(methods))
+        cls = type(sample_method.__self__)  # type: ignore
 
         arguments = None
         try:
@@ -381,7 +413,7 @@ def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, pa
             unrealsdk.Log(f"    {tb[-4].strip()}")
             unrealsdk.Log(f"    {tb[-3].strip()}")
             unrealsdk.Log(f"    {tb[-2].strip()}")
-        
+
         if arguments is not None:
             for method in methods:
                 try:
@@ -395,6 +427,7 @@ def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, pa
 
     caller.ServerSpeech(message_id, 0, "unrealsdk.__clientack__")
     return False
+
 
 unrealsdk.RunHook("Engine.PlayerController.ServerSpeech", "ModMenu.NetworkManager", _server_speech)
 unrealsdk.RunHook("WillowGame.WillowPlayerController.ClientMessage", "ModMenu.NetworkManager", _client_message)

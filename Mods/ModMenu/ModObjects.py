@@ -6,13 +6,20 @@ import json
 import sys
 from abc import ABCMeta
 from os import path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, cast
 
-from . import HookManager
-from . import KeybindManager
-from . import NetworkManager
-from . import OptionManager
-from . import SettingsManager
+from . import HookManager, KeybindManager, NetworkManager, OptionManager, SettingsManager
+
+__all__: Tuple[str, ...] = (
+    "EnabledSaveType",
+    "Game",
+    "ModPriorities",
+    "Mods",
+    "ModTypes",
+    "RegisterMod",
+    "SDKMod",
+)
+
 
 Mods: List[SDKMod] = []
 
@@ -118,10 +125,10 @@ class _ModMeta(ABCMeta):
         for function in functions:
             method_sender = NetworkManager._find_method_sender(function)
             if method_sender is not None:
-                if method_sender._is_server:
-                    cls._server_functions.add(method_sender)
-                if method_sender._is_client:
-                    cls._client_functions.add(method_sender)
+                if method_sender._is_server:  # type: ignore
+                    cls._server_functions.add(method_sender)  # type: ignore
+                if method_sender._is_client:  # type: ignore
+                    cls._client_functions.add(method_sender)  # type: ignore
 
 
 class SDKMod(metaclass=_ModMeta):
@@ -245,9 +252,8 @@ class SDKMod(metaclass=_ModMeta):
             action: The name of the action.
         """
         # Even though we removed these from `SettingsInputs`, need this check for auto enable
-        if Game.GetCurrent() not in self.SupportedGames:
-            if action in ("Enable", "Disable"):
-                return
+        if Game.GetCurrent() not in self.SupportedGames and action in ("Enable", "Disable"):
+            return
 
         if action == "Enable":
             if not self.IsEnabled:
@@ -302,11 +308,12 @@ class SDKMod(metaclass=_ModMeta):
         pass
 
     @staticmethod
-    def NetworkSerialize(arguments: dict) -> str:
+    def NetworkSerialize(arguments: NetworkManager.NetworkArgsDict) -> str:
         """
         Called when instances of this class invoke methods decorated with `@ModMenu.ServerMethod`
         or `@ModMenu.ClientMethod`, performing the serialization of any arguments passed to said
         methods. The default implementation uses `json.dumps()`.
+
         Arguments:
             arguments:
                 The arguments that need to be serialized. The top-level object passed will be a
@@ -317,15 +324,16 @@ class SDKMod(metaclass=_ModMeta):
         return json.dumps(arguments)
 
     @staticmethod
-    def NetworkDeserialize(serialized: str) -> dict:
+    def NetworkDeserialize(serialized: str) -> NetworkManager.NetworkArgsDict:
         """
         Called when instances of this class receive requests for methods decorated with
         `@ModMenu.ServerMethod` or `@ModMenu.ClientMethod`, performing the deserialization of any
         arguments passed to said methods. The default implementation uses `json.loads()`.
+
         Arguments:
             serialized:
                 The string containing the serialized arguments as returned by 'NetworkSerialize'.
         Returns:
             The deserialized arguments in the same format as they were passed to `NetworkSerialize`.
         """
-        return json.loads(serialized)
+        return cast(NetworkManager.NetworkArgsDict, json.loads(serialized))

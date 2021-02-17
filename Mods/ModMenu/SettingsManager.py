@@ -5,12 +5,18 @@ import inspect
 import json
 import traceback
 from os import path
-from typing import Any, Dict, Sequence, Set
+from typing import Any, Dict, Sequence, Set, Tuple
 
 from . import DeprecationHelper as dh
-from . import KeybindManager
-from . import ModObjects
-from . import Options
+from . import KeybindManager, ModObjects, Options
+
+__all__: Tuple[str, ...] = (
+    "GetSettingsFilePath",
+    "SaveModSettings",
+    "SaveAllModSettings",
+    "LoadModSettings",
+)
+
 
 _OPTIONS_CATEGORY_NAME = "Options"
 _KEYBINDS_CATEGORY_NAME = "Keybinds"

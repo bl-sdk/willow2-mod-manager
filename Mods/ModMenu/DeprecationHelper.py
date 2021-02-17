@@ -1,6 +1,12 @@
 import unrealsdk
 import functools
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+
+__all__: Tuple[str, ...] = (
+    "Deprecated",
+    "NameChangeMsg",
+    "PrintWarning",
+)
 
 _printed_deprecation_warnings: Set[str] = set()
 

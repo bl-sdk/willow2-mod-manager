@@ -5,12 +5,14 @@ import re
 import sys
 import webbrowser
 from functools import cmp_to_key
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Tuple
 
-from Mods import ModMenu
+from . import VERSION_MAJOR, VERSION_MINOR
 from . import DeprecationHelper as dh
-from . import KeybindManager
-from . import ModObjects
+from . import KeybindManager, ModObjects
+
+__all__: Tuple[str, ...] = ()
+
 
 _MODS_EVENT_ID: int = 1417
 _MODS_MENU_NAME: str = "MODS"
@@ -61,7 +63,7 @@ class _General(ModObjects.SDKMod):
         "\n"
         "See below for options.\n"
     )
-    Version: str = f"{ModMenu.VERSION_MAJOR}.{ModMenu.VERSION_MINOR}"
+    Version: str = f"{VERSION_MAJOR}.{VERSION_MINOR}"
 
     Types: ModObjects.ModTypes = ModObjects.ModTypes.All
 
@@ -250,7 +252,7 @@ def _ShopInputKey(caller: unrealsdk.UObject, function: unrealsdk.UFunction, para
     if key in ("Escape", "Up", "Down", "W", "S"):
         return True
 
-    if event == KeybindManager.InputEvent.Pressed or event == KeybindManager.InputEvent.Repeat:
+    if event in (KeybindManager.InputEvent.Pressed, KeybindManager.InputEvent.Repeat):
         # These two are bugged on gearbox's end, we manually fix them
         if key == "PageUp":
             caller.ScrollDescription(True)
@@ -358,9 +360,12 @@ def _SharedHandleInputKey(caller: unrealsdk.UObject, function: unrealsdk.UFuncti
     This function is called on pretty much all key input events on the main menu. We use it to open
      the dlc menu when you press "M".
     """
-    if params.ukey == "M" and params.uevent == KeybindManager.InputEvent.Released:
-        if not caller.IsOverlayMenuOpen():
-            caller.CheckDownloadableContentListCompleted(caller.WPCOwner.GetMyControllerId(), True)
+    if (
+        params.ukey == "M"
+        and params.uevent == KeybindManager.InputEvent.Released
+        and not caller.IsOverlayMenuOpen()
+    ):
+        caller.CheckDownloadableContentListCompleted(caller.WPCOwner.GetMyControllerId(), True)
     return True
 
 
@@ -381,8 +386,8 @@ def _FrontEndUpdateTooltips(caller: unrealsdk.UObject, function: unrealsdk.UFunc
         # There's no easy len() :/
         count = 0
         if caller.TheList is not None:
-            for i in caller.TheList.DataProviderStack:
-                count += 1
+            for _ in caller.TheList.DataProviderStack:
+                count += 1  # noqa: SIM113
         if count <= 1:
             cancel = caller.DisconnectString
     tooltip += caller.TooltipSpacing + caller.CancelTooltip.replace("%PLAYER1", cancel)

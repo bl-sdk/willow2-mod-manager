@@ -1,14 +1,18 @@
 import unrealsdk
-import inspect
 import functools
+import inspect
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Callable, ClassVar, Dict, Optional, Union
+from typing import Callable, ClassVar, Dict, Optional, Tuple, Union
 
 from . import DeprecationHelper as dh
-from . import MenuManager
-from . import ModObjects
-from . import SettingsManager
+from . import MenuManager, ModObjects, SettingsManager
+
+__all__: Tuple[str, ...] = (
+    "InputEvent",
+    "Keybind",
+    "KeybindCallback",
+)
 
 
 class InputEvent(IntEnum):
@@ -358,10 +362,12 @@ def _BindCurrentSelection(caller: unrealsdk.UObject, function: unrealsdk.UFuncti
                 if caller != dialog:
                     return True
 
-                if params.uevent == InputEvent.Released:
-                    if params.ukey in ("Escape", "XboxTypeS_B", "XboxTypeS_Back"):
-                        dialog.Close()
-                        unrealsdk.RemoveHook("WillowGame.WillowGFxDialogBox.HandleInputKey", "ModMenu.KeybindManager")
+                if (
+                    params.uevent == InputEvent.Released
+                    and params.ukey in ("Escape", "XboxTypeS_B", "XboxTypeS_Back")
+                ):
+                    dialog.Close()
+                    unrealsdk.RemoveHook("WillowGame.WillowGFxDialogBox.HandleInputKey", "ModMenu.KeybindManager")
                 return True
 
             unrealsdk.RunHook("WillowGame.WillowGFxDialogBox.HandleInputKey", "ModMenu.KeybindManager", HandleInputKey)

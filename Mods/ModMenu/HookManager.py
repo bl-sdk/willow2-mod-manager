@@ -3,16 +3,25 @@ from __future__ import annotations
 import unrealsdk
 import functools
 import weakref
-from typing import Any, Callable, Optional, Union
-from inspect import signature, Parameter
+from inspect import Parameter, signature
+from typing import Any, Callable, Tuple, Union
+
+__all__: Tuple[str, ...] = (
+    "AnyHook",
+    "Hook",
+    "HookFunction",
+    "HookMethod",
+    "RegisterHooks",
+    "RemoveHooks",
+)
 
 
-_HookFunction = Callable[[unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct], Any]
-_HookMethod = Callable[[object, unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct], Any]
-_HookAny = Union[_HookFunction, _HookMethod]
+HookFunction = Callable[[unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct], Any]
+HookMethod = Callable[[object, unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct], Any]
+AnyHook = Union[HookFunction, HookMethod]
 
 
-def Hook(target: str, name: str = "{0}.{1}") -> Callable[[_HookAny], _HookAny]:
+def Hook(target: str, name: str = "{0}.{1}") -> Callable[[AnyHook], AnyHook]:
     """
     A decorator for functions that should be invoked in response to an Unreal Engine method's
     invokation.
@@ -47,7 +56,7 @@ def Hook(target: str, name: str = "{0}.{1}") -> Callable[[_HookAny], _HookAny]:
             qualified name, separated by a ".". Argument `{1}` will contain the `id()` of the
             function or mod instance.
     """
-    def apply_hook(function: _HookAny) -> _HookAny:
+    def apply_hook(function: AnyHook) -> AnyHook:
         # If the function has four parameters, it should be a method.
         params = signature(function).parameters
         is_method = (len(params) == 4)
@@ -56,45 +65,48 @@ def Hook(target: str, name: str = "{0}.{1}") -> Callable[[_HookAny], _HookAny]:
         # initial setup on it now.
         hook_targets = getattr(function, "HookTargets", None)
         if hook_targets is None:
-            paramException = ValueError("Hook functions must have the signature ([self,] caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct)")
+            param_exception = ValueError(
+                "Hook functions must have the signature"
+                " ([self,] caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct)"
+            )
 
             # If the function is an instance method, create a mutable list of the parameters and
             # remove the `self` one, so we may check the remaining ones same as a non-method.
-            params = list(params.values())
+            param_list = list(params.values())
             if is_method:
-                del params[0]
+                del param_list[0]
             # If the function has neither 4 nor 3 parameters, it is invalid.
-            elif len(params) != 3:
-                raise paramException
+            elif len(param_list) != 3:
+                raise param_exception
             # If the functions parameters do not accept positional arguments, it is invalid.
-            for param in params:
+            for param in param_list:
                 if Parameter.POSITIONAL_ONLY != param.kind != Parameter.POSITIONAL_OR_KEYWORD:
-                    raise paramException
+                    raise param_exception
 
             # If the function is a method, store the name format string on it for formatting with
             # future instances. If it's a simple function, format its name for use now.
-            function.HookName = name if is_method else name.format(
+            function.HookName = name if is_method else name.format(  # type: ignore
                 f"{function.__module__}.{function.__qualname__}", id(function)
             )
 
             # With the function now known as valid, create its set of targets.
-            hook_targets = function.HookTargets = set()
+            hook_targets = function.HookTargets = set()  # type: ignore
 
         hook_targets.add(target)
 
         if not is_method:
-            unrealsdk.RunHook(target, function.HookName, function)
+            unrealsdk.RunHook(target, function.HookName, function)  # type: ignore
 
         return function
     return apply_hook
 
 
-def _create_method_wrapper(obj_ref: weakref.ReferenceType[object], obj_function: _HookMethod) -> _HookFunction:
+def _create_method_wrapper(obj_ref: weakref.ReferenceType[object], obj_function: HookMethod) -> HookFunction:
     """Return a "true" function for the given bound method, passable to `unrealsdk.RegisterHook`."""
     @functools.wraps(obj_function)
     def method_wrapper(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> Any:
         obj = obj_ref()
-        method = obj_function.__get__(obj, type(obj))
+        method = obj_function.__get__(obj, type(obj))  # type: ignore
         return method(caller, obj_function, params)
     return method_wrapper
 
@@ -130,12 +142,12 @@ def RegisterHooks(obj: object) -> None:
         setattr(obj, attribute_name, method_wrapper)
 
         # Format the provided hook name.
-        method_wrapper.HookName = function.HookName.format(
+        method_wrapper.HookName = function.HookName.format(  # type: ignore
             f"{function.__module__}.{function.__qualname__}", id(obj)
         )
 
         for target in hook_targets:
-            unrealsdk.RunHook(target, method_wrapper.HookName, method_wrapper)
+            unrealsdk.RunHook(target, method_wrapper.HookName, method_wrapper)  # type: ignore
 
 
 def RemoveHooks(obj: object) -> None:
