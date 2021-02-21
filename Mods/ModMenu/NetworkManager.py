@@ -74,8 +74,42 @@ _message_queue: Deque[_Message] = deque()
 
 def _PlayerTick(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
     timeout = _message_queue[0].timeout
-    if timeout is not None and timeout < time():
+    if timeout is None:
+        _message_queue[0].send()
+    elif timeout < time():
         _dequeue_message()
+    return True
+
+
+def _Logout(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
+    global _message_queue
+    # If there are no queued messages, we have nothing to do.
+    if len(_message_queue) == 0:
+        return True
+
+    # Filter the messages destined to the logged out player out of our message queue.
+    purged_queue = deque(message for message in _message_queue if message.PC is not params.Exiting)
+
+    # If there are no more messages left in the queue, we may cease observing message timeouts.
+    if len(purged_queue) == 0:
+        unrealsdk.RemoveHook("Engine.PlayerController.PlayerTick", "ModMenu.NetworkManager")
+
+    # If the first message in the filtered queue is different from the previous one, send it.
+    elif purged_queue[0] is not _message_queue[0]:
+        purged_queue[0].send()
+
+    _message_queue = purged_queue
+    return True
+
+
+def _GameSessionEnded(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
+    global _message_queue
+    # If there are no queued messages, we have nothing to do.
+    if len(_message_queue) == 0:
+        return True
+    # Cease observing message timeouts and empty the message queue.
+    unrealsdk.RemoveHook("Engine.PlayerController.PlayerTick", "ModMenu.NetworkManager")
+    _message_queue = deque()
     return True
 
 
@@ -328,7 +362,7 @@ def _server_speech(caller: unrealsdk.UObject, function: unrealsdk.UFunction, par
     # Check if the message type indicates an acknowledgement from a client for the previous message
     # we had sent. If so, and its ID matches that of our last message, dequeue it and we are done.
     if message_type == "unrealsdk.__clientack__":
-        if message == _message_queue[0].ID:
+        if len(_message_queue) > 0 and _message_queue[0].ID == message:
             _dequeue_message()
         return False
 
@@ -390,7 +424,7 @@ def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, pa
         return True
 
     if message_type == "unrealsdk.__serverack__":
-        if message == _message_queue[0].ID:
+        if len(_message_queue) > 0 and _message_queue[0].ID == message:
             _dequeue_message()
         return False
 
@@ -431,3 +465,5 @@ def _client_message(caller: unrealsdk.UObject, function: unrealsdk.UFunction, pa
 
 unrealsdk.RunHook("Engine.PlayerController.ServerSpeech", "ModMenu.NetworkManager", _server_speech)
 unrealsdk.RunHook("WillowGame.WillowPlayerController.ClientMessage", "ModMenu.NetworkManager", _client_message)
+unrealsdk.RunHook("Engine.GameInfo.Logout", "ModMenu.NetworkManager", _Logout)
+unrealsdk.RunHook("Engine.GameViewportClient.GameSessionEnded", "ModMenu.NetworkManager", _GameSessionEnded)
