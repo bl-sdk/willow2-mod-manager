@@ -6,7 +6,7 @@ import json
 import os
 
 from ..ModManager import BL2MOD, RegisterMod
-from Mods.ModMenu import Game
+from Mods.ModMenu import Game, Hook
 
 
 class CrossSkillRandomizer(BL2MOD):
