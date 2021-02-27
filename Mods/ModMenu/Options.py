@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Sequence, Tuple
+from reprlib import recursive_repr
+from typing import Any, Generic, Optional, Sequence, Tuple, TypeVar
 
 from . import DeprecationHelper as dh
 
@@ -13,6 +14,8 @@ __all__: Tuple[str, ...] = (
     "Spinner",
     "Value",
 )
+
+T = TypeVar("T")
 
 
 class Base(ABC):
@@ -39,7 +42,7 @@ class Base(ABC):
         raise NotImplementedError
 
 
-class Value(Base):
+class Value(Base, Generic[T]):
     """
     The abstract base class for all options that store a value.
 
@@ -52,22 +55,22 @@ class Value(Base):
 
         IsHidden: If the option is hidden from the options menu.
     """
-    CurrentValue: Any
-    StartingValue: Any
+    CurrentValue: T
+    StartingValue: T
 
     @abstractmethod
     def __init__(
         self,
         Caption: str,
         Description: str,
-        StartingValue: Any,
+        StartingValue: T,
         *,
         IsHidden: bool = True
     ) -> None:
         raise NotImplementedError
 
 
-class Hidden(Value):
+class Hidden(Value[T]):
     """
     A hidden option that never displays in the menu but stores an arbitrary (json serializable)
      value to the settings file.
@@ -81,11 +84,12 @@ class Hidden(Value):
         StartingValue: The default value of the option.
         IsHidden: If the option is hidden from the options menu. This is forced to True.
     """
+
     def __init__(
         self,
         Caption: str,
         Description: str = "",
-        StartingValue: Any = None,
+        StartingValue: T = None,  # type: ignore
         *,
         IsHidden: bool = True
     ) -> None:
@@ -116,8 +120,18 @@ class Hidden(Value):
     def IsHidden(self, val: bool) -> None:
         pass
 
+    @recursive_repr()
+    def __repr__(self) -> str:
+        return (
+            f"Hidden("
+            f"Caption={repr(self.Caption)},"
+            f"Description={repr(self.Description)},"
+            f"*,IsHidden={repr(self.IsHidden)}"
+            f")"
+        )
 
-class Slider(Value):
+
+class Slider(Value[int]):
     """
     An option which allows users to select a value along a slider.
 
@@ -176,8 +190,23 @@ class Slider(Value):
         self.Increment = Increment
         self.IsHidden = IsHidden
 
+    @recursive_repr()
+    def __repr__(self) -> str:
+        return (
+            f"Slider("
+            f"Caption={repr(self.Caption)},"
+            f"Description={repr(self.Description)},"
+            f"CurrentValue={repr(self.CurrentValue)},"
+            f"StartingValue={repr(self.StartingValue)},"
+            f"MinValue={repr(self.MinValue)},"
+            f"MaxValue={repr(self.MaxValue)},"
+            f"Increment={repr(self.Increment)},"
+            f"*,IsHidden={repr(self.IsHidden)}"
+            f")"
+        )
 
-class Spinner(Value):
+
+class Spinner(Value[str]):
     """
     An option which allows users to select one value from a sequence of strings.
 
@@ -242,8 +271,21 @@ class Spinner(Value):
                 f"Provided starting value '{self.StartingValue}' is not in the list of choices."
             )
 
+    @recursive_repr()
+    def __repr__(self) -> str:
+        return (
+            f"Spinner("
+            f"Caption={repr(self.Caption)},"
+            f"Description={repr(self.Description)},"
+            f"CurrentValue={repr(self.CurrentValue)},"
+            f"StartingValue={repr(self.StartingValue)},"
+            f"Choices={repr(self.Choices)},"
+            f"*,IsHidden={repr(self.IsHidden)}"
+            f")"
+        )
 
-class Boolean(Spinner):
+
+class Boolean(Spinner, Value[bool]):
     """
     A special form of a spinner, with two options representing boolean values.
 
@@ -309,6 +351,19 @@ class Boolean(Spinner):
         else:
             self._current_value = bool(val)
 
+    @recursive_repr()
+    def __repr__(self) -> str:
+        return (
+            f"Boolean("
+            f"Caption={repr(self.Caption)},"
+            f"Description={repr(self.Description)},"
+            f"CurrentValue={repr(self.CurrentValue)},"
+            f"StartingValue={repr(self.StartingValue)},"
+            f"Choices={repr(self.Choices)},"
+            f"*,IsHidden={repr(self.IsHidden)}"
+            f")"
+        )
+
 
 class Field(Base):
     """
@@ -320,32 +375,10 @@ class Field(Base):
         IsHidden: If the field is hidden from the options menu.
     """
 
-    def __init__(
-        self,
-        Caption: str,
-        Description: str = "",
-        *,
-        IsHidden: bool = False
-    ) -> None:
-        """
-        Creates the option.
-
-        Args:
-            Caption: The name of the option.
-            Description: A short description of the option to show when hovering over it in the menu.
-            IsHidden (keyword only): If the value is hidden from the options menu.
-        """
-        self.Caption = Caption
-        self.Description = Description
-        self.IsHidden = IsHidden
-
 
 class Nested(Field):
     """
     A field which when clicked opens up a nested menu with more options.
-
-    These are distinguished from normal fields by having the "new" exclaimation mark to the side of
-     it, but you should probably still give it a meaningful description.
 
     Note that these fields will be disabled if all child options are either hidden or other disabled
      nested fields.
@@ -383,3 +416,14 @@ class Nested(Field):
         self.Description = Description
         self.Children = Children
         self.IsHidden = IsHidden
+
+    @recursive_repr()
+    def __repr__(self) -> str:
+        return (
+            f"Nested("
+            f"Caption={repr(self.Caption)},"
+            f"Description={repr(self.Description)},"
+            f"Children={repr(self.Children)},"
+            f"*,IsHidden={repr(self.IsHidden)}"
+            f")"
+        )

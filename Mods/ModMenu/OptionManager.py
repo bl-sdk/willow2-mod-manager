@@ -14,6 +14,15 @@ _nested_options_stack: List[Options.Nested] = []
 _MOD_OPTIONS_EVENT_ID: int = 1417
 _MOD_OPTIONS_MENU_NAME: str = "MODS"
 
+_INDENT: int = 2
+
+
+class _ModHeader(Options.Field):
+    def __init__(self, Caption: str) -> None:
+        self.Caption = Caption
+        self.Description = ""
+        self.IsHidden = False
+
 
 def _create_data_provider(name: str) -> unrealsdk.UObject:
     """
@@ -149,14 +158,17 @@ def _DataProviderOptionsBasePopulate(caller: unrealsdk.UObject, function: unreal
                     continue
                 if not one_shown:
                     one_shown = True
-                    all_options.append(Options.Field(mod.Name))
+                    all_options.append(_ModHeader(mod.Name))
                 all_options.append(option)
 
         _nested_options_stack.append(Options.Nested(_MOD_OPTIONS_MENU_NAME, "", all_options))
 
+    first_level = len(_nested_options_stack) == 1
     for idx, option in enumerate(_nested_options_stack[-1].Children):
         if option.IsHidden:
             continue
+
+        indent = " " * _INDENT if first_level and not isinstance(option, _ModHeader) else ""
 
         if isinstance(option, Options.Spinner):
             spinner_idx: int
@@ -166,12 +178,12 @@ def _DataProviderOptionsBasePopulate(caller: unrealsdk.UObject, function: unreal
                 spinner_idx = option.Choices.index(option.CurrentValue)
 
             params.TheList.AddSpinnerListItem(
-                idx, option.Caption, False, spinner_idx, option.Choices
+                idx, indent + option.Caption, False, spinner_idx, option.Choices
             )
         elif isinstance(option, Options.Slider):
             params.TheList.AddSliderListItem(
                 idx,
-                option.Caption,
+                indent + option.Caption,
                 False,
                 option.CurrentValue,
                 option.MinValue,
@@ -180,11 +192,9 @@ def _DataProviderOptionsBasePopulate(caller: unrealsdk.UObject, function: unreal
             )
         elif isinstance(option, Options.Field):
             disabled = False
-            new = False
             if isinstance(option, Options.Nested):
                 disabled = not _is_anything_shown(option.Children)
-                new = True
-            params.TheList.AddListItem(idx, option.Caption, disabled, new)
+            params.TheList.AddListItem(idx, indent + option.Caption, disabled, False)
 
         caller.AddDescription(idx, option.Description)
 
