@@ -49,12 +49,6 @@ class CrossSkillRandomizer(BL2MOD):
         self.RandomizeTree(params.SkillTreeDef)
         return True
 
-    def Enable(self) -> None:
-        super().Enable()
-
-    def Disable(self) -> None:
-        ModMenu.RemoveHooks(self)
-
     def PreloadPackages(self) -> None:
         packages = [
             "GD_Assassin_Streaming_SF",
