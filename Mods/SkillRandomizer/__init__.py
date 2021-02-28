@@ -12,7 +12,7 @@ from Mods.ModMenu import Game, Hook
 class CrossSkillRandomizer(BL2MOD):
     Name: str = "Cross Class Skill Randomizer ({})"
     Description: str = "Randomize all the skills!"
-    Version: str = "1.1"
+    Version: str = "1.2"
     Author: str = "Abahbob"
     SupportedGames = Game.BL2
     LocalModDir: str = os.path.dirname(os.path.realpath(__file__))
@@ -38,7 +38,7 @@ class CrossSkillRandomizer(BL2MOD):
             unrealsdk.Mods.insert(0, NewRando)
 
     @Hook("WillowGame.PlayerSkillTree.Initialize")
-    def InjectSkills(caller: UObject, function: UFunction, params: FStruct) -> bool:
+    def InjectSkills(self, caller: UObject, function: UFunction, params: FStruct) -> bool:
         if not self.Seed:
             self.Seed = random.randrange(sys.maxsize)
             unrealsdk.Log("Randomizing with seed '{}'".format(self.Seed))

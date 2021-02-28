@@ -4,7 +4,7 @@ import unrealsdk
 import functools
 import weakref
 from inspect import Parameter, signature
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 __all__: Tuple[str, ...] = (
     "AnyHook",
@@ -16,8 +16,14 @@ __all__: Tuple[str, ...] = (
 )
 
 
-HookFunction = Callable[[unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct], Any]
-HookMethod = Callable[[object, unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct], Any]
+HookFunction = Callable[
+    [unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct],
+    Optional[bool]
+]
+HookMethod = Callable[
+    [Any, unrealsdk.UObject, unrealsdk.UFunction, unrealsdk.FStruct],
+    Optional[bool]
+]
 AnyHook = Union[HookFunction, HookMethod]
 
 

@@ -47,30 +47,32 @@ def SaveModSettings(mod: ModObjects.SDKMod) -> None:
     """
     mod_settings: Dict[str, Any] = {}
 
-    if len(mod.Options) > 0:
-        mod_settings[_OPTIONS_CATEGORY_NAME] = {}
+    def create_options_dict(options: Sequence[Options.Base]) -> Dict[str, Any]:
+        settings = {}
+        for option in options:
+            if isinstance(option, Options.Value):
+                settings[option.Caption] = option.CurrentValue
+            elif isinstance(option, Options.Nested):
+                settings[option.Caption] = create_options_dict(option.Children)
+        return settings
 
-        def create_options_dict(options: Sequence[Options.Base]) -> Dict[str, Any]:
-            settings = {}
-            for option in options:
-                if isinstance(option, Options.Value):
-                    settings[option.Caption] = option.CurrentValue
-                elif isinstance(option, Options.Nested):
-                    settings[option.Caption] = create_options_dict(option.Children)
-            return settings
+    options_dict = create_options_dict(mod.Options)
 
-        mod_settings[_OPTIONS_CATEGORY_NAME] = create_options_dict(mod.Options)
+    if len(options_dict) > 0:
+        mod_settings[_OPTIONS_CATEGORY_NAME] = options_dict
 
-    if any(k.IsRebindable for k in mod.Keybinds):
-        mod_settings[_KEYBINDS_CATEGORY_NAME] = {}
-        for input in mod.Keybinds:
-            if isinstance(input, KeybindManager.Keybind):
-                if not input.IsRebindable:
-                    continue
-                mod_settings[_KEYBINDS_CATEGORY_NAME][input.Name] = input.Key
-            else:
-                dh.PrintWarning(KeybindManager.Keybind._list_deprecation_warning)
-                mod_settings[_KEYBINDS_CATEGORY_NAME][input[0]] = input[1]
+    keybinds_dict = {}
+    for input in mod.Keybinds:
+        if isinstance(input, KeybindManager.Keybind):
+            if not input.IsRebindable:
+                continue
+            keybinds_dict[input.Name] = input.Key
+        else:
+            dh.PrintWarning(KeybindManager.Keybind._list_deprecation_warning)
+            keybinds_dict[input[0]] = input[1]
+
+    if len(keybinds_dict) > 0:
+        mod_settings[_KEYBINDS_CATEGORY_NAME] = keybinds_dict
 
     if mod.SaveEnabledState != ModObjects.EnabledSaveType.NotSaved:
         mod_settings[_ENABLED_CATEGORY_NAME] = mod.IsEnabled

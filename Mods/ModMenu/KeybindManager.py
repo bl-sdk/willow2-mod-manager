@@ -163,8 +163,12 @@ def _KeyboardMouseOptionsPopulate(caller: unrealsdk.UObject, function: unrealsdk
     for mod in ModObjects.Mods:
         if not mod.IsEnabled:
             continue
-        if len(mod.Keybinds) > 0:
+        for input in mod.Keybinds:
+            if isinstance(input, Keybind) and input.IsHidden:
+                continue
             disabled = False
+            break
+        if not disabled:
             break
 
     def AddListItem(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> bool:
@@ -209,7 +213,7 @@ def _extOnPopulateKeys(caller: unrealsdk.UObject, function: unrealsdk.UFunction,
         if not mod.IsEnabled:
             continue
 
-        if all(k.IsHidden for k in mod.Keybinds):
+        if all(isinstance(k, Keybind) and k.IsHidden for k in mod.Keybinds):
             continue
 
         tag = f"{_TAG_SEPERATOR}.{mod.Name}"
