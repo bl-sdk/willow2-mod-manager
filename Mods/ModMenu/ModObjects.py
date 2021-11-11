@@ -5,6 +5,7 @@ import enum
 import json
 import sys
 from abc import ABCMeta
+from functools import lru_cache
 from os import path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, cast
 
@@ -78,17 +79,23 @@ class EnabledSaveType(enum.Enum):
 class Game(enum.Flag):
     BL2 = enum.auto()
     TPS = enum.auto()
+    AoDK = enum.auto()
 
     @staticmethod
+    @lru_cache(None)
     def GetCurrent() -> Game:
         """ Gets the current game. """
+        lower_exe_names: Dict[str, Game] = {
+            "borderlands2.exe": Game.BL2,
+            "borderlandspresequel.exe": Game.TPS,
+            "tinytina.exe": Game.AoDK,
+        }
+
         exe = path.basename(sys.executable)
         exe_lower = exe.lower()
-        if exe_lower == "borderlands2.exe":
-            return Game.BL2
-        elif exe_lower == "borderlandspresequel.exe":
-            return Game.TPS
-        raise RuntimeError(f"Unknown executable name '{exe}'!")
+        if exe_lower not in lower_exe_names:
+            raise RuntimeError(f"Unknown executable name '{exe}'!")
+        return lower_exe_names[exe_lower]
 
 
 class _ModMeta(ABCMeta):
@@ -172,7 +179,7 @@ class SDKMod(metaclass=_ModMeta):
     Description: str = ""
     Version: str = "Unknown Version"
 
-    SupportedGames: Game = Game.BL2 | Game.TPS
+    SupportedGames: Game = Game.BL2 | Game.TPS | Game.AoDK
     Types: ModTypes = ModTypes.NONE
     Priority: int = ModPriorities.Standard
     SaveEnabledState: EnabledSaveType = EnabledSaveType.NotSaved
@@ -228,7 +235,6 @@ class SDKMod(metaclass=_ModMeta):
         """
         HookManager.RegisterHooks(self)
         NetworkManager.RegisterNetworkMethods(self)
-        pass
 
     def Disable(self) -> None:
         """
@@ -237,7 +243,6 @@ class SDKMod(metaclass=_ModMeta):
         """
         HookManager.RemoveHooks(self)
         NetworkManager.UnregisterNetworkMethods(self)
-        pass
 
     def SettingsInputPressed(self, action: str) -> None:
         """

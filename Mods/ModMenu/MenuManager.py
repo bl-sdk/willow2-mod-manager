@@ -65,6 +65,9 @@ class _General(ModObjects.SDKMod):
     )
     Version: str = f"{VERSION_MAJOR}.{VERSION_MINOR}"
 
+    SupportedGames: ModObjects.Game = (
+        ModObjects.Game.BL2 | ModObjects.Game.TPS | ModObjects.Game.AoDK
+    )
     Types: ModObjects.ModTypes = ModObjects.ModTypes.All
 
     Status: str = ""
@@ -75,7 +78,7 @@ class _General(ModObjects.SDKMod):
 
     def SettingsInputPressed(self, action: str) -> None:
         if action == "Help":
-            webbrowser.open("http://borderlandsmodding.com/sdk-mods/")
+            webbrowser.open("http://bl-sdk.github.io/")
         elif action == "Open Mods Folder":
             os.startfile(os.path.join(os.path.dirname(sys.executable), "Mods"))
 
@@ -157,9 +160,16 @@ def _FrontEndPopulate(caller: unrealsdk.UObject, function: unrealsdk.UFunction, 
         Using it cause it simplifies the code to replace the caption.
         """
         if params.Caption == "$WillowMenu.WillowScrollingListDataProviderFrontEnd.DLC":
-            unrealsdk.DoInjectedCallNext()
-            caller.AddListItem(_MODS_EVENT_ID, _MODS_MENU_NAME, False, False)
             return False
+
+        inject_now = False
+        if unrealsdk.GetEngine().GetCurrentWorldInfo().NetMode == 3:  # NM_Client
+            inject_now = params.Caption == "$WillowMenu.WillowScrollingListDataProviderFrontEnd.Disconnect"
+        else:
+            inject_now = params.Caption == "$WillowMenu.WillowScrollingListDataProviderFrontEnd.Quit"
+
+        if inject_now:
+            caller.AddListItem(_MODS_EVENT_ID, _MODS_MENU_NAME, False, False)
 
         return True
 

@@ -37,7 +37,7 @@ __all__: Tuple[str, ...] = (
 
 # Need to define these up here so that they're accessable when importing the other files
 VERSION_MAJOR = 2
-VERSION_MINOR = 4
+VERSION_MINOR = 5
 
 unrealsdk.Log(f"[ModMenu] Version: {VERSION_MAJOR}.{VERSION_MINOR}")
 
