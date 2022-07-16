@@ -2,3 +2,5 @@ __pycache__
 .env
 .mypy_cache
 .vscode
+
+PythonSDK.zip
