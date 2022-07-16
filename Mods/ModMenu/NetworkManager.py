@@ -150,7 +150,7 @@ def _find_method_sender(function: Callable[..., Any]) -> Callable[..., Any]:
     while function is not None:
         if function in _method_senders:
             break
-        function = getattr(function, "__wrapped__", None)
+        function = getattr(function, "__wrapped__", None)  # type: ignore
     return function
 
 

@@ -36,7 +36,7 @@ def _create_data_provider(name: str) -> unrealsdk.UObject:
     provider = unrealsdk.ConstructObject(
         Class=unrealsdk.FindClass("WillowScrollingListDataProviderOptionsBase")
     )
-    # See issue #45
+    # See bl-sdk/PythonSDK#45
     unrealsdk.GetEngine().GamePlayers[0].Actor.ServerRCon(
         f"set {provider.PathName(provider)} MenuDisplayName {name}"
     )

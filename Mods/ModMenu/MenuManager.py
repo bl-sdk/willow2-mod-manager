@@ -256,7 +256,7 @@ def _ShopInputKey(caller: unrealsdk.UObject, function: unrealsdk.UFunction, para
         "XboxTypeS_LeftTrigger": "PageUp",
         "XboxTypeS_RightTrigger": "PageDown"
     }
-    if key in controller_key_map:
+    if key in controller_key_map:  # noqa: SIM908
         key = controller_key_map[key]
 
     if key in ("Escape", "Up", "Down", "W", "S"):
@@ -397,7 +397,7 @@ def _FrontEndUpdateTooltips(caller: unrealsdk.UObject, function: unrealsdk.UFunc
         count = 0
         if caller.TheList is not None:
             for _ in caller.TheList.DataProviderStack:
-                count += 1  # noqa: SIM113
+                count += 1
         if count <= 1:
             cancel = caller.DisconnectString
     tooltip += caller.TooltipSpacing + caller.CancelTooltip.replace("%PLAYER1", cancel)

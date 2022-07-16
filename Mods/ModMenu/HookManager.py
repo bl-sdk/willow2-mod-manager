@@ -112,7 +112,7 @@ def _create_method_wrapper(obj_ref: weakref.ReferenceType[object], obj_function:
     @functools.wraps(obj_function)
     def method_wrapper(caller: unrealsdk.UObject, function: unrealsdk.UFunction, params: unrealsdk.FStruct) -> Any:
         obj = obj_ref()
-        method = obj_function.__get__(obj, type(obj))  # type: ignore
+        method = obj_function.__get__(obj, type(obj))
         return method(caller, obj_function, params)
     return method_wrapper
 

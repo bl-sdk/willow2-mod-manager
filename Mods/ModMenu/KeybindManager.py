@@ -363,14 +363,14 @@ def _BindCurrentSelection(caller: unrealsdk.UObject, function: unrealsdk.UFuncti
                 This function is called on any key event on any `WillowGFxDialogBox`. Only using it
                  to replicate adding `HandleKeySwapDialog` as a delegate, sdk can't quite do so yet.
                 """
-                if caller != dialog:
+                if caller != dialog:  # noqa: B023
                     return True
 
                 if (
                     params.uevent == InputEvent.Released
                     and params.ukey in ("Escape", "XboxTypeS_B", "XboxTypeS_Back")
                 ):
-                    dialog.Close()
+                    dialog.Close()  # noqa: B023
                     unrealsdk.RemoveHook("WillowGame.WillowGFxDialogBox.HandleInputKey", "ModMenu.KeybindManager")
                 return True
 
