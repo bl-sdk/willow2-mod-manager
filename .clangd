@@ -1,0 +1,21 @@
+# Turn off include cleaner for now, since it can't handle exports yet, required to use a pch
+Diagnostics:
+    UnusedIncludes: None
+---
+If:
+    PathMatch: src/pch.h
+CompileFlags:
+    # Treat the pch as c++
+    Add: [-xc++]
+---
+# Suppress errors from outside the project
+If:
+    PathExclude: .*((unrealsdk|pyunrealsdk)/)?src/.*
+Diagnostics:
+    Suppress: '*'
+---
+# Suppress "expected expression" errors caused by variable substitutions
+If:
+    PathMatch: src/.*\.in
+Diagnostics:
+    Suppress: expected_expression

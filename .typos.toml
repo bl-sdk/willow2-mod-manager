@@ -1,0 +1,11 @@
+[files]
+extend-exclude = [
+    "fmt",
+    "minhook",
+    "pybind11",
+    "LICENSE",
+    ".typos.toml"
+]
+
+[default.extend-words]
+UE = "UE"
