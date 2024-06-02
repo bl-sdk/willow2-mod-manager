@@ -8,7 +8,12 @@ from mods_base import (
     raw_keybinds,
     remove_next_console_line_capture,
 )
-from ui_utils import show_hud_message
+
+try:
+    from ui_utils import show_hud_message
+except ImportError:
+    show_hud_message = None
+
 from unrealsdk.hooks import Block
 
 from console_mod_menu.draw import draw
@@ -117,10 +122,12 @@ class RebindPressScreen(AbstractScreen):
             self.is_bind_active = False
             raw_keybinds.pop()
 
-            show_hud_message(
-                "Console Mod Menu",
-                f"'{self.parent.option.display_name}' bound to '{key}'",
-            )
+            # Try show a notification that we caught the press, if we were able to import it
+            if show_hud_message is not None:
+                show_hud_message(
+                    "Console Mod Menu",
+                    f"'{self.parent.option.display_name}' bound to '{key}'",
+                )
 
             # Bit of hackery to inject back into the menu loop
             # Submit a B to close this menu

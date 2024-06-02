@@ -1,5 +1,5 @@
-# This file is part of the BL3/WL Oak Mod Manager.
-# <https://github.com/bl-sdk/oak-mod-manager>
+# This file is part of the BL2/TPS/AoDK Willow Mod Manager.
+# <https://github.com/bl-sdk/willow-mod-manager>
 #
 # The Oak Mod Manager is free software: you can redistribute it and/or modify it under the terms of
 # the GNU Lesser General Public License Version 3 as published by the Free Software Foundation.
@@ -31,7 +31,7 @@ FULL_TRACEBACKS: bool = False
 WAIT_FOR_CLIENT: bool = False
 
 # A json list of paths to also to import mods from - you can add your repo to keep it separated
-EXTRA_FOLDERS_ENV_VAR: str = "OAK_MOD_MANAGER_EXTRA_FOLDERS"
+EXTRA_FOLDERS_ENV_VAR: str = "MOD_MANAGER_EXTRA_FOLDERS"
 
 
 def init_debugpy() -> None:
@@ -135,15 +135,25 @@ def validate_file_in_mods_folder(file: Path) -> bool:
     Returns:
         True if the file is a valid .sdkmod to try import.
     """
+    text_mod_error = (
+        f"'{file.name}' appears to be a text mod, not an SDK mod. Move it to your binaries folder."
+    )
+
     match file.suffix.lower():
-        # Since hotfix mods can be any text file, this won't be exhaustive, but match and warn
+        # Since text mods can be any text file, this won't be exhaustive, but match and warn
         # about what we can
-        # OHL often uses .url files to download the latest version of a mod, so also match that
-        case ".bl3hotfix" | ".wlhotfix" | ".url":
-            logging.error(
-                f"'{file.name}' appears to be a hotfix mod, not an SDK mod. Move it to your hotfix"
-                f" mods folder.",
-            )
+        case ".blcm":
+            logging.error(text_mod_error)
+            return False
+
+        case ".txt":
+            # Try double check if this actually looks like a mod file
+            # There's a bit more of a chance of people accidentally extracting a `readme.txt` or
+            # similar, which we don't want to throw an error on
+            with file.open() as f:
+                line = f.readline()
+                if line.strip().startswith(("<BLCMM", "set ")):
+                    logging.error(text_mod_error)
             return False
 
         case ".sdkmod":
@@ -210,9 +220,7 @@ def import_mod_manager() -> None:
 
     Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
     """
-    # Keybinds must be early to ensure it can overwrite the enable/disable functions before anything
-    # else tries to use them.
-    import keybinds  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    # Deliberately empty (for now)
 
 
 def import_mods(mods_to_import: Collection[str]) -> None:
