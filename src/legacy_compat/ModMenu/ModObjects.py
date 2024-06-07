@@ -20,11 +20,12 @@ from mods_base import (
     register_mod,
 )
 
+from . import Options
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 # TODO: SettingsInputs
-# TODO: Options
 # TODO: Keybinds
 # TODO: Networking
 # TODO: Hooks
@@ -142,7 +143,19 @@ class _NewMod(Mod):
 
     # TODO
     keybinds: Sequence[KeybindType] = ()
-    options: Sequence[BaseOption] = ()
+
+    @property
+    def options(self) -> Sequence[BaseOption]:
+        return [
+            Options.convert_to_new_style_option(option, self.legacy_mod)
+            for option in self.legacy_mod.Options
+        ]
+
+    @options.setter
+    def options(self, val: Sequence[BaseOption]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        raise NotImplementedError("Unable to set options on legacy sdk mod")
+
+    # TODO
     hooks: Sequence[HookProtocol] = ()
 
     commands: Sequence[AbstractCommand] = ()
@@ -188,6 +201,11 @@ class _LegacyModMeta(ABCMeta):
         "Priority",
         "SaveEnabledState",
         "Status",
+        # "SettingsInputs",
+        "Options",
+        # "Keybinds",
+        # "_server_functions",
+        # "_client_functions",
         "_is_enabled",
     )
 
@@ -216,7 +234,7 @@ class _LegacyMod(metaclass=_LegacyModMeta):
 
     Status: str | None = None
     # SettingsInputs: dict[str, str] = {"Enter": "Enable"}
-    # Options: Sequence[OptionManager.Options.Base] = []
+    Options: Sequence[Options.Base] = []
     # Keybinds: Sequence[KeybindManager.Keybind] = []
 
     # _server_functions: Set[Callable[..., None]] = set()
@@ -245,8 +263,8 @@ class _LegacyMod(metaclass=_LegacyModMeta):
     # def GameInputPressed(self, bind: KeybindManager.Keybind, event: KeybindManager.InputEvent) -> None:
     #     pass
 
-    # def ModOptionChanged(self, option: OptionManager.Options.Base, new_value: Any) -> None:
-    #     pass
+    def ModOptionChanged(self, option: Options.Base, new_value: Any) -> None:
+        pass
 
     # @staticmethod
     # def NetworkSerialize(arguments: NetworkManager.NetworkArgsDict) -> str:

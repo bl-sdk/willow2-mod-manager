@@ -1,10 +1,25 @@
+# ruff: noqa: N802, N803, D102, D103, N999
+
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from reprlib import recursive_repr
-from typing import Any, Generic, Optional, Sequence, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any
 
-from . import DeprecationHelper as dh
+from mods_base import (
+    JSON,
+    BaseOption,
+    BoolOption,
+    HiddenOption,
+    NestedOption,
+    SliderOption,
+    SpinnerOption,
+    ValueOption,
+)
 
-__all__: Tuple[str, ...] = (
+if TYPE_CHECKING:
+    from ModObjects import SDKMod
+
+__all__: tuple[str, ...] = (
     "Base",
     "Boolean",
     "Field",
@@ -15,46 +30,18 @@ __all__: Tuple[str, ...] = (
     "Value",
 )
 
-T = TypeVar("T")
-
 
 class Base(ABC):
-    """
-    The abstract base class all options inherit from.
-
-    Attributes:
-        Caption: The name of the option.
-        Description: A short description of the option to show when hovering over it in the menu.
-        IsHidden: If the option is hidden from the options menu.
-    """
     Caption: str
     Description: str
     IsHidden: bool
 
     @abstractmethod
-    def __init__(
-        self,
-        Caption: str,
-        Description: str = "",
-        *,
-        IsHidden: bool = True
-    ) -> None:
+    def __init__(self, Caption: str, Description: str = "", *, IsHidden: bool = True) -> None:
         raise NotImplementedError
 
 
-class Value(Base, Generic[T]):
-    """
-    The abstract base class for all options that store a value.
-
-    Attributes:
-        Caption: The name of the option.
-        Description: A short description of the option to show when hovering over it in the menu.
-
-        CurrentValue: The current value of the option.
-        StartingValue: The default value of the option.
-
-        IsHidden: If the option is hidden from the options menu.
-    """
+class Value[T](Base):
     CurrentValue: T
     StartingValue: T
 
@@ -65,90 +52,45 @@ class Value(Base, Generic[T]):
         Description: str,
         StartingValue: T,
         *,
-        IsHidden: bool = True
+        IsHidden: bool = True,
     ) -> None:
         raise NotImplementedError
 
 
-class Hidden(Value[T]):
-    """
-    A hidden option that never displays in the menu but stores an arbitrary (json serializable)
-     value to the settings file.
-
-    Attributes:
-        Caption: The name of the option.
-        Description:
-            A short description of the option to show when hovering over it in the menu. This is
-             inherited, it is useless.
-        CurrentValue: The current value of the option.
-        StartingValue: The default value of the option.
-        IsHidden: If the option is hidden from the options menu. This is forced to True.
-    """
-
+class Hidden[T](Value[T]):
     def __init__(
         self,
         Caption: str,
         Description: str = "",
-        StartingValue: T = None,  # type: ignore
+        StartingValue: T = None,
         *,
-        IsHidden: bool = True
+        IsHidden: bool = True,  # noqa: ARG002
     ) -> None:
-        """
-        Creates the option.
-
-        Args:
-            Caption: The name of the option.
-            Description:
-                A short description of the option to show when hovering over it in the menu. This is
-                 inherited, it is useless.
-            StartingValue: The default value of the option.
-
-            IsHidden (keyword only):
-                If the option is hidden from the options menu. This is forced to True.
-        """
         self.Caption = Caption
         self.Description = Description
         self.CurrentValue = StartingValue
         self.StartingValue = StartingValue
-        self.IsHidden = IsHidden
 
-    @property  # type: ignore
-    def IsHidden(self) -> bool:  # type: ignore
+    @property
+    def IsHidden(self) -> bool:
         return True
 
     @IsHidden.setter
-    def IsHidden(self, val: bool) -> None:
+    def IsHidden(self, val: bool) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
         pass
 
     @recursive_repr()
     def __repr__(self) -> str:
         return (
             f"Hidden("
-            f"Caption={repr(self.Caption)},"
-            f"Description={repr(self.Description)},"
-            f"*,IsHidden={repr(self.IsHidden)}"
+            f"Caption={self.Caption!r},"
+            f"Description={self.Description!r},"
+            f"*,IsHidden={self.IsHidden!r}"
             f")"
         )
 
 
 class Slider(Value[int]):
-    """
-    An option which allows users to select a value along a slider.
-
-    Note that, while you can give this float inputs, the game will only return integers.
-
-    Attributes:
-        Caption: The name of the option.
-        Description: A short description of the option to show when hovering over it in the menu.
-        CurrentValue: The current value of the option.
-        StartingValue: The default value of the option.
-
-        MinValue: The minimum selectable value on the slider.
-        MaxValue: The maximum selectable value on the slider.
-        Increment: The minimum amount a value on the slider can be changed by.
-
-        IsHidden: If the option is hidden from the options menu.
-    """
     CurrentValue: int
     StartingValue: int
     MinValue: int
@@ -164,23 +106,8 @@ class Slider(Value[int]):
         MaxValue: int,
         Increment: int,
         *,
-        IsHidden: bool = False
-    ):
-        """
-        Creates the option.
-
-        Args:
-            Caption: The name of the option.
-            Description:
-                A short description of the option to show when hovering over it in the menu.
-            StartingValue: The default value of the option.
-
-            MinValue: The minimum selectable value on the slider.
-            MaxValue: The maximum selectable value on the slider.
-            Increment: The minimum amount a value on the slider can be changed by.
-
-            IsHidden (keyword only): If the option is hidden from the options menu.
-        """
+        IsHidden: bool = False,
+    ) -> None:
         self.Caption = Caption
         self.Description = Description
         self.CurrentValue = StartingValue
@@ -194,32 +121,19 @@ class Slider(Value[int]):
     def __repr__(self) -> str:
         return (
             f"Slider("
-            f"Caption={repr(self.Caption)},"
-            f"Description={repr(self.Description)},"
-            f"CurrentValue={repr(self.CurrentValue)},"
-            f"StartingValue={repr(self.StartingValue)},"
-            f"MinValue={repr(self.MinValue)},"
-            f"MaxValue={repr(self.MaxValue)},"
-            f"Increment={repr(self.Increment)},"
-            f"*,IsHidden={repr(self.IsHidden)}"
+            f"Caption={self.Caption!r},"
+            f"Description={self.Description!r},"
+            f"CurrentValue={self.CurrentValue!r},"
+            f"StartingValue={self.StartingValue!r},"
+            f"MinValue={self.MinValue!r},"
+            f"MaxValue={self.MaxValue!r},"
+            f"Increment={self.Increment!r},"
+            f"*,IsHidden={self.IsHidden!r}"
             f")"
         )
 
 
 class Spinner(Value[str]):
-    """
-    An option which allows users to select one value from a sequence of strings.
-
-    Attributes:
-        Caption: The name of the option.
-        Description: A short description of the option to show when hovering over it in the menu.
-        CurrentValue: The currently selected string.
-        StartingValue: The string selected by default.
-
-        Choices: A sequence of strings to be used as the choices.
-
-        IsHidden: If the option is hidden from the options menu.
-    """
     CurrentValue: str
     StartingValue: str
     Choices: Sequence[str]
@@ -228,79 +142,40 @@ class Spinner(Value[str]):
         self,
         Caption: str,
         Description: str,
-        StartingValue: Optional[str] = None,
-        Choices: Optional[Sequence[str]] = None,
+        StartingValue: str,
+        Choices: Sequence[str],
         *,
         IsHidden: bool = False,
-        StartingChoice: Optional[str] = None
-    ):
-        """
-        Creates the option.
-
-        Args:
-            Caption: The name of the option.
-            Description:
-                A short description of the option to show when hovering over it in the menu.
-            StartingValue: The string selected by default.
-
-            Choices: A sequence of strings to be used as the choices.
-
-            IsHidden (keyword only): If the option is hidden from the options menu.
-        """
+    ) -> None:
         self.Caption = Caption
         self.Description = Description
         self.IsHidden = IsHidden
-
-        if StartingValue is not None:
-            self.StartingValue = StartingValue
-            self.CurrentValue = StartingValue
-        elif StartingChoice is not None:
-            dh.PrintWarning(dh.NameChangeMsg("Spinner.StartingChoice", "Spinner.StartingValue"))
-            self.StartingValue = StartingChoice
-            self.CurrentValue = StartingChoice
-        else:
-            raise TypeError("__init__() missing 1 required positional argument: 'StartingValue'")
-
-        if Choices is None:
-            raise TypeError("__init__() missing 1 required positional argument: 'Choices'")
-        else:
-            self.Choices = Choices
+        self.StartingValue = StartingValue
+        self.CurrentValue = StartingValue
+        self.Choices = Choices
 
         if self.StartingValue not in self.Choices:
             raise ValueError(
-                f"Provided starting value '{self.StartingValue}' is not in the list of choices."
+                f"Provided starting value '{self.StartingValue}' is not in the list of choices.",
             )
 
     @recursive_repr()
     def __repr__(self) -> str:
         return (
             f"Spinner("
-            f"Caption={repr(self.Caption)},"
-            f"Description={repr(self.Description)},"
-            f"CurrentValue={repr(self.CurrentValue)},"
-            f"StartingValue={repr(self.StartingValue)},"
-            f"Choices={repr(self.Choices)},"
-            f"*,IsHidden={repr(self.IsHidden)}"
+            f"Caption={self.Caption!r},"
+            f"Description={self.Description!r},"
+            f"CurrentValue={self.CurrentValue!r},"
+            f"StartingValue={self.StartingValue!r},"
+            f"Choices={self.Choices!r},"
+            f"*,IsHidden={self.IsHidden!r}"
             f")"
         )
 
 
-class Boolean(Spinner, Value[bool]):
-    """
-    A special form of a spinner, with two options representing boolean values.
-
-    Attributes:
-        Caption: The name of the option.
-        Description: A short description of the option to show when hovering over it in the menu.
-        CurrentValue: The currently value, as a boolean.
-        StartingValue: The default value, as a boolean.
-
-        Choices: A tuple of two strings to be used as the choices.
-
-        IsHidden: If the option is hidden from the options menu.
-    """
-    StartingValue: bool  # type: ignore
-    Choices: Tuple[str, str]
+class Boolean(Spinner, Value[bool]):  # pyright: ignore[reportGeneralTypeIssues]
+    StartingValue: bool
+    Choices: tuple[str, str]
 
     _current_value: bool
 
@@ -309,39 +184,26 @@ class Boolean(Spinner, Value[bool]):
         Caption: str,
         Description: str,
         StartingValue: bool,
-        Choices: Tuple[str, str] = ("Off", "On"),
+        Choices: tuple[str, str] = ("Off", "On"),
         *,
-        IsHidden: bool = False
-    ):
-        """
-        Creates the option.
-
-        Args:
-            Caption: The name of the option.
-            Description:
-                A short description of the option to show when hovering over it in the menu.
-            StartingValue: The string selected by default.
-
-            Choices: A sequence of strings to be used as the choices.
-
-            IsHidden (keyword only): If the option is hidden from the options menu.
-        """
+        IsHidden: bool = False,
+    ) -> None:
         self.Caption = Caption
         self.Description = Description
-        self.StartingValue = StartingValue
+        self.StartingValue = StartingValue  # pyright: ignore[reportIncompatibleVariableOverride]
         self.IsHidden = IsHidden
 
-        self.Choices = Choices
-        self.CurrentValue = StartingValue
+        self.Choices = Choices  # pyright: ignore[reportIncompatibleVariableOverride]
+        self.CurrentValue = StartingValue  # pyright: ignore[reportIncompatibleVariableOverride]
 
-        if len(self.Choices) != 2:
+        if len(self.Choices) != 2:  # noqa: PLR2004
             raise ValueError(
                 f"Invalid amount of choices passed to boolean option, expected 2 not"
-                f" {len(self.Choices)}."
+                f" {len(self.Choices)}.",
             )
 
-    @property  # type: ignore
-    def CurrentValue(self) -> bool:  # type: ignore
+    @property
+    def CurrentValue(self) -> bool:
         return self._current_value
 
     @CurrentValue.setter
@@ -355,42 +217,21 @@ class Boolean(Spinner, Value[bool]):
     def __repr__(self) -> str:
         return (
             f"Boolean("
-            f"Caption={repr(self.Caption)},"
-            f"Description={repr(self.Description)},"
-            f"CurrentValue={repr(self.CurrentValue)},"
-            f"StartingValue={repr(self.StartingValue)},"
-            f"Choices={repr(self.Choices)},"
-            f"*,IsHidden={repr(self.IsHidden)}"
+            f"Caption={self.Caption!r},"
+            f"Description={self.Description!r},"
+            f"CurrentValue={self.CurrentValue!r},"
+            f"StartingValue={self.StartingValue!r},"
+            f"Choices={self.Choices!r},"
+            f"*,IsHidden={self.IsHidden!r}"
             f")"
         )
 
 
 class Field(Base):
-    """
-    A field which displays in the options list but holds no value.
-
-    Attributes:
-        Caption: The name of the field.
-        Description: A short description of the field to show when hovering over it in the menu.
-        IsHidden: If the field is hidden from the options menu.
-    """
+    pass
 
 
 class Nested(Field):
-    """
-    A field which when clicked opens up a nested menu with more options.
-
-    Note that these fields will be disabled if all child options are either hidden or other disabled
-     nested fields.
-
-    Attributes:
-        Caption: The name of the field.
-        Description: A short description of the field to show when hovering over it in the menu.
-
-        Children: A sequence of child options to display in the nested menu.
-
-        IsHidden: If the field is hidden from the options menu.
-    """
     Children: Sequence[Base]
 
     def __init__(
@@ -399,19 +240,8 @@ class Nested(Field):
         Description: str,
         Children: Sequence[Base],
         *,
-        IsHidden: bool = False
+        IsHidden: bool = False,
     ) -> None:
-        """
-        Creates the option.
-
-        Args:
-            Caption: The name of the option.
-            Description: A short description of the option to show when hovering over it in the menu.
-
-            Children: A sequence of child options to display in the nested menu.
-
-            IsHidden (keyword only): If the value is hidden from the options menu.
-        """
         self.Caption = Caption
         self.Description = Description
         self.Children = Children
@@ -421,9 +251,75 @@ class Nested(Field):
     def __repr__(self) -> str:
         return (
             f"Nested("
-            f"Caption={repr(self.Caption)},"
-            f"Description={repr(self.Description)},"
-            f"Children={repr(self.Children)},"
-            f"*,IsHidden={repr(self.IsHidden)}"
+            f"Caption={self.Caption!r},"
+            f"Description={self.Description!r},"
+            f"Children={self.Children!r},"
+            f"*,IsHidden={self.IsHidden!r}"
             f")"
         )
+
+
+def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> BaseOption:
+    """
+    Converts a legacy option to a new-style option.
+
+    Args:
+        option: The legacy option.
+        mod: The legacy mod object to send change callbacks to.
+    Returns:
+        The new-style option.
+    """
+
+    def on_change[J: JSON](_: ValueOption[J], new_val: Any) -> None:
+        if mod is not None:
+            mod.ModOptionChanged(option, new_val)  # type: ignore
+        option.CurrentValue = new_val  # type: ignore
+
+    match option:
+        case Nested():
+            return NestedOption(
+                option.Caption,
+                tuple(convert_to_new_style_option(opt, mod) for opt in option.Children),
+                description=option.Description,
+                is_hidden=option.IsHidden,
+            )
+        case Boolean():
+            return BoolOption(
+                option.Caption,
+                option.CurrentValue,
+                option.Choices[1],
+                option.Choices[0],
+                description=option.Description,
+                is_hidden=option.IsHidden,
+                on_change=on_change,
+            )
+        case Spinner():
+            return SpinnerOption(
+                option.Caption,
+                option.CurrentValue,
+                list(option.Choices),
+                description=option.Description,
+                is_hidden=option.IsHidden,
+                on_change=on_change,
+            )
+        case Slider():
+            return SliderOption(
+                option.Caption,
+                option.CurrentValue,
+                option.MinValue,
+                option.MaxValue,
+                option.Increment,
+                description=option.Description,
+                is_hidden=option.IsHidden,
+                on_change=on_change,
+            )
+        case Hidden():
+            hidden_option: Hidden[Any] = option
+            return HiddenOption(
+                hidden_option.Caption,
+                hidden_option.CurrentValue,
+                description=hidden_option.Description,
+                on_change=on_change,
+            )
+        case _:
+            raise TypeError(f"Unable to convert legacy option of type {type(option)}")
