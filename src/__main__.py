@@ -148,6 +148,9 @@ def is_mod_folder_legacy_mod(folder: Path) -> bool:
     # of the following imports in the first 1024 bytes of it's `__init__.py`.
     #   from ..ModMenu import
     #   from Mods.xyz import
+    init = folder / "__init__.py"
+    if not init.exists():
+        return False
     with (folder / "__init__.py").open() as file:
         header = file.read(1024)
         return RE_LEGACY_MOD_IMPORT.search(header) is not None
