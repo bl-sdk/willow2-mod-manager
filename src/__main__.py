@@ -15,10 +15,12 @@ import contextlib
 import importlib
 import json
 import os
+import re
 import sys
 import traceback
 import zipfile
 from collections.abc import Collection
+from dataclasses import dataclass
 from pathlib import Path
 
 import unrealsdk
@@ -32,6 +34,12 @@ WAIT_FOR_CLIENT: bool = False
 
 # A json list of paths to also to import mods from - you can add your repo to keep it separated
 EXTRA_FOLDERS_ENV_VAR: str = "MOD_MANAGER_EXTRA_FOLDERS"
+
+
+@dataclass
+class ModInfo:
+    module: str
+    legacy: bool
 
 
 def init_debugpy() -> None:
@@ -124,6 +132,27 @@ def validate_folder_in_mods_folder(folder: Path) -> bool:
     return True
 
 
+RE_LEGACY_MOD_IMPORT = re.compile(r"from (\.\.ModMenu|Mods(\.\S+)?) import")
+
+
+def is_mod_folder_legacy_mod(folder: Path) -> bool:
+    """
+    Checks if a mod folder is a legacy mod.
+
+    Args:
+        folder: The folder to analyse.
+    Returns:
+        True if the folder contains a legacy mod.
+    """
+    # An exhaustive search over all legacy mods found we can reliably detect them by looking for one
+    # of the following imports in the first 1024 bytes of it's `__init__.py`.
+    #   from ..ModMenu import
+    #   from Mods.xyz import
+    with (folder / "__init__.py").open() as file:
+        header = file.read(1024)
+        return RE_LEGACY_MOD_IMPORT.search(header) is not None
+
+
 def validate_file_in_mods_folder(file: Path) -> bool:
     """
     Checks if a folder inside the mods folder is actually a mod we should try import.
@@ -186,7 +215,7 @@ def validate_file_in_mods_folder(file: Path) -> bool:
     return True
 
 
-def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[str]:
+def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[ModInfo]:
     """
     Given a collection of mod folders, find the individual mod modules within it to try import.
 
@@ -195,7 +224,7 @@ def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[str]:
     Returns:
         A collection of the module names to import.
     """
-    mods_to_import: list[str] = []
+    mods_to_import: list[ModInfo] = []
 
     for folder in mod_folders:
         if not folder.exists():
@@ -206,35 +235,32 @@ def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[str]:
                 continue
 
             if entry.is_dir() and validate_folder_in_mods_folder(entry):
-                mods_to_import.append(entry.name)
+                mods_to_import.append(ModInfo(entry.name, is_mod_folder_legacy_mod(entry)))
 
             elif entry.is_file() and validate_file_in_mods_folder(entry):
-                mods_to_import.append(entry.stem)
+                # Files are never legacy mods
+                mods_to_import.append(ModInfo(entry.stem, False))
 
     return mods_to_import
 
 
-def import_mod_manager() -> None:
-    """
-    Imports any mod manager modules which have specific initialization order requirements.
-
-    Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
-    """
-    # Deliberately empty (for now)
-
-
-def import_mods(mods_to_import: Collection[str]) -> None:
+def import_mods(mods_to_import: Collection[ModInfo]) -> None:
     """
     Tries to import a list of mods.
 
     Args:
         mods_to_import: The list of mods to import.
     """
-    for name in mods_to_import:
+    for mod in mods_to_import:
         try:
-            importlib.import_module(name)
+            if mod.legacy:
+                with legacy_compat():
+                    importlib.import_module(mod.module)
+            else:
+                importlib.import_module(mod.module)
+
         except Exception as ex:  # noqa: BLE001
-            logging.error(f"Failed to import mod '{name}'")
+            logging.error(f"Failed to import mod '{mod.module}'")
 
             tb = traceback.extract_tb(ex.__traceback__)
             if not FULL_TRACEBACKS:
@@ -306,7 +332,11 @@ proton_null_exception_check()
 
 mods_to_import = find_mods_to_import(mod_folders)
 
-import_mod_manager()
+# Import any mod manager modules which have specific initialization order requirements.
+# Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
+# Prefer to import these after console is ready so we can show errors
+from legacy_compat import legacy_compat  # noqa: E402
+
 import_mods(mods_to_import)
 
 del mod_folders, mods_to_import
