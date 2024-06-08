@@ -18,11 +18,17 @@ import os
 import re
 import sys
 import traceback
+import warnings
 import zipfile
 from collections.abc import Collection
 from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
+from typing import TextIO
 
+# Note we try to import as few third party modules as possible before the console is ready, in case
+# any of them cause errors we'd like to have logged
+# Trusting that we can keep all the above standard library modules without issue
 import unrealsdk
 from unrealsdk import logging
 
@@ -258,7 +264,7 @@ def import_mods(mods_to_import: Collection[ModInfo]) -> None:
         try:
             if mod.legacy:
                 with legacy_compat():
-                    importlib.import_module(mod.module)
+                    importlib.import_module(f"Mods.{mod.module}")
             else:
                 importlib.import_module(mod.module)
 
@@ -273,14 +279,40 @@ def import_mods(mods_to_import: Collection[ModInfo]) -> None:
             logging.error("".join(traceback.format_list(tb)))
 
 
-def proton_null_exception_check() -> None:
-    """
-    Tries to detect and warn if we're running under a version of Proton which has the exception bug.
+def hookup_warnings() -> None:
+    """Hooks up the Python warnings system to the dev warning log type."""
 
-    For context, usually pybind detects exceptions using a catch all, which eventually calls through
-    to `std::current_exception` to get the exact exception, and then runs a bunch of translators on
-    it to convert it to a Python exception. When running under a bad Proton version, this call
-    fails, and returns an empty exception pointer, so pybind is unable to translate it.
+    original_show_warning = warnings.showwarning
+    dev_warn_logger = logging.Logger(logging.Level.DEV_WARNING)
+
+    @wraps(warnings.showwarning)
+    def showwarning(
+        message: Warning | str,
+        category: type[Warning],
+        filename: str,
+        lineno: int,
+        file: TextIO | None = None,
+        line: str | None = None,
+    ) -> None:
+        if file is None:
+            # Typeshed has this as a TextIO, but the implementation only actually uses `.write`
+            file = dev_warn_logger  # type: ignore
+        original_show_warning(message, category, filename, lineno, file, line)
+
+    warnings.showwarning = showwarning
+    warnings.resetwarnings()  # Reset filters, show all warnings
+
+
+def check_proton_bugs() -> None:
+    """Tries to detect and warn about various known proton issues."""
+
+    """
+    The exception bug
+    -----------------
+    Usually pybind detects exceptions using a catch all, which eventually calls through to
+    `std::current_exception` to get the exact exception, and then runs a bunch of translators on it
+    to convert it to a Python exception. When running under a bad Proton version, this call fails,
+    and returns an empty exception pointer, so pybind is unable to translate it.
 
     This means Python throws a:
     ```
@@ -288,14 +320,13 @@ def proton_null_exception_check() -> None:
     ```
     This is primarily a problem for `StopIteration`.
     """  # noqa: E501
-
     cls = unrealsdk.find_class("Object")
     try:
         # Cause an attribute error
         _ = cls._check_for_proton_null_exception_bug
     except AttributeError:
         # Working properly
-        return
+        pass
     except SystemError:
         # Have the bug
         logging.error(
@@ -305,10 +336,30 @@ def proton_null_exception_check() -> None:
         logging.error(
             "\n"
             "Some particular Proton versions cause this, try switch to another one.\n"
-            "Alternatively, the nightly release has builds from other compilers, which may also"
-            " prevent it.\n"
+            "Alternatively, the nightly release has builds from other compilers, which may\n"
+            "also prevent it.\n"
             "\n"
             "Will attempt to import mods, but they'll likely break with a similar error.\n"
+            "===============================================================================",
+        )
+
+    """
+    Env vars not propagating
+    ------------------------
+    We set various env vars in `unrealsdk.env`, which unrealsdk sets via `SetEnvironmentVariableA`.
+    On some proton versions this does not get propagated through to Python - despite clearly having
+    worked for pyunrealsdk, if we're able to run this script. Some of these are used by Python, and
+    may cause issues if we cannot find them.
+    """
+    if "PYUNREALSDK_INIT_SCRIPT" not in os.environ:
+        logging.error(
+            "===============================================================================\n"
+            "Some environment variables don't seem to have propagated into Python. This may\n"
+            "cause issues in parts of the mod manager or individual mods which expect them.\n"
+            "\n"
+            "Some particular Proton versions cause this, try switch to another one.\n"
+            "Alternatively, the nightly release has builds from other compilers, which may\n"
+            "also prevent it.\n"
             "===============================================================================",
         )
 
@@ -325,14 +376,17 @@ init_debugpy()
 while not logging.is_console_ready():
     pass
 
-# Now that the console's ready, show errors for any non-existent mod folders
+
+# Now that the console's ready, hook up the warnings system, and show some other warnings users may
+# be interested in
+hookup_warnings()
+
+check_proton_bugs()
 for folder in mod_folders:
     if not folder.exists() or not folder.is_dir():
         logging.dev_warning(f"Extra mod folder does not exist: {folder}")
 
-# And check for the proton null exception bug, if present we also want to print
-proton_null_exception_check()
-
+# Now to actually try import mods
 mods_to_import = find_mods_to_import(mod_folders)
 
 # Import any mod manager modules which have specific initialization order requirements.

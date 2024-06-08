@@ -14,5 +14,8 @@ __all__: tuple[str, ...] = (
 Log = print
 
 
-def FindObject(Class: str | UClass, ObjectFullName: str, /) -> UObject:
-    return find_object(Class, ObjectFullName)
+def FindObject(Class: str | UClass, ObjectFullName: str, /) -> UObject | None:
+    try:
+        return find_object(Class, ObjectFullName)
+    except ValueError:
+        return None
