@@ -138,7 +138,7 @@ def validate_folder_in_mods_folder(folder: Path) -> bool:
     return True
 
 
-RE_LEGACY_MOD_IMPORT = re.compile(r"from (\.\.ModMenu|Mods(\.\S+)?) import")
+RE_LEGACY_MOD_IMPORT = re.compile(r"from (\.\.ModMenu|Mods(\.\S+)?) import|BL2MOD\):")
 
 
 def is_mod_folder_legacy_mod(folder: Path) -> bool:
@@ -151,9 +151,10 @@ def is_mod_folder_legacy_mod(folder: Path) -> bool:
         True if the folder contains a legacy mod.
     """
     # An exhaustive search over all legacy mods found we can reliably detect them by looking for one
-    # of the following imports in the first 1024 bytes of it's `__init__.py`.
-    #   from ..ModMenu import
-    #   from Mods.xyz import
+    # of the following patterns in the first 1024 bytes of it's `__init__.py`.
+    #   {from ..ModMenu import} xyz
+    #   {from Mods.abc import} xyz
+    #   class MyCoolMod(unrealsdk.{BL2MOD):}
     init = folder / "__init__.py"
     if not init.exists():
         return False
@@ -392,6 +393,7 @@ mods_to_import = find_mods_to_import(mod_folders)
 # Import any mod manager modules which have specific initialization order requirements.
 # Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
 # Prefer to import these after console is ready so we can show errors
+import keybinds  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
 from legacy_compat import legacy_compat  # noqa: E402
 
 import_mods(mods_to_import)

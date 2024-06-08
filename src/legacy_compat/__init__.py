@@ -65,6 +65,7 @@ Mods.__path__ = None  # type:  ignore
 # When we exit compat, we'll move any new imports under `Mods` into this, since we don't want to
 # keep them around for normal mods
 legacy_modules: dict[str, ModuleType] = {
+    "bl2sdk": old_unrealsdk,
     "unrealsdk": old_unrealsdk,
     "Mods": Mods,
     "Mods.ModMenu": ModMenu,
@@ -107,7 +108,7 @@ def legacy_compat() -> Iterator[None]:
 
         # Move the legacy modules out of sys.modules back into our legacy dict
         for name in tuple(sys.modules.keys()):
-            if name in {"Mods", "unrealsdk"} or name.startswith("Mods."):
+            if name in {"bl2sdk", "unrealsdk", "Mods"} or name.startswith("Mods."):
                 legacy_modules[name] = sys.modules.pop(name)
         # And add any overwritten modules back in
         sys.modules |= overwritten_modules

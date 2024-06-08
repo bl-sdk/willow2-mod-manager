@@ -16,6 +16,8 @@ from mods_base import (
     ValueOption,
 )
 
+from .DeprecationHelper import NameChangeMsg, PrintWarning
+
 if TYPE_CHECKING:
     from ModObjects import SDKMod
 
@@ -142,16 +144,28 @@ class Spinner(Value[str]):
         self,
         Caption: str,
         Description: str,
-        StartingValue: str,
-        Choices: Sequence[str],
+        StartingValue: str | None = None,
+        Choices: Sequence[str] | None = None,
         *,
         IsHidden: bool = False,
+        StartingChoice: str | None = None,
     ) -> None:
         self.Caption = Caption
         self.Description = Description
         self.IsHidden = IsHidden
-        self.StartingValue = StartingValue
-        self.CurrentValue = StartingValue
+
+        if StartingValue is not None:
+            self.StartingValue = StartingValue
+            self.CurrentValue = StartingValue
+        elif StartingChoice is not None:
+            PrintWarning(NameChangeMsg("Spinner.StartingChoice", "Spinner.StartingValue"))
+            self.StartingValue = StartingChoice
+            self.CurrentValue = StartingChoice
+        else:
+            raise TypeError("__init__() missing 1 required positional argument: 'StartingValue'")
+
+        if Choices is None:
+            raise TypeError("__init__() missing 1 required positional argument: 'Choices'")
         self.Choices = Choices
 
         if self.StartingValue not in self.Choices:
