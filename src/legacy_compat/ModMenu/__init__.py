@@ -9,6 +9,7 @@ from legacy_compat import unrealsdk as old_unrealsdk
 
 from . import ModObjects, Options
 from .DeprecationHelper import Deprecated, NameChangeMsg, PrintWarning
+from .KeybindManager import Keybind, KeybindCallback
 from .ModObjects import EnabledSaveType, Game, ModPriorities, Mods, ModTypes, RegisterMod, SDKMod
 
 __all__: tuple[str, ...] = (
@@ -23,8 +24,8 @@ __all__: tuple[str, ...] = (
     # "HookFunction",
     # "HookMethod",
     # "InputEvent",
-    # "Keybind",
-    # "KeybindCallback",
+    "Keybind",
+    "KeybindCallback",
     # "LoadModSettings",
     "ModPriorities",
     "Mods",

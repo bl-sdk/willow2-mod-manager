@@ -67,14 +67,24 @@ raw_keybind_callback_stack: list[list[RawKeybind]] = []
 
 def push() -> None:
     """Pushes a new raw keybind frame."""
+    if raw_keybind_callback_stack:
+        old_frame = raw_keybind_callback_stack[0]
+        for bind in old_frame:
+            bind.disable()
+
     raw_keybind_callback_stack.append([])
 
 
 def pop() -> None:
     """Pops the current raw keybind frame."""
-    frame = raw_keybind_callback_stack.pop()
-    for bind in frame:
+    old_frame = raw_keybind_callback_stack.pop()
+    for bind in old_frame:
         bind.disable()
+
+    if raw_keybind_callback_stack:
+        new_frame = raw_keybind_callback_stack[0]
+        for bind in new_frame:
+            bind.enable()
 
 
 @overload

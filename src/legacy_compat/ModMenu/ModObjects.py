@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 from abc import ABCMeta
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, Flag, IntEnum, auto
 from typing import TYPE_CHECKING, Any
 
@@ -20,13 +20,12 @@ from mods_base import (
     register_mod,
 )
 
-from . import Options
+from . import KeybindManager, Options
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 # TODO: SettingsInputs
-# TODO: Keybinds
 # TODO: Networking
 # TODO: Hooks
 
@@ -141,8 +140,41 @@ class _NewMod(Mod):
     def supported_games(self, val: Game) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
         self.legacy_mod.SupportedGames = val
 
-    # TODO
-    keybinds: Sequence[KeybindType] = ()
+    # Unlike options, binds can have an external persistent state, so we need to keep our list of
+    # binds around to reuse them when possible
+    _last_seen_legacy_binds: list[KeybindManager.Keybind] = field(default_factory=list)
+    _cached_keybinds: list[KeybindType] = field(default_factory=list)
+
+    @property
+    def keybinds(self) -> Sequence[KeybindType]:
+        current_legacy_binds = list(self.legacy_mod.Keybinds)
+
+        # For some reason we get called in init before our field has been initalized
+        try:
+            self._cached_keybinds  # noqa: B018
+            self._last_seen_legacy_binds  # noqa: B018
+        except AttributeError:
+            self._cached_keybinds = []
+            self._last_seen_legacy_binds = []
+
+        if current_legacy_binds == self._last_seen_legacy_binds:
+            return self._cached_keybinds
+        self._last_seen_legacy_binds = current_legacy_binds
+
+        for bind in self._cached_keybinds:
+            bind.disable()
+        self._cached_keybinds = [
+            KeybindManager.convert_to_new_style_keybind(bind, self.legacy_mod)
+            for bind in self.legacy_mod.Keybinds
+        ]
+        if self.is_enabled:
+            for bind in self._cached_keybinds:
+                bind.enable()
+        return self._cached_keybinds
+
+    @keybinds.setter
+    def keybinds(self, val: Sequence[KeybindType]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        raise NotImplementedError("Unable to set keybinds on legacy sdk mod")
 
     @property
     def options(self) -> Sequence[BaseOption]:
@@ -203,7 +235,7 @@ class _LegacyModMeta(ABCMeta):
         "Status",
         # "SettingsInputs",
         "Options",
-        # "Keybinds",
+        "Keybinds",
         # "_server_functions",
         # "_client_functions",
         "_is_enabled",
@@ -235,7 +267,7 @@ class _LegacyMod(metaclass=_LegacyModMeta):
     Status: str | None = None
     # SettingsInputs: dict[str, str] = {"Enter": "Enable"}
     Options: Sequence[Options.Base] = []
-    # Keybinds: Sequence[KeybindManager.Keybind] = []
+    Keybinds: Sequence[KeybindManager.Keybind] = []
 
     # _server_functions: Set[Callable[..., None]] = set()
     # _client_functions: Set[Callable[..., None]] = set()
@@ -260,8 +292,13 @@ class _LegacyMod(metaclass=_LegacyModMeta):
 
     # def SettingsInputPressed(self, action: str) -> None:
     #     pass
-    # def GameInputPressed(self, bind: KeybindManager.Keybind, event: KeybindManager.InputEvent) -> None:
-    #     pass
+
+    def GameInputPressed(
+        self,
+        bind: KeybindManager.Keybind,
+        event: KeybindManager.InputEvent,
+    ) -> None:
+        pass
 
     def ModOptionChanged(self, option: Options.Base, new_value: Any) -> None:
         pass
