@@ -36,7 +36,10 @@ class BasicModSettings(TypedDict, total=False):
     keybinds: dict[str, str | None]
 
 
-def load_options_dict(options: Sequence[BaseOption], settings: Mapping[str, JSON]) -> None:
+def load_options_dict(  # noqa: C901 - imo the match is rated too highly, but it's getting there
+    options: Sequence[BaseOption],
+    settings: Mapping[str, JSON],
+) -> None:
     """
     Recursively loads options from their settings dict.
 

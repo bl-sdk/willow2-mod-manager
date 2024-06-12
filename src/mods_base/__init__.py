@@ -21,7 +21,6 @@ if True:
     )
     del _mod_dir
 
-from . import raw_keybinds
 from .command import (
     AbstractCommand,
     ArgParseCommand,
@@ -88,7 +87,6 @@ __all__: tuple[str, ...] = (
     "ModType",
     "NestedOption",
     "open_in_mod_dir",
-    "raw_keybinds",
     "register_mod",
     "remove_next_console_line_capture",
     "SETTINGS_DIR",

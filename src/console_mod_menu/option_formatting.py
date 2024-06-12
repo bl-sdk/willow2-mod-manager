@@ -1,15 +1,13 @@
-from typing import TypeVar, overload
+from typing import overload
 
 from mods_base import JSON, BaseOption, BoolOption, KeybindOption, ValueOption
 
 from .draw import draw, draw_description
 from .screens import draw_stack_header
 
-_J = TypeVar("_J", bound=JSON)
-
 
 @overload
-def get_option_value_str(option: ValueOption[_J]) -> str: ...
+def get_option_value_str[J: JSON](option: ValueOption[J]) -> str: ...
 
 
 @overload

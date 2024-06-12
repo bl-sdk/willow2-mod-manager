@@ -147,7 +147,7 @@ class Mod:
     on_enable: Callable[[], None] | None = None
     on_disable: Callable[[], None] | None = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(self) -> None:  # noqa: C901 - difficult to split up
         need_to_search_instance_vars = False
 
         new_keybinds: list[KeybindType] = []

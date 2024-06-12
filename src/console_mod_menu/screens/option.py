@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
 
 from mods_base import (
     JSON,
@@ -21,15 +20,12 @@ from console_mod_menu.option_formatting import draw_option_header
 
 from . import AbstractScreen, draw_standard_commands, handle_standard_command_input
 
-_T = TypeVar("_T", bound=BaseOption)
-_J = TypeVar("_J", bound=JSON)
-
 
 @dataclass
-class OptionScreen(AbstractScreen, Generic[_T, _J]):
+class OptionScreen[T: BaseOption, J: JSON](AbstractScreen):
     name: str = field(init=False)
     mod: Mod
-    option: _T
+    option: T
 
     def __post_init__(self) -> None:
         self.name = self.option.display_name
@@ -43,7 +39,7 @@ class OptionScreen(AbstractScreen, Generic[_T, _J]):
         """Draws anything needed for the specific option."""
         raise NotImplementedError
 
-    def update_value(self, new_value: _J) -> None:
+    def update_value(self, new_value: J) -> None:
         """
         Updates an option's value, running the callback if needed.
 
@@ -51,7 +47,7 @@ class OptionScreen(AbstractScreen, Generic[_T, _J]):
             new_value: The option's new value.
         """
         assert isinstance(self.option, ValueOption)
-        option: ValueOption[_J] = self.option  # pyright: ignore[reportUnknownMemberType]
+        option: ValueOption[J] = self.option  # type: ignore
 
         if option.on_change is not None:
             option.on_change(option, new_value)

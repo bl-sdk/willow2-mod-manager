@@ -5,15 +5,8 @@ from dataclasses import dataclass, field
 from mods_base import (
     EInputEvent,
     KeybindOption,
-    raw_keybinds,
     remove_next_console_line_capture,
 )
-
-try:
-    from ui_utils import show_hud_message
-except ImportError:
-    show_hud_message = None
-
 from unrealsdk.hooks import Block
 
 from console_mod_menu.draw import draw
@@ -28,6 +21,18 @@ from . import (
     push_screen,
 )
 from .option import OptionScreen
+
+# We would like to have a screen which binds a key from an actual key press. This is relies on some
+# external modules, it's not truly game agnostic.
+# Gracefully degrade if we can't import everything
+try:
+    from keybinds import raw_keybinds
+except ImportError:
+    raw_keybinds = None
+try:
+    from ui_utils import show_hud_message
+except ImportError:
+    show_hud_message = None
 
 
 @dataclass
@@ -93,56 +98,65 @@ class RebindNameScreen(AbstractScreen):
         return True
 
 
-@dataclass
-class RebindPressScreen(AbstractScreen):
-    name: str = field(init=False)
-    parent: KeybindOptionScreen
+if raw_keybinds is not None:
 
-    is_bind_active: bool = field(default=False, init=False)
+    @dataclass
+    class RebindPressScreen(AbstractScreen):
+        name: str = field(init=False)
+        parent: KeybindOptionScreen
 
-    def __post_init__(self) -> None:
-        self.name = self.parent.option.display_name
+        is_bind_active: bool = field(default=False, init=False)
 
-    def draw(self) -> None:  # noqa: D102
-        draw(
-            "Close console, then press the key you want to bind to. This screen will automatically"
-            " close after being bound.",
-        )
-        draw_standard_commands()
+        def __post_init__(self) -> None:
+            self.name = self.parent.option.display_name
 
-        if self.is_bind_active:
-            raw_keybinds.pop()
-        raw_keybinds.push()
+        def draw(self) -> None:  # noqa: D102
+            draw(
+                "Close console, then press the key you want to bind to. This screen will"
+                " automatically close after being bound.",
+            )
+            draw_standard_commands()
 
-        # Closing console only triggers a release event
-        @raw_keybinds.add(None, EInputEvent.IE_Pressed)
-        def key_handler(key: str) -> type[Block]:  # pyright: ignore[reportUnusedFunction]
-            self.parent.update_value(key)
+            # pyright thinks there's a chance this could change by the time we get to the function
+            # call, so doesn't propegate the above None check
+            assert raw_keybinds is not None
 
-            self.is_bind_active = False
-            raw_keybinds.pop()
+            if self.is_bind_active:
+                raw_keybinds.pop()
+            raw_keybinds.push()
 
-            # Try show a notification that we caught the press, if we were able to import it
-            if show_hud_message is not None:
-                show_hud_message(
-                    "Console Mod Menu",
-                    f"'{self.parent.option.display_name}' bound to '{key}'",
-                )
+            # Closing console only triggers a release event
+            @raw_keybinds.add(None, EInputEvent.IE_Pressed)
+            def key_handler(key: str) -> type[Block]:  # pyright: ignore[reportUnusedFunction]
+                self.parent.update_value(key)
 
-            # Bit of hackery to inject back into the menu loop
-            # Submit a B to close this menu
-            remove_next_console_line_capture()
-            _handle_interactive_input("B")
+                self.is_bind_active = False
 
-            return Block
+                assert raw_keybinds is not None
+                raw_keybinds.pop()
 
-    def handle_input(self, line: str) -> bool:  # noqa: D102
-        return handle_standard_command_input(line)
+                # Try show a notification that we caught the press, if we were able to import it
+                if show_hud_message is not None:
+                    show_hud_message(
+                        "Console Mod Menu",
+                        f"'{self.parent.option.display_name}' bound to '{key}'",
+                    )
 
-    def on_close(self) -> None:  # noqa: D102
-        if self.is_bind_active:
-            self.is_bind_active = False
-            raw_keybinds.pop()
+                # Bit of hackery to inject back into the menu loop
+                # Submit a B to close this menu
+                remove_next_console_line_capture()
+                _handle_interactive_input("B")
+
+                return Block
+
+        def handle_input(self, line: str) -> bool:  # noqa: D102
+            return handle_standard_command_input(line)
+
+        def on_close(self) -> None:  # noqa: D102
+            if self.is_bind_active:
+                self.is_bind_active = False
+                assert raw_keybinds is not None
+                raw_keybinds.pop()
 
 
 @dataclass
@@ -151,8 +165,12 @@ class KeybindOptionScreen(OptionScreen[KeybindOption, str | None]):
         if self.option.is_rebindable:
             draw("[1] Rebind by key name")
             draw("[2] List known key names", indent=1)
-            draw("[3] Rebind using key press")
-            draw("[4] Unbind")
+
+            if raw_keybinds is None:
+                draw("[3] Unbind")
+            else:
+                draw("[3] Rebind using key press")
+                draw("[4] Unbind")
 
         draw_standard_commands()
 
@@ -168,9 +186,9 @@ class KeybindOptionScreen(OptionScreen[KeybindOption, str | None]):
             draw("Known Keys:")
             draw(", ".join(sorted(KNOWN_KEYS)))
             draw("")
-        elif line == "3":
+        elif line == "3" and raw_keybinds is not None:
             push_screen(RebindPressScreen(self))
-        elif line == "4":
+        elif line == ("3" if raw_keybinds is None else "4"):
             self.update_value(None)
         else:
             return False

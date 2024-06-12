@@ -249,7 +249,10 @@ def update_fields_with_module_attributes(module: ModuleType, fields: ModFactoryF
         fields["settings_file"] = SETTINGS_DIR / (module.__name__ + ".json")
 
 
-def update_fields_with_module_search(module: ModuleType, fields: ModFactoryFields) -> None:
+def update_fields_with_module_search(  # noqa: C901 - difficult to split up
+    module: ModuleType,
+    fields: ModFactoryFields,
+) -> None:
     """
     Updates the mod factory fields with data gathered by searching through all vars in the module.
 

@@ -28,7 +28,11 @@ class PlainTextHTMLConverter(HTMLParser):
     def handle_data(self, data: str) -> None:
         self.plain_text += data
 
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+    def handle_starttag(  # noqa: C901 - imo the match is rated too highly
+        self,
+        tag: str,
+        attrs: list[tuple[str, str | None]],
+    ) -> None:
         match tag.lower():
             case "br":
                 self.plain_text += "\n"

@@ -35,8 +35,10 @@ class KeybindType:
     """
     Represents a single keybind.
 
-    The input callback takes no args, and may return the Block sentinel to prevent passing the input
-    back into the game. Standard blocking logic applies when multiple keybinds use the same key.
+    The input callback takes no args, and may return the Block sentinel to try prevent passing the
+    input back into the game. Note that this depends on the keybinds implementation, implementations
+    may not necessarily implement blocking. If it is implemented, standard blocking logic applies
+    when multiple keybinds use the same key.
 
     Args:
         identifier: The keybind's identifier.
