@@ -79,6 +79,16 @@ def convert_to_new_style_keybind(
     bind: Keybind | list[str],
     mod: "SDKMod | None" = None,
 ) -> KeybindType:
+    """
+    Converts a legacy keybind, of either type, to a new-style keybind.
+
+    Args:
+        bind: The legacy keybind.
+        mod: The legacy mod object to send change callbacks to.
+    Returns:
+        The new-style keybind.
+    """
+
     if isinstance(bind, Keybind):
 
         def set_key(new_key: str | None) -> None:
