@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from mods_base import (
     EInputEvent,
@@ -22,15 +23,21 @@ from . import (
 )
 from .option import OptionScreen
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from types import ModuleType
+
 # We would like to have a screen which binds a key from an actual key press. This is relies on some
 # external modules, it's not truly game agnostic.
 # Gracefully degrade if we can't import everything
 try:
-    from keybinds import raw_keybinds
+    raw_keybinds: ModuleType | None
+    from keybinds import raw_keybinds  # type: ignore
 except ImportError:
     raw_keybinds = None
 try:
-    from ui_utils import show_hud_message
+    show_hud_message: Callable[[str, str], None] | None
+    from ui_utils import show_hud_message  # type: ignore
 except ImportError:
     show_hud_message = None
 
