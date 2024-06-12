@@ -11,7 +11,9 @@ from typing import TYPE_CHECKING, Any
 from mods_base import (
     AbstractCommand,
     BaseOption,
+    ButtonOption,
     Game,
+    GroupedOption,
     HookProtocol,
     KeybindType,
     Mod,
@@ -25,7 +27,6 @@ from . import KeybindManager, Options
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-# TODO: SettingsInputs
 # TODO: Networking
 # TODO: Hooks
 
@@ -178,10 +179,23 @@ class _NewMod(Mod):
 
     @property
     def options(self) -> Sequence[BaseOption]:
-        return [
+        options = [
             Options.convert_to_new_style_option(option, self.legacy_mod)
             for option in self.legacy_mod.Options
         ]
+        extra_settings_inputs = [
+            ButtonOption(
+                action,
+                on_press=lambda _, action=action: self.legacy_mod.SettingsInputPressed(action),
+            )
+            for action in self.legacy_mod.SettingsInputs.values()
+            if action not in {"Enable", "Disable"}
+        ]
+
+        if extra_settings_inputs:
+            options.insert(0, GroupedOption("Actions", extra_settings_inputs))
+
+        return options
 
     @options.setter
     def options(self, val: Sequence[BaseOption]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -191,6 +205,20 @@ class _NewMod(Mod):
     hooks: Sequence[HookProtocol] = ()
 
     commands: Sequence[AbstractCommand] = ()
+
+    _enabling_locked: bool = False
+
+    @property
+    def enabling_locked(self) -> bool:
+        if not self._enabling_locked:
+            return False
+
+        # If not explictly locked, also lock if we don't have an enable or disable action
+        return len({"Enable", "Disable"}.intersection(self.legacy_mod.SettingsInputs.values())) == 0
+
+    @enabling_locked.setter
+    def enabling_locked(self, val: bool) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        self._enabling_locked = val
 
     @property
     def auto_enable(self) -> bool:
@@ -233,7 +261,7 @@ class _LegacyModMeta(ABCMeta):
         "Priority",
         "SaveEnabledState",
         "Status",
-        # "SettingsInputs",
+        "SettingsInputs",
         "Options",
         "Keybinds",
         # "_server_functions",
@@ -265,7 +293,7 @@ class _LegacyMod(metaclass=_LegacyModMeta):
     SaveEnabledState: EnabledSaveType = EnabledSaveType.NotSaved
 
     Status: str | None = None
-    # SettingsInputs: dict[str, str] = {"Enter": "Enable"}
+    SettingsInputs: dict[str, str] = {"Enter": "Enable"}  # noqa: RUF012 - mistake in the original we're stuck with
     Options: Sequence[Options.Base] = []
     Keybinds: Sequence[KeybindManager.Keybind] = []
 
@@ -290,8 +318,8 @@ class _LegacyMod(metaclass=_LegacyModMeta):
     def Disable(self) -> None:
         self.new_mod_obj.disable()
 
-    # def SettingsInputPressed(self, action: str) -> None:
-    #     pass
+    def SettingsInputPressed(self, action: str) -> None:
+        pass
 
     def GameInputPressed(
         self,
