@@ -1,23 +1,56 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
 import warnings
+from collections.abc import Callable
 from contextlib import suppress
-from functools import wraps
+from functools import cache, wraps
 from typing import Any
 
 from mods_base import ENGINE
-from unrealsdk import find_class, find_object
-from unrealsdk.unreal import UClass, UFunction, UObject, UStructProperty, WrappedStruct
+from unrealsdk import __version_info__, construct_object, find_all, find_class, find_object
+from unrealsdk.hooks import (
+    Block,
+    Type,
+    add_hook,
+    inject_next_call,
+    log_all_calls,
+    remove_hook,
+)
+from unrealsdk.unreal import (
+    BoundFunction,
+    UClass,
+    UFunction,
+    UObject,
+    UStructProperty,
+    WrappedStruct,
+)
 
 __all__: tuple[str, ...] = (
+    "CallPostEdit",
+    "DoInjectedCallNext",
+    "FindAll",
+    "FindClass",
     "FindObject",
+    "FStruct",
+    "GetEngine",
+    "GetVersion",
     "Log",
+    "LogAllCalls",
+    "RegisterHook",
+    "RemoveHook",
+    "RunHook",
     "UClass",
     "UFunction",
     "UObject",
 )
 
 Log = print
+
+FStruct = WrappedStruct
+
+
+def GetVersion() -> tuple[int, int, int]:
+    return __version_info__
 
 
 def FindObject(Class: str | UClass, ObjectFullName: str, /) -> UObject | None:
@@ -34,8 +67,26 @@ def FindClass(ClassName: str, Lookup: bool = False) -> UClass | None:  # noqa: A
         return None
 
 
+def FindAll(InStr: str, IncludeSubclasses: bool, /) -> list[UObject]:
+    return list(find_all(InStr, exact=not IncludeSubclasses))
+
+
 def GetEngine() -> UObject:
     return ENGINE
+
+
+def ConstructObject(
+    Class: UClass | str,
+    Outer: UObject | None = ENGINE,
+    Name: str = "None",
+    SetFlags: int = 1,
+    InternalSetFlags: int = 0,  # noqa: ARG001
+    Template: UObject | None = None,
+    Error: None = None,  # noqa: ARG001
+    InstanceGraph: None = None,  # noqa: ARG001
+    bAssumeTemplateIsArchetype: int = 0,  # noqa: ARG001
+) -> UObject:
+    return construct_object(Class, Outer, Name, SetFlags, Template)
 
 
 # The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
@@ -52,7 +103,7 @@ def _object_setattr(self: UObject, name: str, value: Any) -> None:
             if isinstance(prop, UStructProperty):
                 warnings.warn(
                     "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_tuple(), or WrappedStruct directly.",
+                    " unrealsdk.make_struct(), or WrappedStruct directly.",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -68,7 +119,7 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
             if isinstance(prop, UStructProperty):
                 warnings.warn(
                     "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_tuple(), or WrappedStruct directly.",
+                    " unrealsdk.make_struct(), or WrappedStruct directly.",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -79,3 +130,83 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
 # Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
 UObject.__setattr__ = _object_setattr
 WrappedStruct.__setattr__ = _struct_setattr
+
+
+type _SDKHook = Callable[[UObject, UFunction, FStruct], bool | None]
+
+
+@cache
+def _translate_hook_func_name(func_name: str) -> str:
+    """
+    Translates a legacy style hook name to a modern one.
+
+    The legacy SDK used dots for every seperator, while the modern one uses the proper object name,
+    which typically replaces the last one with a colon.
+
+    Args:
+        func_name: The legacy hook name.
+    Returns:
+        The modern hook name.
+    """
+    split_idx = len(func_name)
+    while True:
+        # Find the rightmost dot
+        split_idx = func_name.rfind(".", 0, split_idx)
+
+        # If we couldn't find it, just use the original name
+        if split_idx < 0:
+            return func_name
+
+        try:
+            # See if we can find the object when replacing this dot with a colon
+            obj = find_object("Function", func_name[:split_idx] + ":" + func_name[split_idx + 1 :])
+            return obj._path_name()
+        except ValueError:
+            pass
+        # Couldn't find it, the colon may have to be a step further left
+
+
+def RegisterHook(func_name: str, hook_id: str, hook_function: _SDKHook, /) -> None:
+    @wraps(hook_function)
+    def translated_hook(
+        obj: UObject,
+        args: WrappedStruct,
+        _ret: Any,
+        func: BoundFunction,
+    ) -> type[Block] | None:
+        return Block if not hook_function(obj, func.func, args) else None
+
+    add_hook(
+        _translate_hook_func_name(func_name),
+        Type.PRE,
+        f"{__name__}:{hook_id}",
+        translated_hook,
+    )
+
+
+def RemoveHook(func_name: str, hook_id: str, /) -> None:
+    remove_hook(_translate_hook_func_name(func_name), Type.PRE, f"{__name__}:{hook_id}")
+
+
+def RunHook(func_name: str, hook_id: str, hook_function: _SDKHook, /) -> None:
+    RemoveHook(func_name, hook_id)
+    RegisterHook(func_name, hook_id, hook_function)
+
+
+def DoInjectedCallNext() -> None:
+    # We're changing behaviour here
+    # A lot of people assumed calling this would mean the next time you called an unreal function,
+    # it would skip hooks - the sdk itself kind of seemed to have assumed as much
+    # However, in truth, any call from Python to unreal skipped hooks, so calling it actually
+    # skipped the *second* unreal function call.
+    # Since this was basically never useful, try change the behaviour to what people assumed
+    inject_next_call()
+
+
+def LogAllCalls(should_log: bool, /) -> None:
+    log_all_calls(should_log)
+
+
+def CallPostEdit(_: bool) -> None:
+    # Never really useful and no way to replicate
+    pass

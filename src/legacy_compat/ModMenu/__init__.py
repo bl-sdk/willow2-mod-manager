@@ -1,6 +1,5 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
-import sys
 from types import ModuleType
 
 import unrealsdk as new_unrealsdk  # noqa: F401  # pyright: ignore[reportUnusedImport]
@@ -9,20 +8,21 @@ from legacy_compat import unrealsdk as old_unrealsdk
 
 from . import ModObjects, Options
 from .DeprecationHelper import Deprecated, NameChangeMsg, PrintWarning
+from .HookManager import AnyHook, Hook, HookFunction, HookMethod, RegisterHooks, RemoveHooks
 from .KeybindManager import Keybind, KeybindCallback
 from .ModObjects import EnabledSaveType, Game, ModPriorities, Mods, ModTypes, RegisterMod, SDKMod
 
 __all__: tuple[str, ...] = (
-    # "AnyHook",
+    "AnyHook",
     # "ClientMethod",
     "Deprecated",
     "EnabledSaveType",
     "Game",
     # "GetOrderedModList",
     # "GetSettingsFilePath",
-    # "Hook",
-    # "HookFunction",
-    # "HookMethod",
+    "Hook",
+    "HookFunction",
+    "HookMethod",
     # "InputEvent",
     "Keybind",
     "KeybindCallback",
@@ -33,10 +33,10 @@ __all__: tuple[str, ...] = (
     "NameChangeMsg",
     "Options",
     "PrintWarning",
-    # "RegisterHooks",
+    "RegisterHooks",
     "RegisterMod",
     # "RegisterNetworkMethods",
-    # "RemoveHooks",
+    "RemoveHooks",
     # "SaveAllModSettings",
     # "SaveModSettings",
     "SDKMod",
@@ -44,7 +44,8 @@ __all__: tuple[str, ...] = (
     # "UnregisterNetworkMethods",
 )
 
-sys.modules["Mods.ModManager"] = ModObjects
+VERSION_MAJOR = 3
+VERSION_MINOR = 0
 
 ModObjects.BL2MOD = ModObjects.SDKMod  # type: ignore
 old_unrealsdk.BL2MOD = ModObjects.SDKMod  # type: ignore

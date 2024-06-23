@@ -22,13 +22,12 @@ from mods_base import (
     register_mod,
 )
 
-from . import KeybindManager, Options
+from . import HookManager, KeybindManager, Options
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
 # TODO: Networking
-# TODO: Hooks
 
 __all__: tuple[str, ...] = (
     "EnabledSaveType",
@@ -201,9 +200,7 @@ class _NewMod(Mod):
     def options(self, val: Sequence[BaseOption]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
         raise NotImplementedError("Unable to set options on legacy sdk mod")
 
-    # TODO
     hooks: Sequence[HookProtocol] = ()
-
     commands: Sequence[AbstractCommand] = ()
 
     _enabling_locked: bool = False
@@ -277,7 +274,17 @@ class _LegacyModMeta(ABCMeta):
 
     def __call__(cls, *args: Any, **kwargs: Any) -> _LegacyMod:
         instance: _LegacyMod = super().__call__(*args, **kwargs)
-        instance.new_mod_obj = _NewMod(instance)
+        new_mod = _NewMod(instance)
+        instance.new_mod_obj = new_mod
+
+        # Swap the enable/disable functions around
+        # On enabling the new mod, we want to run the old mod function too
+        new_mod.on_enable = instance.Enable
+        new_mod.on_disable = instance.Disable
+        # In case some of the old mod logic calls enable, we need to redirect that to the new enable
+        instance.Enable = new_mod.enable
+        instance.Disable = new_mod.disable
+
         return instance
 
 
@@ -313,10 +320,12 @@ class _LegacyMod(metaclass=_LegacyModMeta):
         self.new_mod_obj.is_enabled = val
 
     def Enable(self) -> None:
-        self.new_mod_obj.enable()
+        HookManager.RegisterHooks(self)
+        # NetworkManager.RegisterNetworkMethods(self)
 
     def Disable(self) -> None:
-        self.new_mod_obj.disable()
+        HookManager.RemoveHooks(self)
+        # NetworkManager.UnregisterNetworkMethods(self)
 
     def SettingsInputPressed(self, action: str) -> None:
         pass

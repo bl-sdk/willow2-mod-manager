@@ -84,6 +84,7 @@ else:
         "bl2sdk": old_unrealsdk,
         "unrealsdk": old_unrealsdk,
         "Mods": Mods,
+        "Mods.ModManager": ModMenu.ModObjects,
         "Mods.ModMenu": ModMenu,
     }
 
