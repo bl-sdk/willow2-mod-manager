@@ -7,7 +7,14 @@ from functools import cache, wraps
 from typing import Any
 
 from mods_base import ENGINE
-from unrealsdk import __version_info__, construct_object, find_all, find_class, find_object
+from unrealsdk import (
+    __version_info__,
+    construct_object,
+    find_all,
+    find_class,
+    find_object,
+    load_package,
+)
 from unrealsdk.hooks import (
     Block,
     Type,
@@ -22,18 +29,23 @@ from unrealsdk.unreal import (
     UFunction,
     UObject,
     UStructProperty,
+    WrappedArray,
     WrappedStruct,
 )
 
 __all__: tuple[str, ...] = (
     "CallPostEdit",
     "DoInjectedCallNext",
+    "FArray",
     "FindAll",
     "FindClass",
     "FindObject",
+    "FScriptInterface",
     "FStruct",
     "GetEngine",
     "GetVersion",
+    "KeepAlive",
+    "LoadPackage",
     "Log",
     "LogAllCalls",
     "RegisterHook",
@@ -44,9 +56,17 @@ __all__: tuple[str, ...] = (
     "UObject",
 )
 
-Log = print
-
 FStruct = WrappedStruct
+FArray = WrappedArray
+
+
+# There is no longer an equivalent of this type, but we need to keep something around for isinstance
+# checks
+class FScriptInterface:
+    pass
+
+
+Log = print
 
 
 def GetVersion() -> tuple[int, int, int]:
@@ -67,7 +87,7 @@ def FindClass(ClassName: str, Lookup: bool = False) -> UClass | None:  # noqa: A
         return None
 
 
-def FindAll(InStr: str, IncludeSubclasses: bool, /) -> list[UObject]:
+def FindAll(InStr: str, IncludeSubclasses: bool) -> list[UObject]:
     return list(find_all(InStr, exact=not IncludeSubclasses))
 
 
@@ -207,6 +227,19 @@ def LogAllCalls(should_log: bool, /) -> None:
     log_all_calls(should_log)
 
 
-def CallPostEdit(_: bool) -> None:
+def CallPostEdit(_: bool, /) -> None:
     # Never really useful and no way to replicate
     pass
+
+
+def LoadPackage(filename: str, flags: int = 0, force: bool = False) -> None:  # noqa: ARG001
+    load_package(filename, flags)
+
+
+def KeepAlive(obj: UObject, /) -> None:
+    # Don't think this loop is strictly necessary - the parent objects should stay loaded since
+    # they're referenced via Outer - but it's replicating the old code
+    iter_obj: UObject | None = obj
+    while iter_obj is not None:
+        iter_obj.ObjectFlags |= 0x4000
+        iter_obj = iter_obj.Outer
