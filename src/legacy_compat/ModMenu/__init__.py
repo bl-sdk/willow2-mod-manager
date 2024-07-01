@@ -9,7 +9,7 @@ from legacy_compat import unrealsdk as old_unrealsdk
 from . import ModObjects, Options
 from .DeprecationHelper import Deprecated, NameChangeMsg, PrintWarning
 from .HookManager import AnyHook, Hook, HookFunction, HookMethod, RegisterHooks, RemoveHooks
-from .KeybindManager import Keybind, KeybindCallback
+from .KeybindManager import InputEvent, Keybind, KeybindCallback
 from .ModObjects import EnabledSaveType, Game, ModPriorities, Mods, ModTypes, RegisterMod, SDKMod
 
 __all__: tuple[str, ...] = (
@@ -23,7 +23,7 @@ __all__: tuple[str, ...] = (
     "Hook",
     "HookFunction",
     "HookMethod",
-    # "InputEvent",
+    "InputEvent",
     "Keybind",
     "KeybindCallback",
     # "LoadModSettings",
