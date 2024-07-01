@@ -109,49 +109,6 @@ def ConstructObject(
     return construct_object(Class, Outer, Name, SetFlags, Template)
 
 
-# The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
-# them to a wrapped struct instance
-_default_object_setattr = UObject.__setattr__
-_default_struct_setattr = WrappedStruct.__setattr__
-
-
-@wraps(UObject.__setattr__)
-def _object_setattr(self: UObject, name: str, value: Any) -> None:
-    if isinstance(value, tuple):
-        with suppress(ValueError):
-            prop = self.Class._find_prop(name)
-            if isinstance(prop, UStructProperty):
-                warnings.warn(
-                    "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_struct(), or WrappedStruct directly.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                value = WrappedStruct(prop.Struct, *value)
-    _default_object_setattr(self, name, value)
-
-
-@wraps(WrappedStruct.__setattr__)
-def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
-    if isinstance(value, tuple):
-        with suppress(ValueError):
-            prop = self._type._find_prop(name)
-            if isinstance(prop, UStructProperty):
-                warnings.warn(
-                    "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_struct(), or WrappedStruct directly.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                value = WrappedStruct(prop.Struct, *value)
-    _default_struct_setattr(self, name, value)
-
-
-# Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
-UObject.__setattr__ = _object_setattr
-WrappedStruct.__setattr__ = _struct_setattr
-
-
 type _SDKHook = Callable[[UObject, UFunction, FStruct], bool | None]
 
 
@@ -243,3 +200,74 @@ def KeepAlive(obj: UObject, /) -> None:
     while iter_obj is not None:
         iter_obj.ObjectFlags |= 0x4000
         iter_obj = iter_obj.Outer
+
+
+# ==================================================================================================
+
+
+# The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
+# them to a wrapped struct instance
+_default_object_setattr = UObject.__setattr__
+_default_struct_setattr = WrappedStruct.__setattr__
+
+
+@wraps(UObject.__setattr__)
+def _object_setattr(self: UObject, name: str, value: Any) -> None:
+    if isinstance(value, tuple):
+        with suppress(ValueError):
+            prop = self.Class._find_prop(name)
+            if isinstance(prop, UStructProperty):
+                warnings.warn(
+                    "Setting struct properties using tuples is deprecated. Use"
+                    " unrealsdk.make_struct(), or WrappedStruct directly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                value = WrappedStruct(prop.Struct, *value)
+    _default_object_setattr(self, name, value)
+
+
+@wraps(WrappedStruct.__setattr__)
+def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
+    if isinstance(value, tuple):
+        with suppress(ValueError):
+            prop = self._type._find_prop(name)
+            if isinstance(prop, UStructProperty):
+                warnings.warn(
+                    "Setting struct properties using tuples is deprecated. Use"
+                    " unrealsdk.make_struct(), or WrappedStruct directly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                value = WrappedStruct(prop.Struct, *value)
+    _default_struct_setattr(self, name, value)
+
+
+# The old sdk had interface properties return an FScriptInterface struct. Since you only ever
+# accessed the object on this, the new sdk just returns the object directly.
+# This means old code already has a UObject, but tries to access the `ObjectPointer` field. Detect
+# when this fails, and no-op it.
+_default_object_getattr = UObject.__getattr__
+
+
+@wraps(UObject.__getattr__)
+def _object_getattr(self: UObject, name: str) -> Any:
+    try:
+        return _default_object_getattr(self, name)
+    except AttributeError as ex:
+        if name != "ObjectPointer":
+            raise ex
+
+        warnings.warn(
+            "Interface properties now return the object directly, accessing '.ObjectPointer' is"
+            " deprecated.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self
+
+
+# Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
+UObject.__getattr__ = _object_getattr
+UObject.__setattr__ = _object_setattr
+WrappedStruct.__setattr__ = _struct_setattr
