@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(oak_mod_manager)
+project(willow_mod_manager)
 
 set(UNREALSDK_ARCH x86)
 set(UNREALSDK_UE_VERSION UE3)
