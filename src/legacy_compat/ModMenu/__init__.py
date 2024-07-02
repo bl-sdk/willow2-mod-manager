@@ -30,7 +30,6 @@ __all__: tuple[str, ...] = (
     "Deprecated",
     "EnabledSaveType",
     "Game",
-    # "GetOrderedModList",
     "GetSettingsFilePath",
     "Hook",
     "HookFunction",
