@@ -128,8 +128,11 @@ def handle_standard_command_input(line: str) -> bool:
             quit_interactive_menu(restart=lower_line == "mods")
             return True
 
-        case "b" | "back" if len(screen_stack) > 1:
-            pop_screen()
+        case "b" | "back":
+            if len(screen_stack) > 1:
+                pop_screen()
+            else:
+                quit_interactive_menu()
             return True
 
         case "?" | "help":
