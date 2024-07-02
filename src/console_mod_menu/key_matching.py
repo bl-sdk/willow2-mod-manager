@@ -1,4 +1,7 @@
+from collections.abc import Iterable
 from os import path
+
+# region Known Keys
 
 KNOWN_KEYS: set[str] = {
     "A",
@@ -133,6 +136,8 @@ KNOWN_KEYS: set[str] = {
     "Zero",
 }
 
+# endregion
+# region Misspellings
 
 # Python has code to suggest other names on an attribute or name error - we want to do the same when
 # someone gives an invalid key name.
@@ -230,12 +235,14 @@ def _levenshtein_distance(a: str, b: str, max_cost: int) -> int:
     return result
 
 
-def suggest_key(invalid_key: str) -> str | None:
+def suggest_misspelt_key(invalid_key: str) -> Iterable[str]:
     """
-    Given an invalid key name, suggest what the user might have misspelt.
+    Given an invalid key name, suggest a misspelling.
 
     Args:
-        invalid_key: the invalid key name
+        invalid_key: The invalid key name.
+    Returns:
+        A list of possible misspellings (which may be empty).
     """
     suggestion_distance: int | None = None
     suggestion: str | None = None
@@ -262,4 +269,65 @@ def suggest_key(invalid_key: str) -> str | None:
             suggestion = item
             suggestion_distance = current_distance
 
-    return suggestion
+    if suggestion is None:
+        return ()
+    return (suggestion,)
+
+
+# endregion
+# region Symbols
+
+SYMBOL_NAMES: dict[str, tuple[str, ...]] = {
+    # Ignoring the symbols which require shift
+    "-": ("Hyphen", "Subtract"),
+    ",": ("Comma",),
+    ";": ("Semicolon",),
+    ".": ("Decimal", "Period"),
+    "'": ("Apostrophe",),
+    "[": ("LeftBracket",),
+    "]": ("RightBracket",),
+    "*": ("Asterix", "Multiply"),
+    "/": ("Divide", "Slash"),
+    "\\": ("Backslash",),
+    "+": ("Add",),
+    "=": ("Equals",),
+    "~": ("Tilde",),
+    "0": ("Zero", "NumPadZero"),
+    "1": ("One", "NumPadOne"),
+    "2": ("Two", "NumPadTwo"),
+    "3": ("Three", "NumPadThree"),
+    "4": ("Four", "NumPadFour"),
+    "5": ("Five", "NumPadFive"),
+    "6": ("Six", "NumPadSix"),
+    "7": ("Seven", "NumPadSeven"),
+    "8": ("Eight", "NumPadEight"),
+    "9": ("Nine", "NumPadNine"),
+}
+
+
+def suggest_symbol_name(invalid_key: str) -> Iterable[str]:
+    """
+    Given an invalid key name, check if it's referencing to a symbol instead of its name.
+
+    Args:
+        invalid_key: The invalid key name.
+    Returns:
+        A list of possible names (which may be empty).
+    """
+    return SYMBOL_NAMES.get(invalid_key, ())
+
+
+# endregion
+
+
+def suggest_keys(invalid_key: str) -> Iterable[str]:
+    """
+    Given an invalid key name, suggest what the user might have intended.
+
+    Args:
+        invalid_key: The invalid key name.
+    """
+    return (
+        *suggest_misspelt_key(invalid_key),
+        *suggest_symbol_name(invalid_key),
+    )

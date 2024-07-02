@@ -11,7 +11,7 @@ from mods_base import (
 from unrealsdk.hooks import Block
 
 from console_mod_menu.draw import draw
-from console_mod_menu.key_matching import KNOWN_KEYS, suggest_key
+from console_mod_menu.key_matching import KNOWN_KEYS, suggest_keys
 
 from . import (
     AbstractScreen,
@@ -48,22 +48,31 @@ class InvalidNameScreen(AbstractScreen):
     parent: KeybindOptionScreen
 
     invalid_key: str
-    suggested_key: str | None = field(init=False)
+    suggested_keys: list[str] = field(init=False)
 
     def __post_init__(self) -> None:
         self.name = self.parent.option.display_name
-        self.suggested_key = suggest_key(self.invalid_key)
+        self.suggested_keys = sorted(suggest_keys(self.invalid_key))
 
     def draw(self) -> None:  # noqa: D102
         msg = f"'{self.invalid_key}' is not a known key name."
-        if self.suggested_key is not None:
-            msg += f" Did you mean '{self.suggested_key}'?"
+
+        match len(self.suggested_keys):
+            case 0:
+                pass
+            case 1:
+                msg += f" Did you mean '{self.suggested_keys[0]}'?"
+            case _:
+                msg += " Did you mean '"
+                msg += "', '".join(self.suggested_keys[:-1])
+                msg += f"', or '{self.suggested_keys[-1]}'?"
+
         draw(msg)
         draw("")
         draw("[1] Discard changes")
         draw(f"[2] Use '{self.invalid_key}'")
-        if self.suggested_key is not None:
-            draw(f"[3] Use '{self.suggested_key}'")
+        for num, suggestion in enumerate(self.suggested_keys, 3):
+            draw(f"[{num}] Use '{suggestion}'")
 
     def handle_input(self, line: str) -> bool:  # noqa: D102
         valid_input = False
@@ -73,9 +82,14 @@ class InvalidNameScreen(AbstractScreen):
         elif line == "2":
             self.parent.update_value(self.invalid_key)
             valid_input = True
-        elif line == "3" and self.suggested_key is not None:
-            self.parent.update_value(self.suggested_key)
-            valid_input = True
+        else:
+            try:
+                new_key = self.suggested_keys[int(line) - 3]
+            except (ValueError, IndexError):
+                pass
+            else:
+                self.parent.update_value(new_key)
+                valid_input = True
 
         if valid_input:
             pop_screen()
@@ -93,7 +107,7 @@ class RebindNameScreen(AbstractScreen):
         self.name = self.parent.option.display_name
 
     def draw(self) -> None:  # noqa: D102
-        draw("Enter the name of the Key to bind to.")
+        draw("Enter the name of the key to bind to.")
 
     def handle_input(self, line: str) -> bool:  # noqa: D102
         pop_screen()
