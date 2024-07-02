@@ -289,51 +289,57 @@ def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> Ba
             mod.ModOptionChanged(option, new_val)  # type: ignore
         option.CurrentValue = new_val  # type: ignore
 
-    match option:
-        case Nested():
-            return NestedOption(
-                option.Caption,
-                tuple(convert_to_new_style_option(opt, mod) for opt in option.Children),
-                description=option.Description,
-                is_hidden=option.IsHidden,
-            )
-        case Boolean():
-            return BoolOption(
-                option.Caption,
-                option.CurrentValue,
-                option.Choices[1],
-                option.Choices[0],
-                description=option.Description,
-                is_hidden=option.IsHidden,
-                on_change=on_change,
-            )
-        case Spinner():
-            return SpinnerOption(
-                option.Caption,
-                option.CurrentValue,
-                list(option.Choices),
-                description=option.Description,
-                is_hidden=option.IsHidden,
-                on_change=on_change,
-            )
-        case Slider():
-            return SliderOption(
-                option.Caption,
-                option.CurrentValue,
-                option.MinValue,
-                option.MaxValue,
-                option.Increment,
-                description=option.Description,
-                is_hidden=option.IsHidden,
-                on_change=on_change,
-            )
-        case Hidden():
-            hidden_option: Hidden[Any] = option
-            return HiddenOption(
-                hidden_option.Caption,
-                hidden_option.CurrentValue,
-                description=hidden_option.Description,
-                on_change=on_change,
-            )
-        case _:
-            raise TypeError(f"Unable to convert legacy option of type {type(option)}")
+    def create() -> BaseOption:
+        match option:
+            case Nested():
+                return NestedOption(
+                    option.Caption,
+                    tuple(convert_to_new_style_option(opt, mod) for opt in option.Children),
+                    description=option.Description,
+                    is_hidden=option.IsHidden,
+                )
+            case Boolean():
+                return BoolOption(
+                    option.Caption,
+                    option.CurrentValue,
+                    option.Choices[1],
+                    option.Choices[0],
+                    description=option.Description,
+                    is_hidden=option.IsHidden,
+                    on_change=on_change,
+                )
+            case Spinner():
+                return SpinnerOption(
+                    option.Caption,
+                    option.CurrentValue,
+                    list(option.Choices),
+                    description=option.Description,
+                    is_hidden=option.IsHidden,
+                    on_change=on_change,
+                )
+            case Slider():
+                return SliderOption(
+                    option.Caption,
+                    option.CurrentValue,
+                    option.MinValue,
+                    option.MaxValue,
+                    option.Increment,
+                    description=option.Description,
+                    is_hidden=option.IsHidden,
+                    on_change=on_change,
+                )
+            case Hidden():
+                hidden_option: Hidden[Any] = option
+                return HiddenOption(
+                    hidden_option.Caption,
+                    hidden_option.CurrentValue,
+                    description=hidden_option.Description,
+                    on_change=on_change,
+                )
+            case _:
+                raise TypeError(f"Unable to convert legacy option of type {type(option)}")
+
+    new_option = create()
+    if mod is not None:
+        new_option.mod = mod.new_mod_obj
+    return new_option

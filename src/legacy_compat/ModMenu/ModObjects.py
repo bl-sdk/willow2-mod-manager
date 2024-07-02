@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import copy
+import inspect
 from abc import ABCMeta
 from dataclasses import dataclass, field
 from enum import Enum, Flag, IntEnum, auto
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from mods_base import (
+    SETTINGS_DIR,
     AbstractCommand,
     BaseOption,
     ButtonOption,
@@ -56,6 +59,7 @@ Mods = _LegacyModList()  # pyright: ignore[reportGeneralTypeIssues]
 
 def RegisterMod(mod: SDKMod) -> None:
     Mods.append(mod)
+    LoadModSettings(mod)
 
 
 class ModPriorities(IntEnum):
@@ -82,6 +86,7 @@ class EnabledSaveType(Enum):
 
 @dataclass
 class _NewMod(Mod):
+    settings_file: Path = None  # type: ignore
     legacy_mod: _LegacyMod = None  # type: ignore
 
     @property
@@ -219,7 +224,8 @@ class _NewMod(Mod):
 
     @property
     def auto_enable(self) -> bool:
-        return self.legacy_mod.SaveEnabledState != EnabledSaveType.NotSaved
+        # Load on main menu is implemented inside LoadModSettings
+        return self.legacy_mod.SaveEnabledState == EnabledSaveType.LoadWithSettings
 
     @auto_enable.setter
     def auto_enable(self, val: bool) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -229,7 +235,16 @@ class _NewMod(Mod):
 
     def __init__(self, legacy_mod: _LegacyMod) -> None:
         self.legacy_mod = legacy_mod
-        super().__post_init__()
+
+        # `inspect.getfile` relies on the modules being in `sys.path`, so we have to grab this now,
+        # before we remove them.
+        self.settings_file = SETTINGS_DIR / (  # pyright: ignore[reportIncompatibleVariableOverride]
+            Path(inspect.getfile(self.legacy_mod.__class__)).parent.name + ".json"
+        )
+
+        # Deliberately not calling super here, since we want to make sure the legacy mod has a
+        # reference to this object first
+        # It's called in the metaclass instead
 
     def get_status(self) -> str:
         if Game.get_current() not in self.supported_games:
@@ -276,6 +291,7 @@ class _LegacyModMeta(ABCMeta):
         instance: _LegacyMod = super().__call__(*args, **kwargs)
         new_mod = _NewMod(instance)
         instance.new_mod_obj = new_mod
+        new_mod.__post_init__()
 
         # Swap the enable/disable functions around
         # On enabling the new mod, we want to run the old mod function too
@@ -350,3 +366,6 @@ class _LegacyMod(metaclass=_LegacyModMeta):
 
 
 SDKMod = _LegacyMod
+
+# Avoid circular import
+from .SettingsManager import LoadModSettings  # noqa: E402

@@ -11,6 +11,12 @@ from .DeprecationHelper import Deprecated, NameChangeMsg, PrintWarning
 from .HookManager import AnyHook, Hook, HookFunction, HookMethod, RegisterHooks, RemoveHooks
 from .KeybindManager import InputEvent, Keybind, KeybindCallback
 from .ModObjects import EnabledSaveType, Game, ModPriorities, Mods, ModTypes, RegisterMod, SDKMod
+from .SettingsManager import (
+    GetSettingsFilePath,
+    LoadModSettings,
+    SaveAllModSettings,
+    SaveModSettings,
+)
 
 __all__: tuple[str, ...] = (
     "AnyHook",
@@ -19,14 +25,14 @@ __all__: tuple[str, ...] = (
     "EnabledSaveType",
     "Game",
     # "GetOrderedModList",
-    # "GetSettingsFilePath",
+    "GetSettingsFilePath",
     "Hook",
     "HookFunction",
     "HookMethod",
     "InputEvent",
     "Keybind",
     "KeybindCallback",
-    # "LoadModSettings",
+    "LoadModSettings",
     "ModPriorities",
     "Mods",
     "ModTypes",
@@ -37,8 +43,8 @@ __all__: tuple[str, ...] = (
     "RegisterMod",
     # "RegisterNetworkMethods",
     "RemoveHooks",
-    # "SaveAllModSettings",
-    # "SaveModSettings",
+    "SaveAllModSettings",
+    "SaveModSettings",
     "SDKMod",
     # "ServerMethod",
     # "UnregisterNetworkMethods",
