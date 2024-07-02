@@ -11,6 +11,12 @@ from .DeprecationHelper import Deprecated, NameChangeMsg, PrintWarning
 from .HookManager import AnyHook, Hook, HookFunction, HookMethod, RegisterHooks, RemoveHooks
 from .KeybindManager import InputEvent, Keybind, KeybindCallback
 from .ModObjects import EnabledSaveType, Game, ModPriorities, Mods, ModTypes, RegisterMod, SDKMod
+from .NetworkManager import (
+    ClientMethod,
+    RegisterNetworkMethods,
+    ServerMethod,
+    UnregisterNetworkMethods,
+)
 from .SettingsManager import (
     GetSettingsFilePath,
     LoadModSettings,
@@ -20,7 +26,7 @@ from .SettingsManager import (
 
 __all__: tuple[str, ...] = (
     "AnyHook",
-    # "ClientMethod",
+    "ClientMethod",
     "Deprecated",
     "EnabledSaveType",
     "Game",
@@ -41,13 +47,13 @@ __all__: tuple[str, ...] = (
     "PrintWarning",
     "RegisterHooks",
     "RegisterMod",
-    # "RegisterNetworkMethods",
+    "RegisterNetworkMethods",
     "RemoveHooks",
     "SaveAllModSettings",
     "SaveModSettings",
     "SDKMod",
-    # "ServerMethod",
-    # "UnregisterNetworkMethods",
+    "ServerMethod",
+    "UnregisterNetworkMethods",
 )
 
 VERSION_MAJOR = 3

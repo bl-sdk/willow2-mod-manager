@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import copy
 import inspect
+import json
 from abc import ABCMeta
 from dataclasses import dataclass, field
 from enum import Enum, Flag, IntEnum, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from mods_base import (
     SETTINGS_DIR,
@@ -26,11 +27,11 @@ from mods_base import (
 )
 
 from . import HookManager, KeybindManager, Options
+from .NetworkManager import NetworkArgsDict, RegisterNetworkMethods, UnregisterNetworkMethods
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
-# TODO: Networking
 
 __all__: tuple[str, ...] = (
     "EnabledSaveType",
@@ -276,8 +277,8 @@ class _LegacyModMeta(ABCMeta):
         "SettingsInputs",
         "Options",
         "Keybinds",
-        # "_server_functions",
-        # "_client_functions",
+        "server_functions",
+        "client_functions",
         "_is_enabled",
     )
 
@@ -320,8 +321,8 @@ class _LegacyMod(metaclass=_LegacyModMeta):
     Options: Sequence[Options.Base] = []
     Keybinds: Sequence[KeybindManager.Keybind] = []
 
-    # _server_functions: Set[Callable[..., None]] = set()
-    # _client_functions: Set[Callable[..., None]] = set()
+    server_functions: set[Callable[..., None]] = set()  # noqa: RUF012
+    client_functions: set[Callable[..., None]] = set()  # noqa: RUF012
 
     _is_enabled: bool | None = None
 
@@ -337,11 +338,11 @@ class _LegacyMod(metaclass=_LegacyModMeta):
 
     def Enable(self) -> None:
         HookManager.RegisterHooks(self)
-        # NetworkManager.RegisterNetworkMethods(self)
+        RegisterNetworkMethods(self)
 
     def Disable(self) -> None:
         HookManager.RemoveHooks(self)
-        # NetworkManager.UnregisterNetworkMethods(self)
+        UnregisterNetworkMethods(self)
 
     def SettingsInputPressed(self, action: str) -> None:
         pass
@@ -356,13 +357,13 @@ class _LegacyMod(metaclass=_LegacyModMeta):
     def ModOptionChanged(self, option: Options.Base, new_value: Any) -> None:
         pass
 
-    # @staticmethod
-    # def NetworkSerialize(arguments: NetworkManager.NetworkArgsDict) -> str:
-    #     pass
+    @staticmethod
+    def NetworkSerialize(arguments: NetworkArgsDict) -> str:
+        return json.dumps(arguments)
 
-    # @staticmethod
-    # def NetworkDeserialize(serialized: str) -> NetworkManager.NetworkArgsDict:
-    #     pass
+    @staticmethod
+    def NetworkDeserialize(serialized: str) -> NetworkArgsDict:
+        return cast(NetworkArgsDict, json.loads(serialized))
 
 
 SDKMod = _LegacyMod
