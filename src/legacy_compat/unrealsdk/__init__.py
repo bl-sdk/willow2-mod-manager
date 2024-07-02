@@ -209,6 +209,7 @@ def KeepAlive(obj: UObject, /) -> None:
 # them to a wrapped struct instance
 _default_object_setattr = UObject.__setattr__
 _default_struct_setattr = WrappedStruct.__setattr__
+_default_func_call = BoundFunction.__call__
 
 
 @wraps(UObject.__setattr__)
@@ -243,6 +244,62 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
     _default_struct_setattr(self, name, value)
 
 
+@wraps(BoundFunction.__call__)
+def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:
+    # If we have no tuples can quickly fall back
+    if not (
+        any(isinstance(x, tuple) for x in args)
+        or any(isinstance(x, tuple) for x in kwargs.values())
+    ):
+        return _default_func_call(self, *args, **kwargs)
+
+    # Otherwise parsing args is quite annoying, basically have to replicate the C++ code exactly
+
+    mutable_args = list(args)
+    # Since we're comparing FNames, kwargs are supposed to be case insensitive, but in Python
+    # they're just normal strings
+    lower_kwargs = {k.lower(): k for k in kwargs}
+
+    seen_return = False
+    for idx, prop in enumerate(self.func._properties()):
+        if (prop.PropertyFlags & 0x80) == 0:  # UProperty::PROP_FLAG_PARAM
+            continue
+        if (prop.PropertyFlags & 0x400) != 0 and not seen_return:  # UProperty::PROP_FLAG_RETURN
+            seen_return = True
+            continue
+        # Can add an early continue here, unlike the C++ version, since `idx` is auto updated
+        if not isinstance(prop, UStructProperty):
+            continue
+
+        if idx < len(mutable_args):
+            value = mutable_args[idx]
+            if isinstance(value, tuple):
+                warnings.warn(
+                    "Setting struct properties using tuples is deprecated. Use"
+                    " unrealsdk.make_struct(), or WrappedStruct directly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                mutable_args[idx] = WrappedStruct(prop.Struct, *value)
+            continue
+
+        if (key := lower_kwargs.get(prop.Name.lower(), None)) is not None:
+            value = kwargs[key]
+            if isinstance(value, tuple):
+                warnings.warn(
+                    "Setting struct properties using tuples is deprecated. Use"
+                    " unrealsdk.make_struct(), or WrappedStruct directly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                kwargs[key] = WrappedStruct(prop.Struct, *value)
+            continue
+
+        # No need to do any sanity checking on args since the default version will do that
+
+    return _default_func_call(self, *mutable_args, **kwargs)
+
+
 # The old sdk had interface properties return an FScriptInterface struct. Since you only ever
 # accessed the object on this, the new sdk just returns the object directly.
 # This means old code already has a UObject, but tries to access the `ObjectPointer` field. Detect
@@ -270,4 +327,5 @@ def _object_getattr(self: UObject, name: str) -> Any:
 # Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
 UObject.__getattr__ = _object_getattr
 UObject.__setattr__ = _object_setattr
+BoundFunction.__call__ = _boundfunc_call
 WrappedStruct.__setattr__ = _struct_setattr
