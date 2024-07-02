@@ -263,7 +263,7 @@ def import_mods(mods_to_import: Collection[ModInfo]) -> None:
     """
     for mod in mods_to_import:
         try:
-            if mod.legacy:
+            if mod.legacy and legacy_compat is not None:
                 with legacy_compat():
                     importlib.import_module(f"Mods.{mod.module}")
             else:
@@ -394,7 +394,12 @@ mods_to_import = find_mods_to_import(mod_folders)
 # Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
 # Prefer to import these after console is ready so we can show errors
 import keybinds  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
-from legacy_compat import legacy_compat  # noqa: E402
+
+try:
+    from legacy_compat import legacy_compat
+except ImportError:
+    logging.warning("Legacy SDK Compatibility has been disabled")
+    legacy_compat = None
 
 import_mods(mods_to_import)
 
