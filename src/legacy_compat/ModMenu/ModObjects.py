@@ -5,11 +5,12 @@ from __future__ import annotations
 import copy
 import inspect
 import json
+import warnings
 from abc import ABCMeta
 from dataclasses import dataclass, field
 from enum import Enum, Flag, IntEnum, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from mods_base import (
     SETTINGS_DIR,
@@ -63,6 +64,21 @@ def RegisterMod(mod: SDKMod) -> None:
     LoadModSettings(mod)
 
 
+# Unfortuantely we need to keep this active the entire time, since the calls happen at runtime, so
+# add a warning when it's used
+@staticmethod
+def game_get_current() -> Literal[Game.BL2, Game.TPS, Game.AoDK, Game.BL3, Game.WL]:
+    warnings.warn(
+        "Game.GetCurrent is deprecated - use Game.get_current instead",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return Game.get_current()
+
+
+Game.GetCurrent = game_get_current  # type: ignore
+
+
 class ModPriorities(IntEnum):
     High = 10
     Standard = 0
@@ -89,6 +105,7 @@ class EnabledSaveType(Enum):
 class _NewMod(Mod):
     settings_file: Path = None  # type: ignore
     legacy_mod: _LegacyMod = None  # type: ignore
+    suppress_mod_option_changed: bool = field(init=False, default=False)
 
     @property
     def name(self) -> str:
@@ -184,10 +201,10 @@ class _NewMod(Mod):
 
     @property
     def options(self) -> Sequence[BaseOption]:
-        options = [
-            Options.convert_to_new_style_option(option, self.legacy_mod)
-            for option in self.legacy_mod.Options
-        ]
+        options = Options.convert_option_list_to_new_style_options(
+            self.legacy_mod.Options,
+            self.legacy_mod,
+        )
         extra_settings_inputs = [
             ButtonOption(
                 action,
@@ -246,6 +263,14 @@ class _NewMod(Mod):
         # Deliberately not calling super here, since we want to make sure the legacy mod has a
         # reference to this object first
         # It's called in the metaclass instead
+
+    def load_settings(self) -> None:
+        # We don't want to call mod option changed while loading settings, need to mark that
+        self.suppress_mod_option_changed = True
+        try:
+            super().load_settings()
+        finally:
+            self.suppress_mod_option_changed = False
 
     def get_status(self) -> str:
         if Game.get_current() not in self.supported_games:

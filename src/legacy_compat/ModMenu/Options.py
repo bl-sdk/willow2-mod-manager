@@ -273,33 +273,47 @@ class Nested(Field):
         )
 
 
-def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> BaseOption:
+mods_to_suppress_mod_option_changed_on: set["SDKMod"] = set()
+
+
+def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way to make this simpler
+    legacy_options: Sequence[Base],
+    mod: "SDKMod | None" = None,
+) -> list[BaseOption]:
     """
-    Converts a legacy option to a new-style option.
+    Converts a list of legacy option to new-style options.
 
     Args:
-        option: The legacy option.
+        legacy_options: The list of legacy options.
         mod: The legacy mod object to send change callbacks to.
     Returns:
-        The new-style option.
+        A list of new-style options.
     """
+    new_options: list[BaseOption] = []
+    for option in legacy_options:
 
-    def on_change[J: JSON](_: ValueOption[J], new_val: Any) -> None:
-        if mod is not None:
-            mod.ModOptionChanged(option, new_val)  # type: ignore
-        option.CurrentValue = new_val  # type: ignore
+        def on_change[J: JSON](
+            _: ValueOption[J],
+            new_val: Any,
+            legacy_option: Base = option,
+        ) -> None:
+            if mod is not None and not mod.new_mod_obj.suppress_mod_option_changed:
+                mod.ModOptionChanged(legacy_option, new_val)  # type: ignore
+            legacy_option.CurrentValue = new_val  # type: ignore
 
-    def create() -> BaseOption:
+        converted_option: BaseOption
         match option:
             case Nested():
-                return NestedOption(
+                converted_option = NestedOption(
                     option.Caption,
-                    tuple(convert_to_new_style_option(opt, mod) for opt in option.Children),
+                    tuple(convert_option_list_to_new_style_options(option.Children, mod)),
                     description=option.Description,
                     is_hidden=option.IsHidden,
                 )
+            case Field():
+                continue
             case Boolean():
-                return BoolOption(
+                converted_option = BoolOption(
                     option.Caption,
                     option.CurrentValue,
                     option.Choices[1],
@@ -309,7 +323,7 @@ def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> Ba
                     on_change=on_change,
                 )
             case Spinner():
-                return SpinnerOption(
+                converted_option = SpinnerOption(
                     option.Caption,
                     option.CurrentValue,
                     list(option.Choices),
@@ -318,7 +332,7 @@ def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> Ba
                     on_change=on_change,
                 )
             case Slider():
-                return SliderOption(
+                converted_option = SliderOption(
                     option.Caption,
                     option.CurrentValue,
                     option.MinValue,
@@ -330,7 +344,7 @@ def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> Ba
                 )
             case Hidden():
                 hidden_option: Hidden[Any] = option
-                return HiddenOption(
+                converted_option = HiddenOption(
                     hidden_option.Caption,
                     hidden_option.CurrentValue,
                     description=hidden_option.Description,
@@ -339,7 +353,7 @@ def convert_to_new_style_option(option: Base, mod: "SDKMod | None" = None) -> Ba
             case _:
                 raise TypeError(f"Unable to convert legacy option of type {type(option)}")
 
-    new_option = create()
-    if mod is not None:
-        new_option.mod = mod.new_mod_obj
-    return new_option
+        if mod is not None:
+            converted_option.mod = mod.new_mod_obj
+        new_options.append(converted_option)
+    return new_options

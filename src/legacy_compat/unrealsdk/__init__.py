@@ -28,12 +28,14 @@ from unrealsdk.unreal import (
     UClass,
     UFunction,
     UObject,
+    UStruct,
     UStructProperty,
     WrappedArray,
     WrappedStruct,
 )
 
-__all__: tuple[str, ...] = (
+# This is mutable so mod menu can add to it
+__all__: list[str] = [
     "CallPostEdit",
     "DoInjectedCallNext",
     "FArray",
@@ -54,10 +56,13 @@ __all__: tuple[str, ...] = (
     "UClass",
     "UFunction",
     "UObject",
-)
+    "UPackage",
+    "UStruct",
+]
 
 FStruct = WrappedStruct
 FArray = WrappedArray
+UPackage = UObject
 
 
 # There is no longer an equivalent of this type, but we need to keep something around for isinstance
@@ -87,7 +92,7 @@ def FindClass(ClassName: str, Lookup: bool = False) -> UClass | None:  # noqa: A
         return None
 
 
-def FindAll(InStr: str, IncludeSubclasses: bool) -> list[UObject]:
+def FindAll(InStr: str, IncludeSubclasses: bool = False) -> list[UObject]:
     return list(find_all(InStr, exact=not IncludeSubclasses))
 
 
@@ -203,7 +208,8 @@ def KeepAlive(obj: UObject, /) -> None:
 
 
 # ==================================================================================================
-
+# Compatibility methods
+# Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
 
 # The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
 # them to a wrapped struct instance
@@ -324,8 +330,34 @@ def _object_getattr(self: UObject, name: str) -> Any:
         return self
 
 
-# Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
 UObject.__getattr__ = _object_getattr
 UObject.__setattr__ = _object_setattr
 BoundFunction.__call__ = _boundfunc_call
 WrappedStruct.__setattr__ = _struct_setattr
+
+
+@staticmethod
+def uobject_find_objects_containing(StringLookup: str, /) -> list[UObject]:
+    warnings.warn(
+        "UObject.FindObjectsContaining is deprecated.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    # Not implementing this properly, it's only used in three places with two sets of args, so just
+    # give them what they actually want
+    if StringLookup == "WillowCoopGameInfo WillowGame.Default__WillowCoopGameInfo":
+        return [find_class("WillowCoopGameInfo").ClassDefaultObject]
+    if StringLookup == "FrontendGFxMovie ":
+        return list(find_all("FrontendGFxMovie"))
+
+    raise NotImplementedError
+
+
+UObject.FindObjectsContaining = uobject_find_objects_containing  # type: ignore
+
+
+def ustructproperty_get_struct(self: UStructProperty) -> UStruct:
+    return self.Struct
+
+
+UStructProperty.GetStruct = ustructproperty_get_struct  # type: ignore

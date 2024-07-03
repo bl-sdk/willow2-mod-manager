@@ -65,6 +65,13 @@ old_unrealsdk.Mods = ModObjects.Mods  # type: ignore
 old_unrealsdk.ModTypes = ModObjects.ModTypes  # type: ignore
 old_unrealsdk.RegisterMod = ModObjects.RegisterMod  # type: ignore
 
+old_unrealsdk.__all__ += (
+    "BL2MOD",
+    "Mods",
+    "ModTypes",
+    "RegisterMod",
+)
+
 OptionManager = ModuleType("OptionManager")
 OptionManager.Options = Options  # type: ignore
 

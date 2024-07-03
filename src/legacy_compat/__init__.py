@@ -32,13 +32,16 @@ if base_mod.version not in {"3.0", "3.1", "3.2", "3.3", "3.4"}:
         yield
         return
 else:
+    import ctypes
+    import inspect
     import sys
     import warnings
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
     from contextlib import contextmanager
+    from importlib.machinery import ModuleSpec
+    from importlib.util import spec_from_file_location
+    from pathlib import Path
     from types import ModuleType
-
-    from mods_base import Game
 
     from . import ModMenu
     from . import unrealsdk as old_unrealsdk
@@ -77,6 +80,9 @@ else:
     """
     Mods.__path__ = None  # type:  ignore
 
+    # This is needed for some mods
+    Mods.__file__ = str(Path(__file__).parent.parent)
+
     # This is essentially an extra version of sys.modules which we swap during legacy compat
     # When we exit compat, we'll move any new imports under `Mods` into this, since we don't want to
     # keep them around for normal mods
@@ -86,7 +92,55 @@ else:
         "Mods": Mods,
         "Mods.ModManager": ModMenu.ModObjects,
         "Mods.ModMenu": ModMenu,
+        "Mods.OptionManager": ModMenu.OptionManager,
+        # Mod-specific compat
+        # This normally points at an older version, we can point it at the current
+        "Mods.UserFeedback.ctypes": ctypes,
     }
+
+    # On top of this, we do actually need a full import hook to redirect other mod-specific imports
+
+    class LegacyCompatMetaPathFinder:
+        @staticmethod
+        def get_importing_file() -> Path:
+            """
+            Gets the file which triggered the in progress import.
+
+            Returns:
+                The importing file.
+            """
+            # Skip the frame for this function and find_spec below
+            for frame in inspect.stack()[2:]:
+                # Then skip everything in the import machinery
+                if "importlib" in frame.filename:
+                    continue
+                return Path(frame.filename)
+            raise RuntimeError
+
+        @classmethod
+        def find_spec(
+            cls,
+            fullname: str,
+            path: Sequence[str] | None = None,  # noqa: ARG003
+            target: ModuleType | None = None,  # noqa: ARG003
+        ) -> ModuleSpec | None:
+            # EridiumLib adds it's dist folder with a path relative to the executable - fix that
+            # We also have some problems with it's copy of requests, so redirect that to our copy
+            if fullname == "requests" and cls.get_importing_file().parent.name == "EridiumLib":
+                return spec_from_file_location(
+                    "Mods.EridiumLib.fake_dist.requests",
+                    Path(__file__).parent / "eridiumlib_requests.py",
+                )
+            if (
+                fullname == "semver"
+                and (mod_folder := cls.get_importing_file().parent).name == "EridiumLib"
+            ):
+                return spec_from_file_location(
+                    "Mods.EridiumLib.fake_dist.semver",
+                    mod_folder / "dist" / "semver.py",
+                )
+
+            return None
 
     @contextmanager
     def legacy_compat() -> Iterator[None]:
@@ -104,20 +158,18 @@ else:
         # Overwrite with legacy modules
         sys.modules |= legacy_modules
 
-        # Extra hack: Add the `Game.GetCurrent` alias to the actual class here
-        # We can't easily create a separate enum class with the alias, since `Game` isn't
-        # inheritable, and since separate identical enum classes still don't compare equal.
-        # We don't want to leave this alias on permanently, so just deal with it here
-        Game.GetCurrent = Game.get_current  # type: ignore
+        # And add our import hook
+        sys.meta_path.insert(0, LegacyCompatMetaPathFinder)
 
         try:
             yield
         finally:
-            del Game.GetCurrent  # type: ignore
+            # Remove the import hook
+            sys.meta_path.remove(LegacyCompatMetaPathFinder)
 
             # Move the legacy modules out of sys.modules back into our legacy dict
             for name in tuple(sys.modules.keys()):
-                if name in {"bl2sdk", "unrealsdk", "Mods"} or name.startswith("Mods."):
+                if name in legacy_modules or name.startswith("Mods."):
                     legacy_modules[name] = sys.modules.pop(name)
             # And add any overwritten modules back in
             sys.modules |= overwritten_modules

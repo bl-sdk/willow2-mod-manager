@@ -1,15 +1,15 @@
 # This file is part of the BL2/TPS/AoDK Willow Mod Manager.
 # <https://github.com/bl-sdk/willow-mod-manager>
 #
-# The Oak Mod Manager is free software: you can redistribute it and/or modify it under the terms of
-# the GNU Lesser General Public License Version 3 as published by the Free Software Foundation.
+# The Willow Mod Manager is free software: you can redistribute it and/or modify it under the terms
+# of the GNU Lesser General Public License Version 3 as published by the Free Software Foundation.
 #
-# The Oak Mod Manager is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
-# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU Lesser General Public License for more details.
+# The Willow Mod Manager is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+# PURPOSE. See the GNU Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License along with the Oak Mod Manager.
-# If not, see <https://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License along with the Willow Mod
+# Manager. If not, see <https://www.gnu.org/licenses/>.
 
 import contextlib
 import importlib
@@ -369,9 +369,16 @@ def check_proton_bugs() -> None:
 
 
 LEGACY_MOD_MIGRATION_BLACKLIST: set[str] = {
-    "__pycache__",
+    # Old Mod Manager
     "General",
     "ModMenu",
+    # Rely on external modules
+    "blimgui",
+    "CommandExtensions",
+    "TextModLoader",
+    "TwitchLogin",
+    # Misc
+    "__pycache__",
     "SideMissionRandomizer",
 }
 
@@ -398,6 +405,7 @@ def migrate_legacy_mods_folder() -> None:
             not entry.is_dir()
             or entry.name in LEGACY_MOD_MIGRATION_BLACKLIST
             or entry.name.startswith(".")
+            or not (entry / "__init__.py").exists()
         ):
             continue
 
