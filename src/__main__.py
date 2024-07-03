@@ -16,6 +16,7 @@ import importlib
 import json
 import os
 import re
+import shutil
 import sys
 import traceback
 import warnings
@@ -24,7 +25,7 @@ from collections.abc import Collection
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 # Note we try to import as few third party modules as possible before the console is ready, in case
 # any of them cause errors we'd like to have logged
@@ -40,6 +41,10 @@ WAIT_FOR_CLIENT: bool = False
 
 # A json list of paths to also to import mods from - you can add your repo to keep it separated
 EXTRA_FOLDERS_ENV_VAR: str = "MOD_MANAGER_EXTRA_FOLDERS"
+
+# If defined, won't try migrate legacy mods into this folder. Useful while still actively developing
+# for both versions
+DISABLE_LEGACY_MOD_MIGRATIONS_ENV_VAR: str = "MOD_MANAGER_DISABLE_LEGACY_MOD_MIGRATION"
 
 
 @dataclass
@@ -229,8 +234,6 @@ def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[ModInfo]:
     """
     Given a collection of mod folders, find the individual mod modules within it to try import.
 
-    Sets up sys.path for `.sdkmod` mods.
-
     Returns:
         A collection of the module names to import.
     """
@@ -365,6 +368,75 @@ def check_proton_bugs() -> None:
         )
 
 
+LEGACY_MOD_MIGRATION_BLACKLIST: set[str] = {
+    "__pycache__",
+    "General",
+    "ModMenu",
+    "SideMissionRandomizer",
+}
+
+
+LEGACY_TO_NEW_SETTING_REMAPPING: dict[str, str] = {
+    "Options": "options",
+    "Keybinds": "keybinds",
+    "AutoEnable": "enabled",
+}
+
+LEGACY_MOD_FOLDER: Path = Path("Mods")
+NEW_MOD_FOLDER: Path = Path(__file__).parent
+NEW_SETTINGS_FOLDER: Path = NEW_MOD_FOLDER / "settings"
+
+
+def migrate_legacy_mods_folder() -> None:
+    """Migrates any mods and their settings files from the legacy mod folder into the new one."""
+
+    if legacy_compat is None or DISABLE_LEGACY_MOD_MIGRATIONS_ENV_VAR in os.environ:
+        return
+
+    for entry in LEGACY_MOD_FOLDER.iterdir():
+        if (
+            not entry.is_dir()
+            or entry.name in LEGACY_MOD_MIGRATION_BLACKLIST
+            or entry.name.startswith(".")
+        ):
+            continue
+
+        new_mod_folder = NEW_MOD_FOLDER / entry.name
+
+        old_settings_file = entry / "settings.json"
+        new_settings_file = NEW_SETTINGS_FOLDER / (entry.name + ".json")
+
+        # To be safe, don't migrate if we'd overwrite things, if a folder or settings file exists
+        if new_mod_folder.exists() or (old_settings_file.exists() and new_settings_file.exists()):
+            reason = "folder" if new_mod_folder.exists() else "settings file"
+            logging.warning(
+                f"Not migrating legacy mod '{entry.name}' since a {reason} with the same name"
+                f" already exists.",
+            )
+            continue
+
+        with old_settings_file.open("r") as old, new_settings_file.open("w") as new:
+            data: dict[str, Any]
+            try:
+                data = json.load(old)
+                if not isinstance(data, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+                    raise ValueError
+            except (json.JSONDecodeError, ValueError):
+                logging.warning(
+                    f"The settings file for legacy mod '{entry.name}' appears to be invalid. Not"
+                    f" migrating it to prevent losing data.",
+                )
+                continue
+
+            for old_name, new_name in LEGACY_TO_NEW_SETTING_REMAPPING.items():
+                if old_name in data:
+                    data[new_name] = data.pop(old_name)
+            json.dump(data, new, indent=4)
+
+        old_settings_file.unlink()
+        shutil.move(entry, new_mod_folder)
+
+
 # Don't really want to put a `__name__` check here, since it's currently just `builtins`, and that
 # seems a bit unstable, like something that pybind might eventually change
 
@@ -387,6 +459,16 @@ for folder in mod_folders:
     if not folder.exists() or not folder.is_dir():
         logging.dev_warning(f"Extra mod folder does not exist: {folder}")
 
+# See if we're allowed to use legacy compat
+try:
+    from legacy_compat import legacy_compat
+except ImportError:
+    logging.warning("Legacy SDK Compatibility has been disabled")
+    legacy_compat = None
+
+# Try migrate any legacy mods
+migrate_legacy_mods_folder()
+
 # Now to actually try import mods
 mods_to_import = find_mods_to_import(mod_folders)
 
@@ -394,12 +476,6 @@ mods_to_import = find_mods_to_import(mod_folders)
 # Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
 # Prefer to import these after console is ready so we can show errors
 import keybinds  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
-
-try:
-    from legacy_compat import legacy_compat
-except ImportError:
-    logging.warning("Legacy SDK Compatibility has been disabled")
-    legacy_compat = None
 
 import_mods(mods_to_import)
 
