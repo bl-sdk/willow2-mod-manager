@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import json
 import traceback
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from mods_base import hook
-from unrealsdk import logging
-from unrealsdk.hooks import Type
+from legacy_compat import unrealsdk as old_unrealsdk
 
 from .ModObjects import EnabledSaveType, Mods, SDKMod
 
@@ -36,11 +34,11 @@ def SaveAllModSettings() -> None:
         try:
             SaveModSettings(mod)
         except Exception:  # noqa: BLE001
-            logging.error(f"Unable to save settings for '{mod.Name}'")
+            old_unrealsdk.Log(f"Unable to save settings for '{mod.Name}'")
             tb = traceback.format_exc().split("\n")
-            logging.dev_warning(f"    {tb[-4].strip()}")
-            logging.dev_warning(f"    {tb[-3].strip()}")
-            logging.dev_warning(f"    {tb[-2].strip()}")
+            old_unrealsdk.Log(f"    {tb[-4].strip()}")
+            old_unrealsdk.Log(f"    {tb[-3].strip()}")
+            old_unrealsdk.Log(f"    {tb[-2].strip()}")
 
 
 _mods_to_enable_on_main_menu: set[SDKMod] = set()
@@ -66,10 +64,22 @@ def LoadModSettings(mod: SDKMod) -> None:
             _mods_to_enable_on_main_menu.add(mod)
 
 
-@hook("WillowGame.FrontendGFxMovie:Start", Type.PRE, auto_enable=True)
-def _FrontendGFxMovieStart(*_: Any) -> None:  # pyright: ignore[reportUnusedFunction]
+def _FrontendGFxMovieStart(
+    caller: old_unrealsdk.UObject,  # noqa: ARG001
+    function: old_unrealsdk.UFunction,  # noqa: ARG001
+    params: old_unrealsdk.FStruct,  # noqa: ARG001
+) -> bool:
     for mod in _mods_to_enable_on_main_menu:
         if not mod.IsEnabled:
             mod.Enable()
 
     _mods_to_enable_on_main_menu.clear()
+
+    return True
+
+
+old_unrealsdk.RunHook(
+    "WillowGame.FrontendGFxMovie.Start",
+    "ModMenu.SettingsManager",
+    _FrontendGFxMovieStart,
+)
