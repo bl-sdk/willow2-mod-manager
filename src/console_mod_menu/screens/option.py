@@ -48,11 +48,7 @@ class OptionScreen[T: BaseOption, J: JSON](AbstractScreen):
         """
         assert isinstance(self.option, ValueOption)
         option: ValueOption[J] = self.option  # type: ignore
-
-        if option.on_change is not None:
-            option.on_change(option, new_value)
         option.value = new_value
-
         self.mod.save_settings()
 
 

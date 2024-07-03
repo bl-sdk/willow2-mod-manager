@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import TYPE_CHECKING, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from unrealsdk import logging
 
@@ -85,6 +85,19 @@ class ValueOption[J: JSON](BaseOption):
         super().__post_init__()
         self.default_value = self.value
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        # Simpler to use `__setattr__` than a property to detect value changes
+        if (
+            name == "value"
+            and self.on_change is not None
+            and not hasattr(self, "_on_change_recursion_guard")
+        ):
+            self._on_change_recursion_guard = True
+            self.on_change(self, value)
+            del self._on_change_recursion_guard
+
+        super().__setattr__(name, value)
+
     def __call__(self, on_change: Callable[[Self, J], None]) -> Self:
         """
         Sets the on change callback.
@@ -95,7 +108,7 @@ class ValueOption[J: JSON](BaseOption):
         Args:
             on_change: The callback to set.
         Returns:
-            This keybind instance.
+            This option instance.
         """
         if self.on_change is not None:
             logging.dev_warning(
@@ -285,7 +298,7 @@ class ButtonOption(BaseOption):
         Args:
             on_press: The callback to set.
         Returns:
-            This keybind instance.
+            This option instance.
         """
         if self.on_press is not None:
             logging.dev_warning(
@@ -303,8 +316,7 @@ class KeybindOption(ValueOption[str | None]):
     An option selecting a keybinding.
 
     Note this class only deals with displaying a key and letting the user rebind it, use `Keybind`
-    to handle press callbacks. It should not appear in your mod's option list, you should only
-    create instances of it during `iter_display_options` (as the default implementation does).
+    to handle press callbacks.
 
     Args:
         identifier: The option's identifier.
