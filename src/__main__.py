@@ -11,6 +11,8 @@
 # You should have received a copy of the GNU General Public License along with the Willow Mod
 # Manager. If not, see <https://www.gnu.org/licenses/>.
 
+from __future__ import annotations
+
 import contextlib
 import importlib
 import json
@@ -21,17 +23,19 @@ import sys
 import traceback
 import warnings
 import zipfile
-from collections.abc import Collection
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 # Note we try to import as few third party modules as possible before the console is ready, in case
 # any of them cause errors we'd like to have logged
 # Trusting that we can keep all the above standard library modules without issue
 import unrealsdk
 from unrealsdk import logging
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Sequence
 
 # If true, displays the full traceback when a mod fails to import, rather than the shortened one
 FULL_TRACEBACKS: bool = False
@@ -51,6 +55,8 @@ DISABLE_LEGACY_MOD_MIGRATIONS_ENV_VAR: str = "MOD_MANAGER_DISABLE_LEGACY_MOD_MIG
 class ModInfo:
     module: str
     legacy: bool
+    location: Path
+    duplicates: list[ModInfo] = field(default_factory=list)
 
 
 def init_debugpy() -> None:
@@ -92,12 +98,12 @@ def init_debugpy() -> None:
         pass
 
 
-def get_all_mod_folders() -> Collection[Path]:
+def get_all_mod_folders() -> Sequence[Path]:
     """
     Gets all mod folders to try import from, including extra folders defined via env var.
 
     Returns:
-        A collection of mod folder paths.
+        A sequence of mod folder paths.
     """
 
     extra_folders = []
@@ -168,6 +174,10 @@ def is_mod_folder_legacy_mod(folder: Path) -> bool:
         return RE_LEGACY_MOD_IMPORT.search(header) is not None
 
 
+# Catch when someone downloaded a mod a few times and ended up with a "MyMod (3).sdkmod"
+RE_NUMBERED_DUPLICATE = re.compile(r"^(.+?) \(\d+\)\.sdkmod$", flags=re.I)
+
+
 def validate_file_in_mods_folder(file: Path) -> bool:
     """
     Checks if a folder inside the mods folder is actually a mod we should try import.
@@ -207,18 +217,25 @@ def validate_file_in_mods_folder(file: Path) -> bool:
         case _:
             return False
 
-    valid_zip: bool
-    try:
+    valid_zip = False
+    name_suggestion: str | None = None
+    with contextlib.suppress(zipfile.BadZipFile, StopIteration, OSError):
         zip_iter = zipfile.Path(file).iterdir()
         zip_entry = next(zip_iter)
         valid_zip = zip_entry.name == file.stem and next(zip_iter, None) is None
-    except (zipfile.BadZipFile, StopIteration, OSError):
-        valid_zip = False
+
+        if (
+            not valid_zip
+            and (match := RE_NUMBERED_DUPLICATE.match(file.name))
+            and (base_name := match.group(1)) == zip_entry.name
+        ):
+            name_suggestion = base_name + ".sdkmod"
 
     if not valid_zip:
-        logging.error(
-            f"'{file.name}' does not appear to be valid, and has been ignored.",
-        )
+        error_msg = f"'{file.name}' does not appear to be valid, and has been ignored."
+        if name_suggestion is not None:
+            error_msg += f" Is it supposed to be called '{name_suggestion}'?"
+        logging.error(error_msg)
         logging.dev_warning(
             "'.sdkmod' files must be a zip, and may only contain a single root folder, which must"
             " be named the same as the zip (excluding suffix).",
@@ -230,16 +247,19 @@ def validate_file_in_mods_folder(file: Path) -> bool:
     return True
 
 
-def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[ModInfo]:
+def find_mods_to_import(all_mod_folders: Sequence[Path]) -> Collection[ModInfo]:
     """
-    Given a collection of mod folders, find the individual mod modules within it to try import.
+    Given the sequence of mod folders, find all individual mod modules within them to try import.
 
+    Args:
+        all_mod_folders: A sequence of all mod folders to import from, in the order they are listed
+                         in `sys.path`.
     Returns:
         A collection of the module names to import.
     """
-    mods_to_import: list[ModInfo] = []
+    mods_to_import: dict[str, ModInfo] = {}
 
-    for folder in mod_folders:
+    for folder in all_mod_folders:
         if not folder.exists():
             continue
 
@@ -247,14 +267,22 @@ def find_mods_to_import(mod_folders: Collection[Path]) -> Collection[ModInfo]:
             if entry.name.startswith("."):
                 continue
 
+            mod_info: ModInfo
             if entry.is_dir() and validate_folder_in_mods_folder(entry):
-                mods_to_import.append(ModInfo(entry.name, is_mod_folder_legacy_mod(entry)))
+                mod_info = ModInfo(entry.name, is_mod_folder_legacy_mod(entry), entry)
 
             elif entry.is_file() and validate_file_in_mods_folder(entry):
                 # Files are never legacy mods
-                mods_to_import.append(ModInfo(entry.stem, False))
+                mod_info = ModInfo(entry.stem, False, entry)
+            else:
+                continue
 
-    return mods_to_import
+            if mod_info.module in mods_to_import:
+                mods_to_import[mod_info.module].duplicates.append(mod_info)
+            else:
+                mods_to_import[mod_info.module] = mod_info
+
+    return mods_to_import.values()
 
 
 def import_mods(mods_to_import: Collection[ModInfo]) -> None:
@@ -448,6 +476,9 @@ def migrate_legacy_mods_folder() -> None:
 # Don't really want to put a `__name__` check here, since it's currently just `builtins`, and that
 # seems a bit unstable, like something that pybind might eventually change
 
+# Do as little as possible before console's ready
+
+# Add all mod folders to `sys.path` first
 mod_folders = get_all_mod_folders()
 for folder in mod_folders:
     sys.path.append(str(folder.resolve()))
@@ -479,6 +510,17 @@ migrate_legacy_mods_folder()
 
 # Now to actually try import mods
 mods_to_import = find_mods_to_import(mod_folders)
+
+# Warn about duplicate mods
+for mod in mods_to_import:
+    if not mod.duplicates:
+        continue
+    logging.warning(f"Found multiple versions of mod '{mod.module}'. In order of priority:")
+    # All folders always have higher priority than any files
+    folders = (info.location for info in (mod, *mod.duplicates) if info.location.is_dir())
+    files = (info.location for info in (mod, *mod.duplicates) if info.location.is_file())
+    for location in (*folders, *files):
+        logging.warning(str(location.resolve()))
 
 # Import any mod manager modules which have specific initialization order requirements.
 # Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
