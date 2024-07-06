@@ -122,7 +122,7 @@ def _translate_hook_func_name(func_name: str) -> str:
     """
     Translates a legacy style hook name to a modern one.
 
-    The legacy SDK used dots for every seperator, while the modern one uses the proper object name,
+    The legacy SDK used dots for every separator, while the modern one uses the proper object name,
     which typically replaces the last one with a colon.
 
     Args:
@@ -209,7 +209,7 @@ def KeepAlive(obj: UObject, /) -> None:
 
 # ==================================================================================================
 # Compatibility methods
-# Unfortuantely we need to keep these active the entire time, since the calls happen at runtime
+# Unfortunately we need to keep these active the entire time, since the calls happen at runtime
 
 # The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
 # them to a wrapped struct instance

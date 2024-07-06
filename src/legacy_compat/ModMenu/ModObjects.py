@@ -64,7 +64,7 @@ def RegisterMod(mod: SDKMod) -> None:
     LoadModSettings(mod)
 
 
-# Unfortuantely we need to keep this active the entire time, since the calls happen at runtime, so
+# Unfortunately we need to keep this active the entire time, since the calls happen at runtime, so
 # add a warning when it's used
 @staticmethod
 def game_get_current() -> Literal[Game.BL2, Game.TPS, Game.AoDK, Game.BL3, Game.WL]:
@@ -172,7 +172,7 @@ class _NewMod(Mod):
     def keybinds(self) -> Sequence[KeybindType]:
         current_legacy_binds = list(self.legacy_mod.Keybinds)
 
-        # For some reason we get called in init before our field has been initalized
+        # For some reason we get called in init before our field has been initialized
         try:
             self._cached_keybinds  # noqa: B018
             self._last_seen_legacy_binds  # noqa: B018
@@ -233,7 +233,7 @@ class _NewMod(Mod):
         if not self._enabling_locked:
             return False
 
-        # If not explictly locked, also lock if we don't have an enable or disable action
+        # If not explicitly locked, also lock if we don't have an enable or disable action
         return len({"Enable", "Disable"}.intersection(self.legacy_mod.SettingsInputs.values())) == 0
 
     @enabling_locked.setter
@@ -310,8 +310,8 @@ class _LegacyModMeta(ABCMeta):
     def __init__(cls, name: str, bases: tuple[type, ...], attrs: dict[str, Any], /) -> None:
         super().__init__(name, bases, attrs)
 
-        for name in _LegacyModMeta.legacy_clone_attributes:
-            setattr(cls, name, copy.copy(getattr(cls, name)))
+        for attr_name in _LegacyModMeta.legacy_clone_attributes:
+            setattr(cls, attr_name, copy.copy(getattr(cls, attr_name)))
 
     def __call__(cls, *args: Any, **kwargs: Any) -> _LegacyMod:
         instance: _LegacyMod = super().__call__(*args, **kwargs)
