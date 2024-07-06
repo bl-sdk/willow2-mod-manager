@@ -2,7 +2,6 @@
 import re
 import shutil
 import subprocess
-import textwrap
 import tomllib
 from collections.abc import Iterator, Sequence
 from functools import cache
@@ -11,12 +10,14 @@ from os import path
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
+ALPHA = True
+
 THIS_FOLDER = Path(__file__).parent
 
 BASE_MOD = THIS_FOLDER / "src" / "mods_base"
-BL3_MENU = THIS_FOLDER / "src" / "bl3_mod_menu"
+CONSOLE_MENU = THIS_FOLDER / "src" / "console_mod_menu"
 KEYBINDS = THIS_FOLDER / "src" / "keybinds"
-WL_MENU = THIS_FOLDER / "src" / "console_mod_menu"
+LEGACY_COMPAT = THIS_FOLDER / "src" / "legacy_compat"
 UI_UTILS = THIS_FOLDER / "src" / "ui_utils"
 
 INIT_SCRIPT = THIS_FOLDER / "src" / "__main__.py"
@@ -117,7 +118,7 @@ def iter_mod_files(mod_folder: Path, debug: bool) -> Iterator[Path]:
 ZIP_MODS_FOLDER = Path("sdk_mods")
 ZIP_STUBS_FOLDER = ZIP_MODS_FOLDER / ".stubs"
 ZIP_SETTINGS_FOLDER = ZIP_MODS_FOLDER / "settings"
-ZIP_EXECUTABLE_FOLDER = Path("OakGame") / "Binaries" / "Win64"
+ZIP_EXECUTABLE_FOLDER = Path("Binaries") / "Win32"
 ZIP_PLUGINS_FOLDER = ZIP_EXECUTABLE_FOLDER / "Plugins"
 
 
@@ -127,18 +128,20 @@ def _zip_init_script(zip_file: ZipFile) -> None:
     init_script_env = (
         # Path.relative_to doesn't work when where's no common base, need to use os.path
         # While the file goes in the plugins folder, this path is relative to *the executable*
-        f"PYUNREALSDK_INIT_SCRIPT={path.relpath(output_init_script, ZIP_EXECUTABLE_FOLDER)}"
+        f"PYUNREALSDK_INIT_SCRIPT={path.relpath(output_init_script, ZIP_EXECUTABLE_FOLDER)}\n"
+        f"PYUNREALSDK_PYEXEC_ROOT={path.relpath(ZIP_MODS_FOLDER, ZIP_EXECUTABLE_FOLDER)}\n"
+        f"UNREALSDK_LOCKING_PROCESS_EVENT=1\n"
     )
 
     # We also define the display version via an env var, do that here too
     version_number = tomllib.loads(PYPROJECT_FILE.read_text())["project"]["version"]
     git_version = get_git_repo_version()
-    display_version_env = f"MOD_MANAGER_DISPLAY_VERSION={version_number} ({git_version})"
+    init_script_env += f"MOD_MANAGER_DISPLAY_VERSION={version_number} ({git_version})\n"
 
-    zip_file.writestr(
-        str(ZIP_PLUGINS_FOLDER / "unrealsdk.env"),
-        f"{init_script_env}\n{display_version_env}\n",
-    )
+    if ALPHA:
+        init_script_env += "MOD_MANAGER_DISABLE_LEGACY_MOD_MIGRATION=1\n"
+
+    zip_file.writestr(str(ZIP_PLUGINS_FOLDER / "unrealsdk.env"), init_script_env)
 
 
 def _zip_mod_folders(zip_file: ZipFile, mod_folders: Sequence[Path], debug: bool) -> None:
@@ -217,13 +220,10 @@ def _zip_dlls(zip_file: ZipFile, install_dir: Path) -> None:
     py_stem = next(install_dir.glob("python*.zip")).stem
     zip_file.writestr(
         str(ZIP_PLUGINS_FOLDER / (py_stem + "._pth")),
-        textwrap.dedent(
-            f"""
-            {path.relpath(ZIP_MODS_FOLDER, ZIP_PLUGINS_FOLDER)}
-            {py_stem}.zip
-            DLLs
-            """,
-        )[1:-1],
+        (
+            f"{py_stem}.zip\n"  # dummy comment to force multiline
+            "DLLs\n"
+        ),
     )
 
 
@@ -256,7 +256,7 @@ def zip_release(
 
 
 if __name__ == "__main__":
-    from argparse import ArgumentParser, BooleanOptionalAction
+    from argparse import ArgumentParser
 
     parser = ArgumentParser(description="Prepares a release zip.")
     parser.add_argument(
@@ -269,24 +269,7 @@ if __name__ == "__main__":
         action="store_true",
         help="If specified, skips performing a CMake install. The directory must still exist.",
     )
-    parser.add_argument(
-        "--bl3",
-        action=BooleanOptionalAction,
-        default=True,
-        help="Create a BL3 release zip. Defaults to on.",
-    )
-    parser.add_argument(
-        "--wl",
-        action=BooleanOptionalAction,
-        default=True,
-        help="Create a WL release zip. Defaults to on.",
-    )
-    parser.add_argument(
-        "--unified",
-        action=BooleanOptionalAction,
-        default=False,
-        help="Create a unified release zip. Defaults to off.",
-    )
+
     args = parser.parse_args()
 
     install_dir = INSTALL_DIR_BASE / str(args.preset)
@@ -297,18 +280,11 @@ if __name__ == "__main__":
 
     assert install_dir.exists() and install_dir.is_dir(), "install dir doesn't exist"
 
-    # Zip up all the requested files
-    COMMON_FOLDERS = (BASE_MOD, KEYBINDS, UI_UTILS)
+    mod_folders = [BASE_MOD, KEYBINDS, LEGACY_COMPAT, UI_UTILS]
+    if ALPHA:
+        mod_folders.append(CONSOLE_MENU)
 
-    for prefix, arg, mods in (
-        ("bl3", args.bl3, (*COMMON_FOLDERS, BL3_MENU)),
-        ("wl", args.wl, (*COMMON_FOLDERS, WL_MENU)),
-        ("unified", args.unified, (*COMMON_FOLDERS, BL3_MENU, WL_MENU)),
-    ):
-        if not arg:
-            continue
+    name = f"willow-sdk-{args.preset}.zip"
+    print(f"Zipping {name} ...")
 
-        name = f"{prefix}-sdk-{args.preset}.zip"
-        print(f"Zipping {name} ...")
-
-        zip_release(Path(name), mods, "debug" in args.preset, install_dir)
+    zip_release(Path(name), mod_folders, "debug" in args.preset, install_dir)

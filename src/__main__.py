@@ -24,7 +24,7 @@ import traceback
 import warnings
 import zipfile
 from dataclasses import dataclass, field
-from functools import wraps
+from functools import cache, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
@@ -113,6 +113,7 @@ def get_all_mod_folders() -> Sequence[Path]:
     return [Path(__file__).parent, *extra_folders]
 
 
+@cache
 def validate_folder_in_mods_folder(folder: Path) -> bool:
     """
     Checks if a folder inside the mods folder is actually a mod we should try import.
@@ -152,6 +153,7 @@ def validate_folder_in_mods_folder(folder: Path) -> bool:
 RE_LEGACY_MOD_IMPORT = re.compile(r"from (\.\.ModMenu|Mods(\.\S+)?) import|BL2MOD\):")
 
 
+@cache
 def is_mod_folder_legacy_mod(folder: Path) -> bool:
     """
     Checks if a mod folder is a legacy mod.
@@ -178,6 +180,7 @@ def is_mod_folder_legacy_mod(folder: Path) -> bool:
 RE_NUMBERED_DUPLICATE = re.compile(r"^(.+?) \(\d+\)\.sdkmod$", flags=re.I)
 
 
+@cache
 def validate_file_in_mods_folder(file: Path) -> bool:
     """
     Checks if a folder inside the mods folder is actually a mod we should try import.
@@ -242,7 +245,9 @@ def validate_file_in_mods_folder(file: Path) -> bool:
         )
         return False
 
-    sys.path.append(str(file))
+    str_path = str(file)
+    if str_path not in sys.path:
+        sys.path.append(str_path)
 
     return True
 
@@ -250,6 +255,8 @@ def validate_file_in_mods_folder(file: Path) -> bool:
 def find_mods_to_import(all_mod_folders: Sequence[Path]) -> Collection[ModInfo]:
     """
     Given the sequence of mod folders, find all individual mod modules within them to try import.
+
+    Any '.sdkmod's found are added to `sys.path` as part of this step.
 
     Args:
         all_mod_folders: A sequence of all mod folders to import from, in the order they are listed
@@ -422,12 +429,18 @@ NEW_MOD_FOLDER: Path = Path(__file__).parent
 NEW_SETTINGS_FOLDER: Path = NEW_MOD_FOLDER / "settings"
 
 
-def migrate_legacy_mods_folder() -> None:
-    """Migrates any mods and their settings files from the legacy mod folder into the new one."""
+def migrate_legacy_mods_folder() -> bool:
+    """
+    Migrates any mods and their settings files from the legacy mod folder into the new one.
+
+    Returns:
+        True if any migrations were performed.
+    """
 
     if legacy_compat is None or DISABLE_LEGACY_MOD_MIGRATIONS_ENV_VAR in os.environ:
-        return
+        return False
 
+    migrated_any = False
     for entry in LEGACY_MOD_FOLDER.iterdir():
         if (
             not entry.is_dir()
@@ -471,6 +484,9 @@ def migrate_legacy_mods_folder() -> None:
 
         old_settings_file.unlink()
         shutil.move(entry, new_mod_folder)
+        migrated_any = True
+
+    return migrated_any
 
 
 # Don't really want to put a `__name__` check here, since it's currently just `builtins`, and that
@@ -498,18 +514,20 @@ for folder in mod_folders:
     if not folder.exists() or not folder.is_dir():
         logging.dev_warning(f"Extra mod folder does not exist: {folder}")
 
-# See if we're allowed to use legacy compat
+# Find all mods once to add any `.sdkmod`s to `sys.path`
+mods_to_import = find_mods_to_import(mod_folders)
+
+# Now see if we're allowed to use legacy compat - this may be in a `.sdkmod`
 try:
     from legacy_compat import legacy_compat
 except ImportError:
     logging.warning("Legacy SDK Compatibility has been disabled")
     legacy_compat = None
 
-# Try migrate any legacy mods
-migrate_legacy_mods_folder()
-
-# Now to actually try import mods
-mods_to_import = find_mods_to_import(mod_folders)
+# Try migrate legacy mods
+if migrate_legacy_mods_folder():
+    # If we migrated any, find all mods again, to include the new ones
+    mods_to_import = find_mods_to_import(mod_folders)
 
 # Warn about duplicate mods
 for mod in mods_to_import:

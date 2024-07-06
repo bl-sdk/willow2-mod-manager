@@ -13,42 +13,12 @@ on:
         required: false
 
 env:
-  # Important to pin the clang version, cause we also use it for linting
-  CLANG_VERSION: 17
-  CLANG_TIDY_JOBS: 4
-  # LLVM MinGW download
-  LLVM_MINGW_VERSION: llvm-mingw-20231128-msvcrt-ubuntu-20.04-x86_64
-  LLVM_MINGW_DOWNLOAD: https://github.com/mstorsjo/llvm-mingw/releases/download/20231128/llvm-mingw-20231128-msvcrt-ubuntu-20.04-x86_64.tar.xz
-  # xwin settings
-  XWIN_VERSION: xwin-0.5.0-x86_64-unknown-linux-musl
-  XWIN_DOWNLOAD: https://github.com/Jake-Shadle/xwin/releases/download/0.5.0/xwin-0.5.0-x86_64-unknown-linux-musl.tar.gz
-  # Python settings
-  PYTHON_VERSION: "3.12.3"
+  LLVM_MINGW_VERSION: llvm-mingw-20240619-msvcrt-ubuntu-20.04-x86_64
+  LLVM_MINGW_DOWNLOAD: https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-msvcrt-ubuntu-20.04-x86_64.tar.xz
 
 jobs:
-  cache-clang:
-    runs-on: windows-latest
-
-    steps:
-    - name: Cache Clang
-      uses: actions/cache@v4
-      id: cache-clang
-      with:
-        path: C:\Program Files\LLVM
-        key: ${{ runner.os }}-clang-${{ env.CLANG_VERSION }}
-        lookup-only: true
-
-    - name: Setup Clang
-      if: steps.cache-clang.outputs.cache-hit != 'true'
-      uses: egor-tensin/setup-clang@v1
-      with:
-        version: ${{ env.CLANG_VERSION }}
-
-# ==============================================================================
-
   build-windows:
     runs-on: windows-latest
-    needs: cache-clang
 
     strategy:
       fail-fast: false
@@ -58,19 +28,15 @@ jobs:
         - msvc-release
 
     steps:
-    - name: Restore Clang Cache
+    - name: Setup Clang
       if: startswith(matrix.preset, 'clang')
-      uses: actions/cache/restore@v4
-      with:
-        path: C:\Program Files\LLVM
-        key: ${{ runner.os }}-clang-${{ env.CLANG_VERSION }}
-        fail-on-cache-miss: true
+      uses: egor-tensin/setup-clang@v1
 
     - name: Add MSVC to PATH
       if: startswith(matrix.preset, 'msvc')
       uses: TheMrMilchmann/setup-msvc-dev@v3
       with:
-        arch: x64
+        arch: x86
 
     - name: Setup CMake and Ninja
       uses: lukka/get-cmake@latest
@@ -92,12 +58,7 @@ jobs:
       run: |
         pip install requests
 
-        python libs/pyunrealsdk/common_cmake/explicit_python/download.py        `
-          ${{ env.PYTHON_VERSION }}                                             `
-          amd64                                                                 `
-          --no-debug
-
-        cmake . --preset ${{ matrix.preset }}
+        cmake . --preset ${{ matrix.preset }} -G Ninja
 
     - name: Build
       working-directory: ${{ env.GITHUB_WORKSPACE }}
@@ -105,14 +66,13 @@ jobs:
 
     - name: Prepare Release Zip (dev ci)
       if: inputs.new-release-tag == ''
-      run: python prepare_release.py ${{ matrix.preset }} --skip-install --no-bl3 --no-wl --unified
+      run: python prepare_release.py ${{ matrix.preset }} --skip-install
 
     - name: Prepare Release Zip (draft full)
       if: inputs.new-release-tag != '' && startswith(matrix.preset, 'msvc')
       run: |
         python prepare_release.py ${{ matrix.preset }} --skip-install
-        mv bl3-sdk-${{ matrix.preset }}.zip bl3-sdk.zip
-        mv wl-sdk-${{ matrix.preset }}.zip wl-sdk.zip
+        mv willow-sdk-${{ matrix.preset }}.zip willow-sdk.zip
 
     - name: Upload Artifact
       if: inputs.new-release-tag == '' || startswith(matrix.preset, 'msvc')
@@ -122,7 +82,8 @@ jobs:
         path: "*.zip"
 
   build-ubuntu:
-    runs-on: ubuntu-latest
+    # Require at least 24 for the mingw build
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
@@ -130,51 +91,17 @@ jobs:
         preset:
         - clang-cross-release
         - llvm-mingw-release
-        # Currently, ubuntu-latest is 22.04, whose mingw version is too old, so disabling this build
-        # for now
-        # Not sure of the exact threshold, 13.1.0 works
-        #  - mingw-release
+        - mingw-release
 
     steps:
     - name: Setup CMake and Ninja
       uses: lukka/get-cmake@latest
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: ">=3.11"
-
-    - name: Setup msitools
+    - name: Setup apt packages
       uses: awalsh128/cache-apt-pkgs-action@latest
       with:
-        packages: msitools
+        packages: msitools python3-requests
         version: ${{ runner.os }}-apt
-
-    # Both Clang and MinGW install quick enough that it's not worth caching
-    # Caching would also lose the +x - so we'd have to tar before caching/untar after, making it
-    #  even slower
-    - name: Setup Clang
-      if: startswith(matrix.preset, 'clang')
-      run: |
-        wget https://apt.llvm.org/llvm.sh
-        chmod +x llvm.sh
-        sudo ./llvm.sh ${{ env.CLANG_VERSION }}
-
-        sudo update-alternatives --install              \
-          /usr/bin/clang                                \
-          clang                                         \
-          /usr/bin/clang-${{ env.CLANG_VERSION }}       \
-          200
-        sudo update-alternatives --install              \
-          /usr/bin/clang++                              \
-          clang++                                       \
-          /usr/bin/clang++-${{ env.CLANG_VERSION }}     \
-          200
-        sudo update-alternatives --install              \
-          /usr/bin/llvm-rc                              \
-          llvm-rc                                       \
-          /usr/bin/llvm-rc-${{ env.CLANG_VERSION }}     \
-          200
 
     - name: Setup LLVM MinGW
       if: startswith(matrix.preset, 'llvm-mingw')
@@ -183,53 +110,45 @@ jobs:
         tar -xf ${{ env.LLVM_MINGW_VERSION }}.tar.xz -C ~/
         echo $(readlink -f ~/${{ env.LLVM_MINGW_VERSION }}/bin) >> $GITHUB_PATH
 
-    - name: Set up MinGW
+    - name: Setup MinGW
       if: startswith(matrix.preset, 'mingw')
       uses: egor-tensin/setup-mingw@v2
       with:
         platform: ${{ fromJSON('["x86", "x64"]')[contains(matrix.preset, 'x64')] }}
 
-    # xwin does take long enough that caching's worth it
-    - name: Restore xwin cache
-      if: contains(matrix.preset, 'cross')
-      uses: actions/cache@v4
-      id: cache-xwin
-      with:
-        path: ~/xwin
-        key: ${{ runner.os }}-xwin
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang-cross')
+      uses: egor-tensin/setup-clang@v1
 
-    - name: Setup xwin
-      if: contains(matrix.preset, 'cross') && steps.cache-xwin.outputs.cache-hit != 'true'
+    - name: Restore win sdk cache
+      if: startswith(matrix.preset, 'clang-cross')
+      uses: actions/cache@v4
+      id: cache-win-sdk
+      with:
+        path: ~/win-sdk
+        key: ${{ runner.os }}-win-sdk
+
+    - name: Setup win sdk
+      if: startswith(matrix.preset, 'clang-cross') && steps.cache-win-sdk.outputs.cache-hit != 'true'
       run: |
-        wget -nv ${{ env.XWIN_DOWNLOAD }}
-        tar -xf ${{ env.XWIN_VERSION }}.tar.gz
-        ${{ env.XWIN_VERSION }}/xwin    \
-          --accept-license              \
-          --arch x86_64                 \
-          splat                         \
-          --include-debug-libs          \
-          --output ~/xwin
+        git clone https://github.com/mstorsjo/msvc-wine.git
+        msvc-wine/vsdownload.py --accept-license --dest ~/win-sdk Microsoft.VisualStudio.Workload.VCTools
+        msvc-wine/install.sh ~/win-sdk
+        rm -r msvc-wine
 
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Configure build
+    - name: Configure CMake
       working-directory: ${{ env.GITHUB_WORKSPACE }}
-      run: |
-        pip install requests
-
-        python libs/pyunrealsdk/common_cmake/explicit_python/download.py        \
-          ${{ env.PYTHON_VERSION }}                                             \
-          amd64                                                                 \
-          --no-debug
-
-        cmake .                           \
-        --preset ${{ matrix.preset }}     \
-        -G Ninja                          \
-        -DXWIN_DIR=$(readlink -f ~)/xwin
-      # The extra xwin dir arg won't do anything if we're not cross compiling
+      # The extra msvc wine arg won't do anything if we're not cross compiling
+      run: >
+        cmake .
+        --preset ${{ matrix.preset }}
+        -G Ninja
+        -DMSVC_WINE_ENV_SCRIPT=$(readlink -f ~)/win-sdk/bin/${{ fromJSON('["x86", "x64"]')[contains(matrix.preset, 'x64')] }}/msvcenv.sh
 
     - name: Build
       working-directory: ${{ env.GITHUB_WORKSPACE }}
@@ -237,7 +156,7 @@ jobs:
 
     - name: Prepare Release Zip (dev ci)
       if: inputs.new-release-tag == ''
-      run: python prepare_release.py ${{ matrix.preset }} --skip-install --no-bl3 --no-wl --unified
+      run: python prepare_release.py ${{ matrix.preset }} --skip-install
 
     - name: Upload Artifact
       if: inputs.new-release-tag == ''
@@ -250,7 +169,6 @@ jobs:
 
   clang-tidy:
     runs-on: windows-latest
-    needs: cache-clang
 
     strategy:
       fail-fast: false
@@ -259,39 +177,34 @@ jobs:
         - clang-release
 
     steps:
-    - name: Restore Clang Cache
-      uses: actions/cache/restore@v4
-      with:
-        path: C:\Program Files\LLVM
-        key: ${{ runner.os }}-clang-${{ env.CLANG_VERSION }}
-        fail-on-cache-miss: true
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang')
+      uses: egor-tensin/setup-clang@v1
 
     - name: Setup CMake and Ninja
       uses: lukka/get-cmake@latest
 
+    # Need newer python to run the python lib downloader script
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
-        python-version: ">=3.11"
+        python-version: ">=3.10"
+
+    # Needed pyyaml for clang tidy to enable `-export-fixes` and requests for the python lib downloader
+    - name: Install pip packages
+      run: pip install pyyaml requests
 
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Configure build
+    - name: Configure CMake
       working-directory: ${{ env.GITHUB_WORKSPACE }}
-      # Also need pyyaml for clang tidy to enable `-export-fixes`
+      run: cmake . --preset ${{ matrix.preset }} -DCMAKE_DISABLE_PRECOMPILE_HEADERS=On
+
+    - name: Remove `.modmap`s from compile commands
       run: |
-        pip install pyyaml requests
-
-        python libs/pyunrealsdk/common_cmake/explicit_python/download.py        `
-          ${{ env.PYTHON_VERSION }}                                             `
-          amd64                                                                 `
-          --no-debug
-
-        cmake . --preset ${{ matrix.preset }} -DCMAKE_DISABLE_PRECOMPILE_HEADERS=On
-
         (Get-Content "out\build\${{ matrix.preset }}\compile_commands.json")    `
           -replace "@CMakeFiles.+?\.modmap", ""                                 `
         | Set-Content                                                           `
@@ -301,15 +214,9 @@ jobs:
       working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: |
         python (Get-Command run-clang-tidy).Source                              `
-          -j ${{ env.CLANG_TIDY_JOBS }}                                         `
           -p "out\build\${{ matrix.preset }}"                                   `
           -export-fixes clang-tidy-fixes.yml                                    `
-          $([Regex]::Escape("$pwd\src") + ".+\.(c|cpp|h|hpp)$")                 `
-          -extra-arg="-Wno-unknown-pragmas"
-      # For some reason, the above started giving unknown pragma errors in library headers (both
-      # unrealsdk and python) in clang-tidy 17
-      # It compiles fine, doesn't show up in clangd, and doesn't happen in the unrealsdk build, so
-      # just suppressing it for now
+          $([Regex]::Escape("$pwd\src") + ".+\.(c|cpp|h|hpp)$")
 
     - name: Process clang-tidy warnings
       uses: asarium/clang-tidy-action@v1
@@ -318,15 +225,11 @@ jobs:
 
   clang-format:
     runs-on: windows-latest
-    needs: cache-clang
 
     steps:
-    - name: Restore Clang Cache
-      uses: actions/cache/restore@v4
-      with:
-        path: C:\Program Files\LLVM
-        key: ${{ runner.os }}-clang-${{ env.CLANG_VERSION }}
-        fail-on-cache-miss: true
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang')
+      uses: egor-tensin/setup-clang@v1
 
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -364,7 +267,7 @@ jobs:
     - name: Run pyright
       uses: jakebailey/pyright-action@v2
       with:
-        working-directory: "./src/"
+        working-directory: ./src
 
   ruff:
     runs-on: ubuntu-latest
@@ -388,9 +291,13 @@ jobs:
 
   release-dev-ci:
     runs-on: ubuntu-latest
+    #if: >
+    #  github.ref == 'refs/heads/master'
+    #  && github.repository == 'bl-sdk/willow-mod-manager'
+    #  && inputs.new-release-tag == ''
     if: >
-      github.ref == 'refs/heads/master'
-      && github.repository == 'bl-sdk/oak-mod-manager'
+      github.ref == 'refs/heads/v3'
+      && github.repository == 'apple1417/willow-mod-manager'
       && inputs.new-release-tag == ''
 
     needs:
@@ -424,10 +331,11 @@ jobs:
 
   release-draft-full:
     runs-on: ubuntu-latest
-    if: >
-      github.ref == 'refs/heads/master'
-      && github.repository == 'bl-sdk/oak-mod-manager'
-      && inputs.new-release-tag != ''
+    if: 1 == 0
+    #if: >
+    #  github.ref == 'refs/heads/master'
+    #  && github.repository == 'bl-sdk/oak-mod-manager'
+    #  && inputs.new-release-tag != ''
 
     needs:
       - build-ubuntu
