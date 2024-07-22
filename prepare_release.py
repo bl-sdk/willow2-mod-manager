@@ -138,8 +138,8 @@ def _zip_init_script(zip_file: ZipFile) -> None:
     git_version = get_git_repo_version()
     init_script_env += f"MOD_MANAGER_DISPLAY_VERSION={version_number} ({git_version})\n"
 
-    if ALPHA:
-        init_script_env += "MOD_MANAGER_DISABLE_LEGACY_MOD_MIGRATION=1\n"
+    if not ALPHA:
+        init_script_env += "MOD_MANAGER_LEGACY_MOD_MIGRATION=1\n"
 
     zip_file.writestr(str(ZIP_PLUGINS_FOLDER / "unrealsdk.env"), init_script_env)
 

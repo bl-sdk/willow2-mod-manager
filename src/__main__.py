@@ -46,9 +46,9 @@ WAIT_FOR_CLIENT: bool = False
 # A json list of paths to also to import mods from - you can add your repo to keep it separated
 EXTRA_FOLDERS_ENV_VAR: str = "MOD_MANAGER_EXTRA_FOLDERS"
 
-# If defined, won't try migrate legacy mods into this folder. Useful while still actively developing
-# for both versions
-DISABLE_LEGACY_MOD_MIGRATIONS_ENV_VAR: str = "MOD_MANAGER_DISABLE_LEGACY_MOD_MIGRATION"
+# Won't try migrate legacy mods into this folder unless this env var is set
+# Useful while still actively developing for both versions
+LEGACY_MOD_MIGRATIONS_ENV_VAR: str = "MOD_MANAGER_LEGACY_MOD_MIGRATION"
 
 
 @dataclass
@@ -397,8 +397,6 @@ def check_proton_bugs() -> None:
             "cause issues in parts of the mod manager or individual mods which expect them.\n"
             "\n"
             "Some particular Proton versions cause this, try switch to another one.\n"
-            "Alternatively, the nightly release has builds from other compilers, which may\n"
-            "also prevent it.\n"
             "===============================================================================",
         )
 
@@ -437,7 +435,10 @@ def migrate_legacy_mods_folder() -> bool:
         True if any migrations were performed.
     """
 
-    if legacy_compat is None or DISABLE_LEGACY_MOD_MIGRATIONS_ENV_VAR in os.environ:
+    if legacy_compat is None or LEGACY_MOD_MIGRATIONS_ENV_VAR not in os.environ:
+        return False
+
+    if not LEGACY_MOD_FOLDER.exists():
         return False
 
     migrated_any = False
