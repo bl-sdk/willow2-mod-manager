@@ -12,3 +12,4 @@ authors = [{ name = "bl-sdk" }]
 name = "BL2/TPS/AoDK Mod Manager"
 license = {name = "LGPL3", url = "https://choosealicense.com/licenses/lgpl-3.0/" }
 download = "https://github.com/bl-sdk/willow-mod-manager/releases/latest"
+coop_support = "ClientSide"

@@ -3,15 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from unrealsdk.hooks import Block
+
+from console_mod_menu.draw import draw
+from console_mod_menu.key_matching import KNOWN_KEYS, suggest_keys
 from mods_base import (
     EInputEvent,
     KeybindOption,
     remove_next_console_line_capture,
 )
-from unrealsdk.hooks import Block
-
-from console_mod_menu.draw import draw
-from console_mod_menu.key_matching import KNOWN_KEYS, suggest_keys
 
 from . import (
     AbstractScreen,

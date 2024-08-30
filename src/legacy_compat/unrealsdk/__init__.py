@@ -6,7 +6,6 @@ from contextlib import suppress
 from functools import cache, wraps
 from typing import Any
 
-from mods_base import ENGINE
 from unrealsdk import (
     __version_info__,
     construct_object,
@@ -33,6 +32,8 @@ from unrealsdk.unreal import (
     WrappedArray,
     WrappedStruct,
 )
+
+from mods_base import ENGINE
 
 # This is mutable so mod menu can add to it
 __all__: list[str] = [

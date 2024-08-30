@@ -7,5 +7,14 @@ extend-exclude = [
     ".typos.toml"
 ]
 
+[default]
+extend-ignore-re = [
+    # Ignore markdown links to github commits/trees
+    "\\[[0-9a-fA-F]+?\\]\\(https://github.com/.+?/.+?/(commit|tree)/.+?\\)",
+]
+
+[default.extend-identifiers]
+llibgcc_s_seh = "llibgcc_s_seh"
+
 [default.extend-words]
 UE = "UE"

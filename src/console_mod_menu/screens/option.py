@@ -3,6 +3,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from dataclasses import dataclass, field
 
+from console_mod_menu.draw import draw
+from console_mod_menu.option_formatting import draw_option_header
 from mods_base import (
     JSON,
     BaseOption,
@@ -14,9 +16,6 @@ from mods_base import (
     SpinnerOption,
     ValueOption,
 )
-
-from console_mod_menu.draw import draw
-from console_mod_menu.option_formatting import draw_option_header
 
 from . import AbstractScreen, draw_standard_commands, handle_standard_command_input
 

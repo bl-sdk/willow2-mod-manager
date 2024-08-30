@@ -545,7 +545,9 @@ for mod in mods_to_import:
 # Most modules are fine to get imported as a mod/by another mod, but we need to do a few manually.
 # Prefer to import these after console is ready so we can show errors
 import keybinds  # noqa: F401, E402  # pyright: ignore[reportUnusedImport]
+from mods_base.mod_list import register_base_mod  # noqa: E402
 
 import_mods(mods_to_import)
 
-del mod_folders, mods_to_import
+# After importing everything, register the base mod
+register_base_mod()

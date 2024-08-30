@@ -1,11 +1,16 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from unrealsdk import logging
+
+from console_mod_menu.draw import draw, draw_description
+from console_mod_menu.option_formatting import draw_option_header, get_option_value_str
 from mods_base import (
     JSON,
     BaseOption,
     BoolOption,
     ButtonOption,
+    CoopSupport,
     DropdownOption,
     GroupedOption,
     KeybindOption,
@@ -15,10 +20,6 @@ from mods_base import (
     SpinnerOption,
     ValueOption,
 )
-from unrealsdk import logging
-
-from console_mod_menu.draw import draw, draw_description
-from console_mod_menu.option_formatting import draw_option_header, get_option_value_str
 
 from . import (
     AbstractScreen,
@@ -124,7 +125,8 @@ class ModScreen(OptionListScreen):
     def __post_init__(self) -> None:
         self.name = self.mod.name
 
-    def draw(self) -> None:  # noqa: D102
+    def draw_mod_header(self) -> None:
+        """Draws the header for the mod, everything before the options."""
         draw_stack_header()
 
         header = ""
@@ -137,11 +139,25 @@ class ModScreen(OptionListScreen):
         draw(header)
 
         draw(self.mod.get_status())
+
+        match self.mod.coop_support:
+            case CoopSupport.Unknown:
+                draw("Coop Support: Unknown")
+            case CoopSupport.Incompatible:
+                draw("Coop Support: Incompatible")
+            case CoopSupport.RequiresAllPlayers:
+                draw("Coop Support: Requires All Players")
+            case CoopSupport.ClientSide:
+                draw("Coop Support: Client Side")
+
         draw("")
 
         if self.mod.description:
             draw_description(self.mod.description)
             draw("")
+
+    def draw(self) -> None:  # noqa: D102
+        self.draw_mod_header()
 
         if not self.mod.enabling_locked:
             if self.mod.is_enabled:

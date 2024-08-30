@@ -90,6 +90,13 @@ class ModType(Enum):
     Library = auto()
 
 
+class CoopSupport(Enum):
+    Unknown = auto()
+    Incompatible = auto()
+    RequiresAllPlayers = auto()
+    ClientSide = auto()
+
+
 @dataclass
 class Mod:
     """
@@ -108,6 +115,7 @@ class Mod:
         mod_type: What type of mod this is. This influences ordering in the mod list.
         supported_games: The games this mod supports. When loaded in an unsupported game, a warning
                          will be displayed and the mod will be blocked from enabling.
+        coop_support: How well the mod supports coop, if known. This is purely a display value.
         settings_file: The file to save settings to. If None (the default), won't save settings.
 
     Attributes - Functionality:
@@ -131,6 +139,7 @@ class Mod:
     version: str = "Unknown Version"
     mod_type: ModType = ModType.Standard
     supported_games: Game = field(default=Game.get_tree())
+    coop_support: CoopSupport = CoopSupport.Unknown
     settings_file: Path | None = None
 
     # Set the default to None so we can detect when these aren't provided

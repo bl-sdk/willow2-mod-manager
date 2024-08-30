@@ -5,5 +5,5 @@
 # patch in this version instead to get them all working again
 
 
-def get(url: str, timeout: int) -> str:  # noqa: ARG001, D103
+def get(url: str, timeout: int) -> str:  # noqa: D103
     raise NotImplementedError

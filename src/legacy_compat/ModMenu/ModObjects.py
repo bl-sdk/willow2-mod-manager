@@ -307,8 +307,15 @@ class _LegacyModMeta(ABCMeta):
         "_is_enabled",
     )
 
-    def __init__(cls, name: str, bases: tuple[type, ...], attrs: dict[str, Any], /) -> None:
-        super().__init__(name, bases, attrs)
+    def __init__(
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        attrs: dict[str, Any],
+        /,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(name, bases, attrs, **kwargs)
 
         for attr_name in _LegacyModMeta.legacy_clone_attributes:
             setattr(cls, attr_name, copy.copy(getattr(cls, attr_name)))

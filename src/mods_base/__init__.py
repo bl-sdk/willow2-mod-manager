@@ -8,7 +8,7 @@ from unrealsdk.unreal import UObject
 from .dot_sdkmod import open_in_mod_dir
 
 # Need to define a few things first to avoid circular imports
-__version_info__: tuple[int, int] = (1, 3)
+__version_info__: tuple[int, int] = (1, 4)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
@@ -31,7 +31,7 @@ from .command import (
 from .hook import HookProtocol, hook
 from .html_to_plain_text import html_to_plain_text
 from .keybinds import EInputEvent, KeybindType, keybind
-from .mod import Game, Library, Mod, ModType
+from .mod import CoopSupport, Game, Library, Mod, ModType
 from .mod_factory import build_mod
 from .mod_list import (
     deregister_mod,
@@ -65,6 +65,7 @@ __all__: tuple[str, ...] = (
     "ButtonOption",
     "capture_next_console_line",
     "command",
+    "CoopSupport",
     "deregister_mod",
     "DropdownOption",
     "EInputEvent",
@@ -106,7 +107,7 @@ def get_pc() -> UObject: ...
 def get_pc(*, possibly_loading: Literal[True] = True) -> UObject | None: ...
 
 
-def get_pc(*, possibly_loading: bool = False) -> UObject | None:  # noqa: ARG001
+def get_pc(*, possibly_loading: bool = False) -> UObject | None:
     """
     Gets the main (local) player controller object.
 

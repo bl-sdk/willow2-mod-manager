@@ -14,7 +14,7 @@ from .command import AbstractCommand
 from .dot_sdkmod import open_in_mod_dir
 from .hook import HookProtocol
 from .keybinds import KeybindType
-from .mod import Game, Mod, ModType
+from .mod import CoopSupport, Game, Mod, ModType
 from .mod_list import deregister_mod, mod_list, register_mod
 from .options import BaseOption, GroupedOption, NestedOption
 from .settings import SETTINGS_DIR
@@ -34,6 +34,7 @@ def build_mod(
     version: str | None = None,
     mod_type: ModType | None = None,
     supported_games: Game | None = None,
+    coop_support: CoopSupport | None = None,
     settings_file: Path | None = None,
     keybinds: Sequence[KeybindType] | None = None,
     options: Sequence[BaseOption] | None = None,
@@ -60,9 +61,10 @@ def build_mod(
                     | project.version                      | __version_info__
     mod_type        | tool.sdkmod.mod_type ^2              |
     supported_games | tool.sdkmod.supported_games ^3       |
+    coop_support    | tool.sdkmod.coop_support ^4          |
     settings_file   |                                      | f"{__name__}.json" in the settings dir
     keybinds        |                                      | Keybind instances
-    options         |                                      | OptionBase instances ^4
+    options         |                                      | OptionBase instances ^5
     hooks           |                                      | Objects matching HookProtocol
     commands        |                                      | AbstractCommand instances
     auto_enable     | tool.sdkmod.auto_enable              |
@@ -72,7 +74,8 @@ def build_mod(
     ^1: Multiple authors are joined into a single string using commas + spaces.
     ^2: A string of one of the ModType enum value's name. Case sensitive.
     ^3: A list of strings of Game enum values' names. Case sensitive.
-    ^4: GroupedOption and NestedOption instances are deliberately ignored, to avoid possible issues
+    ^4: A string of one of the CoopSupport enum value's name. Case sensitive.
+    ^5: GroupedOption and NestedOption instances are deliberately ignored, to avoid possible issues
         gathering their child options twice. They must be explicitly passed via the arg.
 
     Missing fields are not passed on to the mod constructor - e.g. by never specifying supported
@@ -105,6 +108,7 @@ def build_mod(
         "_version_info": None,
         "mod_type": mod_type,
         "supported_games": supported_games,
+        "coop_support": coop_support,
         "settings_file": settings_file,
         "keybinds": keybinds,
         "options": options,
@@ -149,6 +153,7 @@ class ModFactoryFields(TypedDict):
     _version_info: str | None
     mod_type: ModType | None
     supported_games: Game | None
+    coop_support: CoopSupport | None
     settings_file: Path | None
     keybinds: Sequence[KeybindType] | None
     options: Sequence[BaseOption] | None
@@ -179,6 +184,59 @@ def load_pyproject(module: ModuleType) -> dict[str, Any]:
         return {}
 
 
+def update_fields_with_pyproject_tool_sdkmod(
+    sdkmod: dict[str, Any],
+    fields: ModFactoryFields,
+) -> None:
+    """
+    Updates the mod factory fields with data from the `tools.sdkmod` section of a`pyproject.toml`.
+
+    Args:
+        sdkmod: The `tools.sdkmod` section.
+        fields: The current set of fields. Modified in place.
+    """
+    for simple_field in ("name", "version", "auto_enable"):
+        if fields[simple_field] is None and simple_field in sdkmod:
+            fields[simple_field] = sdkmod[simple_field]
+
+    if fields["mod_type"] is None and "mod_type" in sdkmod:
+        fields["mod_type"] = ModType.__members__.get(sdkmod["mod_type"])
+
+    if fields["supported_games"] is None and "supported_games" in sdkmod:
+        valid_games = [Game[name] for name in sdkmod["supported_games"] if name in Game.__members__]
+        if valid_games:
+            fields["supported_games"] = functools.reduce(operator.or_, valid_games)
+
+    if fields["coop_support"] is None and "coop_support" in sdkmod:
+        fields["coop_support"] = CoopSupport.__members__.get(sdkmod["coop_support"])
+
+
+def update_fields_with_pyproject_project(
+    project: dict[str, Any],
+    fields: ModFactoryFields,
+) -> None:
+    """
+    Updates the mod factory fields with data from the `project` section of a`pyproject.toml`.
+
+    Args:
+        project: The `project` section.
+        fields: The current set of fields. Modified in place.
+    """
+    for simple_field, project_field in (
+        ("name", "name"),
+        ("version", "version"),
+        ("description", "description"),
+        ("_version_info", "version"),
+    ):
+        if fields[simple_field] is None and project_field in project:
+            fields[simple_field] = project[project_field]
+
+    if fields["author"] is None and "authors" in project:
+        fields["author"] = ", ".join(
+            author["name"] for author in project["authors"] if "name" in author
+        )
+
+
 def update_fields_with_pyproject(module: ModuleType, fields: ModFactoryFields) -> None:
     """
     Updates the mod factory fields with data gathered from the `pyproject.toml`.
@@ -191,37 +249,10 @@ def update_fields_with_pyproject(module: ModuleType, fields: ModFactoryFields) -
 
     # Check `tool.sdkmod` first, since we want it to have priority in cases we have multiple keys
     if ("tool" in toml_data) and ("sdkmod" in toml_data["tool"]):
-        sdkmod = toml_data["tool"]["sdkmod"]
-
-        for simple_field in ("name", "version", "auto_enable"):
-            if fields[simple_field] is None and simple_field in sdkmod:
-                fields[simple_field] = sdkmod[simple_field]
-
-        if fields["mod_type"] is None and "mod_type" in sdkmod:
-            fields["mod_type"] = ModType[sdkmod["mod_type"]]
-
-        if fields["supported_games"] is None and "supported_games" in sdkmod:
-            fields["supported_games"] = functools.reduce(
-                operator.or_,
-                (Game[g] for g in sdkmod["supported_games"]),
-            )
+        update_fields_with_pyproject_tool_sdkmod(toml_data["tool"]["sdkmod"], fields)
 
     if "project" in toml_data:
-        project = toml_data["project"]
-
-        for simple_field, project_field in (
-            ("name", "name"),
-            ("version", "version"),
-            ("description", "description"),
-            ("_version_info", "version"),
-        ):
-            if fields[simple_field] is None and project_field in project:
-                fields[simple_field] = project[project_field]
-
-        if fields["author"] is None and "authors" in project:
-            fields["author"] = ", ".join(
-                author["name"] for author in project["authors"] if "name" in author
-            )
+        update_fields_with_pyproject_project(toml_data["project"], fields)
 
 
 def update_fields_with_module_attributes(module: ModuleType, fields: ModFactoryFields) -> None:

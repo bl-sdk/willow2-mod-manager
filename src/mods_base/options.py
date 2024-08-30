@@ -139,6 +139,9 @@ class HiddenOption[J: JSON](ValueOption[J]):
         mod: The mod this option stores it's settings in, or None if not (yet) associated with one.
     """
 
+    # Need to redefine on change so that it binds to J@HiddenOption, not J@ValueOption
+    on_change: Callable[[Self, J], None] | None = None
+
     is_hidden: Literal[True] = field(  # pyright: ignore[reportIncompatibleVariableOverride]
         default=True,
         init=False,
