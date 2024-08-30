@@ -84,6 +84,27 @@ class HookProtocol(Protocol):
     ) -> HookBlockSignal | tuple[HookBlockSignal, Any]: ...
 
 
+class PostHookProtocol(HookProtocol, Protocol):
+    @overload
+    def __call__(
+        self,
+        obj: UObject,
+        args: WrappedStruct,
+        ret: Any,
+        func: BoundFunction,
+    ) -> None: ...
+
+    @overload
+    def __call__(
+        self,
+        bound_obj: Any,
+        obj: UObject,
+        args: WrappedStruct,
+        ret: Any,
+        func: BoundFunction,
+    ) -> None: ...
+
+
 def _hook_enable(self: HookProtocol) -> None:
     # Disable first, to make sure we always use the latest version when enabling
     _hook_disable(self)
@@ -130,7 +151,7 @@ def hook(
     hook_type: Literal[Type.POST, Type.POST_UNCONDITIONAL],
     *,
     auto_enable: bool = False,
-) -> Callable[[AnyPostHook], HookProtocol]: ...
+) -> Callable[[AnyPostHook], PostHookProtocol]: ...
 
 
 def hook(
@@ -139,7 +160,7 @@ def hook(
     *,
     auto_enable: bool = False,
     hook_identifier: str | None = None,
-) -> Callable[[AnyPreHook], HookProtocol] | Callable[[AnyPostHook], HookProtocol]:
+) -> Callable[[AnyPreHook], HookProtocol] | Callable[[AnyPostHook], PostHookProtocol]:
     """
     Decorator to register a function as a hook.
 
