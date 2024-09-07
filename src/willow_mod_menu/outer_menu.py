@@ -10,6 +10,7 @@ from mods_base import CoopSupport, EInputEvent, Game, Mod, get_ordered_mod_list,
 from mods_base.mod_list import base_mod
 
 from .favourites import is_favourite, toggle_favourite
+from .options_menu import push_mod_list, push_mod_options
 
 if TYPE_CHECKING:
     from enum import auto
@@ -142,8 +143,17 @@ def open_mods_menu(movie: UObject) -> None:
     # Assuming if you're accessing it in game you just want to tweak some option, this isn't really
     # a big deal, you don't need all the extra info.
 
-    # TODO: implement
-    print("OPEN PAUSE MODS")
+    pc = movie.WPCOwner
+    frontend_def = movie.MyFrontendDefinition
+
+    options = pc.GFxUIManager.PlayMovie(frontend_def.OptionsMovieDef)
+    options.PreviousMenuHeader = movie.GetVariableString(frontend_def.HeaderPath)
+
+    the_list = options.TheList
+    the_list.DataProviderStack.clear()
+    push_mod_list(the_list)
+
+    movie.OptionsMovie = options
 
 
 # Called whenever any entry in the menus is clicked. Since we use a custom event, we need a custom
@@ -167,7 +177,7 @@ def frontend_handle_click(
 
 # Called on pressing keys in the menus, we use it to add a key shortcut.
 # Since pause menu inherits frontend, one hook is enough
-@hook("WillowGame.FrontendGFxMovie:SharedHandleInputKey", Type.PRE, auto_enable=True)
+@hook("WillowGame.FrontendGFxMovie:SharedHandleInputKey", auto_enable=True)
 def frontend_input_key(
     obj: UObject,
     args: WrappedStruct,
@@ -223,7 +233,7 @@ def create_description_text(mod: Mod) -> str:
 
 
 # Called whenever the dlc menu is refreshed, we use it to replace all the entries with our own
-@hook("WillowGame.MarketplaceGFxMovie:RefreshDLC", Type.PRE, auto_enable=True)
+@hook("WillowGame.MarketplaceGFxMovie:RefreshDLC", auto_enable=True)
 def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunction) -> type[Block]:
     obj.SetContentData([])  # Clear existing content
 
@@ -257,7 +267,7 @@ def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunct
 
 
 # Called on switching entries in the DLC menu. We use it just to update the favourite tooltip
-@hook("WillowGame.MarketplaceGFxMovie:extOnOfferingChanged", Type.PRE, auto_enable=True)
+@hook("WillowGame.MarketplaceGFxMovie:extOnOfferingChanged", auto_enable=True)
 def marketplace_offering_changed(
     obj: UObject,
     args: WrappedStruct,
@@ -281,7 +291,7 @@ def marketplace_offering_changed(
 
 
 # Called on any key input in the DLC menu. We basically entirely overwrite it to add our own logic.
-@hook("WillowGame.MarketplaceGFxMovie:ShopInputKey", Type.PRE, auto_enable=True)
+@hook("WillowGame.MarketplaceGFxMovie:ShopInputKey", auto_enable=True)
 def marketplace_input_key(
     obj: UObject,
     args: WrappedStruct,
@@ -316,7 +326,24 @@ def marketplace_input_key(
                     obj.RefreshDLC()
                 return Block, True
             case "Enter", EInputEvent.IE_Released:
-                # TODO: open inner menu
+                item = obj.GetSelectedObject()
+                if item is None:
+                    return Block, True
+                mod = drawn_mod_list[int(item.GetString(obj.Prop_offeringId))]
+
+                pc = obj.WPCOwner
+                frontend = pc.GetFrontendMovie()
+                frontend.HideMarketplaceMovie()
+
+                options = pc.GFxUIManager.PlayMovie(frontend.MyFrontendDefinition.OptionsMovieDef)
+                options.PreviousMenuHeader = MODS_MENU_NAME
+
+                the_list = options.TheList
+                the_list.DataProviderStack.clear()
+                push_mod_options(the_list, mod)
+
+                frontend.OptionsMovie = options
+                frontend_options_hide_reopen_mod_menu.enable()
                 return Block, True
 
             case _, _:
@@ -328,3 +355,23 @@ def marketplace_input_key(
         traceback.print_exc()
 
     return Block, True
+
+
+# Called to close the options menu. We temporarily enable it while in a mod options menu triggered
+# from the main menu, to reopen the dlc menu afterwards.
+@hook("WillowGame.FrontendGFxMovie:HideOptionsMovie", Type.POST)  # not auto enabled
+def frontend_options_hide_reopen_mod_menu(
+    obj: UObject,
+    _2: WrappedStruct,
+    _3: Any,
+    _4: BoundFunction,
+) -> None:
+    frontend_options_hide_reopen_mod_menu.disable()
+    open_mods_menu(obj)
+
+
+# Called whenever the frontend movie (but not the pause one) starts. We use it just to make sure the
+# previous hook isn't running, in case the menu got interrupted (e.g. if off host).
+@hook("WillowGame.FrontendGFxMovie:Start", auto_enable=True)
+def frontend_start(*_: Any) -> None:
+    frontend_options_hide_reopen_mod_menu.disable()
