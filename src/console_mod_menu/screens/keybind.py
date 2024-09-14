@@ -139,7 +139,7 @@ if raw_keybinds is not None:
             draw_standard_commands()
 
             # pyright thinks there's a chance this could change by the time we get to the function
-            # call, so doesn't propegate the above None check
+            # call, so doesn't propagate the above None check
             assert raw_keybinds is not None
 
             if self.is_bind_active:

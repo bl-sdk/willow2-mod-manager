@@ -48,7 +48,7 @@ def clipboard_copy(contents: str) -> None:
     if OpenClipboard(None):
         EmptyClipboard()
 
-        # Don't need to do anything more if we have an empty stirng
+        # Don't need to do anything more if we have an empty string
         if contents:
             data = contents.encode("utf-16le") + b"\0\0"
             size = len(data)

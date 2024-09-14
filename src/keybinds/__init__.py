@@ -1,10 +1,11 @@
 from functools import wraps
 from typing import TYPE_CHECKING, Any
 
-from mods_base import EInputEvent, KeybindType, hook
-from mods_base.mod_list import base_mod
 from unrealsdk.hooks import Type
 from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
+
+from mods_base import EInputEvent, KeybindType, hook
+from mods_base.mod_list import base_mod
 
 if TYPE_CHECKING:
     from mods_base.keybinds import KeybindCallback_Event, KeybindCallback_NoArgs

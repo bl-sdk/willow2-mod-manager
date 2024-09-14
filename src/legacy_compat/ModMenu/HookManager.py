@@ -100,7 +100,7 @@ def RegisterHooks(obj: object) -> None:
         if hook_targets is None or len(signature(function).parameters) != 4:  # noqa: PLR2004
             continue
 
-        method_wrapper = _create_method_wrapper(obj_ref, function)
+        method_wrapper = _create_method_wrapper(obj_ref, function)  # type: ignore
         setattr(obj, attribute_name, method_wrapper)
 
         method_wrapper.HookName = function.HookName.format(  # type: ignore
@@ -122,4 +122,4 @@ def RemoveHooks(obj: object) -> None:
             continue
 
         for target in hook_targets:
-            old_unrealsdk.RemoveHook(target, function.HookName)
+            old_unrealsdk.RemoveHook(target, function.HookName)  # type: ignore

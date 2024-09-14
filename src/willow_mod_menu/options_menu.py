@@ -148,7 +148,7 @@ class OptionsDataProvider(DataProvider):
         """
         Recursively checks if any option in a sequence is visible.
 
-        Recurses into grouped options, but not nested ones. A grouped option which is not explictly
+        Recurses into grouped options, but not nested ones. A grouped option which is not explicitly
         hidden, but contains no visible children, does not count as visible.
 
         Keybind options are always treated as hidden.
@@ -252,7 +252,7 @@ class OptionsDataProvider(DataProvider):
 
             event_id = len(self.drawn_options) - 1 + OPTION_EVENT_ID_OFFSET
 
-            # If we're in any group, we indent the names slightly to distingish them from the
+            # If we're in any group, we indent the names slightly to distinguish them from the
             # headers
             option_name = ("  " if group_stack else "") + option.display_name
 
@@ -348,7 +348,7 @@ class OptionsDataProvider(DataProvider):
     def handle_slider_change(self, event_id: int, new_value: int) -> bool:  # noqa: D102
         match option := self.drawn_options[event_id - OPTION_EVENT_ID_OFFSET]:
             case SliderOption():
-                # Unfortuantely, all values we get back from the hook are integers - so checking
+                # Unfortunately, all values we get back from the hook are integers - so checking
                 # `option.is_integer` is redundant
                 option.value = int(new_value)
                 return True
