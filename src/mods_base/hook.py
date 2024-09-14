@@ -13,19 +13,18 @@ type HookBlockSignal = None | EllipsisType | Block | type[Block]
 type PreHookRet = HookBlockSignal | tuple[HookBlockSignal, Any]
 type PostHookRet = None
 
-type PreHookCallbackFunc = Callable[[UObject, WrappedStruct, Any, BoundFunction], PreHookRet]
-type PreHookCallbackMethod = Callable[[Any, UObject, WrappedStruct, Any, BoundFunction], PreHookRet]
-type PostHookCallbackFunc = Callable[[UObject, WrappedStruct, Any, BoundFunction], PostHookRet]
-type PostHookCallbackMethod = Callable[
-    [Any, UObject, WrappedStruct, Any, BoundFunction],
-    PostHookRet,
+type HookCallbackFunction[R: (PreHookRet, PostHookRet)] = Callable[
+    [UObject, WrappedStruct, Any, BoundFunction],
+    R,
 ]
-type AnyPreHookCallback = PreHookCallbackFunc | PreHookCallbackMethod
-type AnyPostHookCallback = PostHookCallbackFunc | PostHookCallbackMethod
+type HookCallbackMethod[R: (PreHookRet, PostHookRet)] = Callable[
+    [Any, UObject, WrappedStruct, Any, BoundFunction],
+    R,
+]
 
 
 @dataclass
-class HookBase[R: PreHookRet | PostHookRet]:
+class HookType[R: (PreHookRet, PostHookRet)]:
     __wrapped__: Callable[[UObject, WrappedStruct, Any, BoundFunction], R]
 
     hook_identifier: str
@@ -96,22 +95,13 @@ class HookBase[R: PreHookRet | PostHookRet]:
         return self.__wrapped__(obj, args, ret, func)
 
 
-type PreHookFunction = HookBase[PreHookRet]
-type PostHookFunction = HookBase[PostHookRet]
-
-
-# Using a subclass to allow for proper isinstance checks
-@dataclass
-class HookType(HookBase[Any]): ...
-
-
 @overload
-def hook(
+def hook[R: (PreHookRet, PostHookRet)](
     hook_func: str,
     hook_type: Literal[Type.PRE] = Type.PRE,
     *,
     immediately_enable: bool = False,
-) -> Callable[[AnyPreHookCallback], PreHookFunction]: ...
+) -> Callable[[HookCallbackFunction[R] | HookCallbackMethod[R]], HookType[R]]: ...
 
 
 @overload
@@ -120,25 +110,25 @@ def hook(
     hook_type: Literal[Type.POST, Type.POST_UNCONDITIONAL],
     *,
     immediately_enable: bool = False,
-) -> Callable[[AnyPostHookCallback], PostHookFunction]: ...
+) -> Callable[
+    [HookCallbackFunction[PostHookRet] | HookCallbackMethod[PostHookRet]],
+    HookType[PostHookRet],
+]: ...
 
 
-def hook(  # noqa: D417 - deprecated arg
+def hook[R: (PreHookRet, PostHookRet)](  # noqa: D417 - deprecated arg
     hook_func: str,
     hook_type: Type = Type.PRE,
     *,
     auto_enable: bool | None = None,
     immediately_enable: bool = False,
     hook_identifier: str | None = None,
-) -> (
-    Callable[[AnyPreHookCallback], PreHookFunction]
-    | Callable[[AnyPostHookCallback], PostHookFunction]
-):
+) -> Callable[[HookCallbackFunction[R] | HookCallbackMethod[R]], HookType[R]]:
     """
     Decorator to register a function as a hook.
 
     When used on a method, this essentially creates a factory. You MUST bind it to a specific
-    instance before using it further - see `HookBase.bind()` or `bind_all_hooks()`. This is done
+    instance before using it further - see `HookType.bind()` or `bind_all_hooks()`. This is done
     automatically on subclasses of `Mod`.
 
     May be stacked on the same function multiple times - even with other decorators inbetween
@@ -172,7 +162,7 @@ def hook(  # noqa: D417 - deprecated arg
         immediately_enable = auto_enable
     del auto_enable
 
-    def decorator(func: AnyPreHookCallback | AnyPostHookCallback) -> HookBase[Any]:
+    def decorator(func: HookCallbackFunction[R] | HookCallbackMethod[R]) -> HookType[R]:
         # HACK: There's no way to tell if we've wrapped a method or a function  # noqa: FIX004
         #
         # At the point decorators run, they're all functions, just with an extra arg - but we can't
@@ -184,20 +174,20 @@ def hook(  # noqa: D417 - deprecated arg
         # Regardless of what type we have, we need to store it on the hook function object. Since we
         # can't at all tell between the two, we have to just store them in the same field, pretend
         # it's always a function, and just hope the user calls bind as appropriate.
-        func = cast(PreHookCallbackFunc | PostHookCallbackFunc, func)
+        func = cast(HookCallbackFunction[R], func)
 
-        hook: HookBase[Any]
-        if isinstance(func, HookBase):
+        hook: HookType[R]
+        if isinstance(func, HookType):
             # If we're directly wrapping another hook, use it
             hook = func
         else:
             # Look to see if we wrapped another hook function inbetween somewhere
             wrapped_func = func
             while (wrapped_func := getattr(wrapped_func, "__wrapped__", None)) is not None:
-                if isinstance(wrapped_func, HookBase):
+                if isinstance(wrapped_func, HookType):
                     # The functions wrapping this hook might rely on it, we can't really reuse the
                     # same object, just copy it's identifier and funcs
-                    hook = HookBase(func, wrapped_func.hook_identifier, wrapped_func.hook_funcs)
+                    hook = HookType(func, wrapped_func.hook_identifier, wrapped_func.hook_funcs)
                     functools.update_wrapper(hook, func)
                     break
             else:
@@ -213,7 +203,7 @@ def hook(  # noqa: D417 - deprecated arg
                 else:
                     identifier = hook_identifier
 
-                hook = HookBase(func, identifier)
+                hook = HookType(func, identifier)
                 functools.update_wrapper(hook, func)
 
         # If we already have hooks, make sure we're not trying to redefine the identifier
@@ -239,7 +229,7 @@ def bind_all_hooks(obj: object, identifier_extension: str | None = None) -> None
     Binds all hooks on the given object, replacing the instance vars with their bound equivalents.
 
     Equivalent to the following, for all hooks on the object:
-        obj.some_hook = obj.some_hook.bind(obj)
+        obj.some_hook = obj.some_hook.bind(obj, identifier_extension)
 
     Args:
         obj: The object to bind to.
@@ -249,5 +239,5 @@ def bind_all_hooks(obj: object, identifier_extension: str | None = None) -> None
                               identifiers will conflict.
     """
     for name, value in inspect.getmembers(obj):
-        if isinstance(value, HookBase):
+        if isinstance(value, HookType):
             setattr(obj, name, value.bind(obj, identifier_extension))

@@ -223,7 +223,7 @@ class _NewMod(Mod):
     def options(self, val: Sequence[BaseOption]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
         raise NotImplementedError("Unable to set options on legacy sdk mod")
 
-    hooks: Sequence[HookType] = ()
+    hooks: Sequence[HookType[Any]] = ()
     commands: Sequence[AbstractCommand] = ()
 
     _enabling_locked: bool = False
