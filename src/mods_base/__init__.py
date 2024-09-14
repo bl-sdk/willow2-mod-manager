@@ -28,7 +28,7 @@ from .command import (
     command,
     remove_next_console_line_capture,
 )
-from .hook import HookProtocol, hook
+from .hook import HookType, bind_all_hooks, hook
 from .html_to_plain_text import html_to_plain_text
 from .keybinds import EInputEvent, KeybindType, keybind
 from .mod import CoopSupport, Game, Library, Mod, ModType
@@ -60,6 +60,7 @@ __all__: tuple[str, ...] = (
     "AbstractCommand",
     "ArgParseCommand",
     "BaseOption",
+    "bind_all_hooks",
     "BoolOption",
     "build_mod",
     "ButtonOption",
@@ -76,7 +77,7 @@ __all__: tuple[str, ...] = (
     "GroupedOption",
     "HiddenOption",
     "hook",
-    "HookProtocol",
+    "HookType",
     "html_to_plain_text",
     "JSON",
     "keybind",

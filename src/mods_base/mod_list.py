@@ -14,7 +14,7 @@ import unrealsdk
 
 from . import MODS_DIR, __version__
 from .command import AbstractCommand
-from .hook import HookProtocol
+from .hook import HookType
 from .html_to_plain_text import html_to_plain_text
 from .keybinds import KeybindType
 from .mod import CoopSupport, Game, Library, Mod, ModType
@@ -136,7 +136,7 @@ class BaseMod(Library):
 
     keybinds: list[KeybindType] = field(default_factory=list)  # type: ignore
     options: list[BaseOption] = field(default_factory=list)  # type: ignore
-    hooks: list[HookProtocol] = field(default_factory=list)  # type: ignore
+    hooks: list[HookType] = field(default_factory=list)  # type: ignore
     commands: list[AbstractCommand] = field(default_factory=list)  # type: ignore
 
     @dataclass

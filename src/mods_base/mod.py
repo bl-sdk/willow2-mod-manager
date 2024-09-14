@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Literal
 from unrealsdk import logging
 
 from .command import AbstractCommand
-from .hook import HookProtocol
+from .hook import HookType
 from .keybinds import KeybindType
 from .options import BaseOption, GroupedOption, KeybindOption, NestedOption
 from .settings import default_load_mod_settings, default_save_mod_settings
@@ -147,7 +147,7 @@ class Mod:
     # constructor, and it'd force you to do None checks whenever you're accessing them
     keybinds: Sequence[KeybindType] = field(default=None)  # type: ignore
     options: Sequence[BaseOption] = field(default=None)  # type: ignore
-    hooks: Sequence[HookProtocol] = field(default=None)  # type: ignore
+    hooks: Sequence[HookType] = field(default=None)  # type: ignore
     commands: Sequence[AbstractCommand] = field(default=None)  # type: ignore
 
     enabling_locked: bool = field(init=False)
@@ -169,7 +169,7 @@ class Mod:
             self.options = new_options
             need_to_search_instance_vars = True
 
-        new_hooks: list[HookProtocol] = []
+        new_hooks: list[HookType] = []
         if find_hooks := self.hooks is None:  # type: ignore
             self.hooks = new_hooks
             need_to_search_instance_vars = True
@@ -191,7 +191,7 @@ class Mod:
                         )
                     case BaseOption() if find_options:
                         new_options.append(value)
-                    case HookProtocol() if find_hooks:
+                    case HookType() if find_hooks:
                         new_hooks.append(value.bind(self))
                     case AbstractCommand() if find_commands:
                         new_commands.append(value)

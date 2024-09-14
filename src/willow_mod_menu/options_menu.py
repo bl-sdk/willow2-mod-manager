@@ -436,7 +436,10 @@ def push_mod_list(the_list: UObject) -> None:
 
 
 # Called when filling in the kb/m options menu. This version shows our entries instead.
-@hook("WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:Populate", auto_enable=True)
+@hook(
+    "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:Populate",
+    immediately_enable=True,
+)
 def dataprovider_kbm_populate(
     obj: UObject,
     args: WrappedStruct,
@@ -461,7 +464,7 @@ def dataprovider_kbm_populate(
 # Called when clicking something in the kb/m options menu - we use it for the same.
 @hook(
     "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:HandleClick",
-    auto_enable=True,
+    immediately_enable=True,
 )
 def dataprovider_kbm_handle_click(
     _1: UObject,
@@ -485,7 +488,7 @@ def dataprovider_kbm_handle_click(
 # this. We use it to track our events for the same.
 @hook(
     "WillowGame.WillowScrollingListDataProviderOptionsBase:HandleSpinnerChange",
-    auto_enable=True,
+    immediately_enable=True,
 )
 def dataprovider_base_handle_spinner_change(
     _1: UObject,
@@ -510,7 +513,7 @@ def dataprovider_base_handle_spinner_change(
 # Called when changing a slider in *any* options menu, same as above
 @hook(
     "WillowGame.WillowScrollingListDataProviderOptionsBase:HandleSliderChange",
-    auto_enable=True,
+    immediately_enable=True,
 )
 def dataprovider_base_handle_slider_change(
     _1: UObject,
@@ -531,7 +534,7 @@ def dataprovider_base_handle_slider_change(
 
 # Called when closing any scrolling list menu. We use it to keep our stack in sync. This relies on
 # the fact that once you enter an modded menu, all child menus in the stack are also always modded.
-@hook("WillowGame.WillowScrollingList:HandlePopList", auto_enable=True)
+@hook("WillowGame.WillowScrollingList:HandlePopList", immediately_enable=True)
 def scrolling_list_handle_pop(
     obj: UObject,
     _2: WrappedStruct,

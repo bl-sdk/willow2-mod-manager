@@ -69,7 +69,7 @@ def add_list_item(
 
 # These hooks are called to generate the relevant menu entries, we use them to enable and disable
 # the per-item hook
-@hook("WillowGame.WillowScrollingListDataProviderFrontEnd:Populate", auto_enable=True)
+@hook("WillowGame.WillowScrollingListDataProviderFrontEnd:Populate", immediately_enable=True)
 @hook("WillowGame.WillowScrollingListDataProviderPause:Populate")
 def frontend_populate_pre(*_: Any) -> None:
     add_list_item.enable()
@@ -78,7 +78,7 @@ def frontend_populate_pre(*_: Any) -> None:
 @hook(
     "WillowGame.WillowScrollingListDataProviderFrontEnd:Populate",
     Type.POST_UNCONDITIONAL,
-    auto_enable=True,
+    immediately_enable=True,
 )
 @hook("WillowGame.WillowScrollingListDataProviderPause:Populate", Type.POST_UNCONDITIONAL)
 def frontend_populate_post(*_: Any) -> None:
@@ -90,7 +90,7 @@ def frontend_populate_post(*_: Any) -> None:
 # mode and character select shortcuts while on PC.
 # While there are simpler ways of doing this (e.g. override returning a fake platform), the default
 # logic makes it look a bit ugly. Overwrite the entire thing to display it more nicely.
-@hook("WillowGame.FrontendGFxMovie:UpdateTooltips", auto_enable=True)
+@hook("WillowGame.FrontendGFxMovie:UpdateTooltips", immediately_enable=True)
 def frontend_update_tooltips(
     obj: UObject,
     _2: WrappedStruct,
@@ -158,7 +158,7 @@ def open_mods_menu(movie: UObject) -> None:
 
 # Called whenever any entry in the menus is clicked. Since we use a custom event, we need a custom
 # implementation to actually open it.
-@hook("WillowGame.WillowScrollingListDataProviderFrontEnd:HandleClick", auto_enable=True)
+@hook("WillowGame.WillowScrollingListDataProviderFrontEnd:HandleClick", immediately_enable=True)
 @hook("WillowGame.WillowScrollingListDataProviderPause:HandleClick")
 def frontend_handle_click(
     _1: UObject,
@@ -177,7 +177,7 @@ def frontend_handle_click(
 
 # Called on pressing keys in the menus, we use it to add a key shortcut.
 # Since pause menu inherits frontend, one hook is enough
-@hook("WillowGame.FrontendGFxMovie:SharedHandleInputKey", auto_enable=True)
+@hook("WillowGame.FrontendGFxMovie:SharedHandleInputKey", immediately_enable=True)
 def frontend_input_key(
     obj: UObject,
     args: WrappedStruct,
@@ -233,7 +233,7 @@ def create_description_text(mod: Mod) -> str:
 
 
 # Called whenever the dlc menu is refreshed, we use it to replace all the entries with our own
-@hook("WillowGame.MarketplaceGFxMovie:RefreshDLC", auto_enable=True)
+@hook("WillowGame.MarketplaceGFxMovie:RefreshDLC", immediately_enable=True)
 def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunction) -> type[Block]:
     obj.SetContentData([])  # Clear existing content
 
@@ -267,7 +267,7 @@ def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunct
 
 
 # Called on switching entries in the DLC menu. We use it just to update the favourite tooltip
-@hook("WillowGame.MarketplaceGFxMovie:extOnOfferingChanged", auto_enable=True)
+@hook("WillowGame.MarketplaceGFxMovie:extOnOfferingChanged", immediately_enable=True)
 def marketplace_offering_changed(
     obj: UObject,
     args: WrappedStruct,
@@ -291,7 +291,7 @@ def marketplace_offering_changed(
 
 
 # Called on any key input in the DLC menu. We basically entirely overwrite it to add our own logic.
-@hook("WillowGame.MarketplaceGFxMovie:ShopInputKey", auto_enable=True)
+@hook("WillowGame.MarketplaceGFxMovie:ShopInputKey", immediately_enable=True)
 def marketplace_input_key(
     obj: UObject,
     args: WrappedStruct,
@@ -372,6 +372,6 @@ def frontend_options_hide_reopen_mod_menu(
 
 # Called whenever the frontend movie (but not the pause one) starts. We use it just to make sure the
 # previous hook isn't running, in case the menu got interrupted (e.g. if off host).
-@hook("WillowGame.FrontendGFxMovie:Start", auto_enable=True)
+@hook("WillowGame.FrontendGFxMovie:Start", immediately_enable=True)
 def frontend_start(*_: Any) -> None:
     frontend_options_hide_reopen_mod_menu.disable()

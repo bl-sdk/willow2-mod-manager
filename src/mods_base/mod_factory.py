@@ -12,7 +12,7 @@ from unrealsdk import logging
 
 from .command import AbstractCommand
 from .dot_sdkmod import open_in_mod_dir
-from .hook import HookProtocol
+from .hook import HookType
 from .keybinds import KeybindType
 from .mod import CoopSupport, Game, Mod, ModType
 from .mod_list import deregister_mod, mod_list, register_mod
@@ -38,7 +38,7 @@ def build_mod(
     settings_file: Path | None = None,
     keybinds: Sequence[KeybindType] | None = None,
     options: Sequence[BaseOption] | None = None,
-    hooks: Sequence[HookProtocol] | None = None,
+    hooks: Sequence[HookType] | None = None,
     commands: Sequence[AbstractCommand] | None = None,
     auto_enable: bool | None = None,
     on_enable: Callable[[], None] | None = None,
@@ -65,7 +65,7 @@ def build_mod(
     settings_file   |                                      | f"{__name__}.json" in the settings dir
     keybinds        |                                      | Keybind instances
     options         |                                      | OptionBase instances ^5
-    hooks           |                                      | Objects matching HookProtocol
+    hooks           |                                      | Hook instances
     commands        |                                      | AbstractCommand instances
     auto_enable     | tool.sdkmod.auto_enable              |
     on_enable       |                                      | on_enable
@@ -157,7 +157,7 @@ class ModFactoryFields(TypedDict):
     settings_file: Path | None
     keybinds: Sequence[KeybindType] | None
     options: Sequence[BaseOption] | None
-    hooks: Sequence[HookProtocol] | None
+    hooks: Sequence[HookType] | None
     commands: Sequence[AbstractCommand] | None
     auto_enable: bool | None
     on_enable: Callable[[], None] | None
@@ -303,7 +303,7 @@ def update_fields_with_module_search(  # noqa: C901 - difficult to split up
         fields["options"] = new_options
         need_to_search_module = True
 
-    new_hooks: list[HookProtocol] = []
+    new_hooks: list[HookType] = []
     if find_hooks := fields["hooks"] is None:
         fields["hooks"] = new_hooks
         need_to_search_module = True
@@ -329,7 +329,7 @@ def update_fields_with_module_search(  # noqa: C901 - difficult to split up
             case BaseOption() if find_options:
                 new_options.append(value)
 
-            case HookProtocol() if find_hooks:
+            case HookType() if find_hooks:
                 new_hooks.append(value)
 
             case AbstractCommand() if find_commands:

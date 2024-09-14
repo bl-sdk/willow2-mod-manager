@@ -1,44 +1,48 @@
 import functools
 import inspect
+import warnings
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from types import EllipsisType
-from typing import Any, Literal, Protocol, Self, cast, overload, runtime_checkable
+from typing import Any, Literal, Self, cast, overload
 
 from unrealsdk.hooks import Block, Type, add_hook, has_hook, remove_hook
 from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 type HookBlockSignal = None | EllipsisType | Block | type[Block]
+type PreHookRet = HookBlockSignal | tuple[HookBlockSignal, Any]
+type PostHookRet = None
 
-type AnyPreHook = (
-    Callable[
-        [UObject, WrappedStruct, Any, BoundFunction],
-        HookBlockSignal | tuple[HookBlockSignal, Any],
-    ]
-    | Callable[
-        [Any, UObject, WrappedStruct, Any, BoundFunction],
-        HookBlockSignal | tuple[HookBlockSignal, Any],
-    ]
-)
-type AnyPostHook = (
-    Callable[[UObject, WrappedStruct, Any, BoundFunction], None]
-    | Callable[[Any, UObject, WrappedStruct, Any, BoundFunction], None]
-)
+type PreHookCallbackFunc = Callable[[UObject, WrappedStruct, Any, BoundFunction], PreHookRet]
+type PreHookCallbackMethod = Callable[[Any, UObject, WrappedStruct, Any, BoundFunction], PreHookRet]
+type PostHookCallbackFunc = Callable[[UObject, WrappedStruct, Any, BoundFunction], PostHookRet]
+type PostHookCallbackMethod = Callable[
+    [Any, UObject, WrappedStruct, Any, BoundFunction],
+    PostHookRet,
+]
+type AnyPreHookCallback = PreHookCallbackFunc | PreHookCallbackMethod
+type AnyPostHookCallback = PostHookCallbackFunc | PostHookCallbackMethod
 
 
-@runtime_checkable
-class HookProtocol(Protocol):
-    hook_funcs: list[tuple[str, Type]]
+@dataclass
+class HookBase[R: PreHookRet | PostHookRet]:
+    __wrapped__: Callable[[UObject, WrappedStruct, Any, BoundFunction], R]
+
     hook_identifier: str
-
-    obj_to_bind_hooks_to: Any | None = None
+    hook_funcs: list[tuple[str, Type]] = field(default_factory=list)
 
     def enable(self) -> None:
         """Enables all hooks this function is bound to."""
-        raise NotImplementedError
+        # Disable first, to make sure we always use the latest version when enabling
+        self.disable()
+
+        for hook_func, hook_type in self.hook_funcs:
+            add_hook(hook_func, hook_type, self.hook_identifier, self.__wrapped__)
 
     def disable(self) -> None:
         """Disables all hooks this function is bound to."""
-        raise NotImplementedError
+        for hook_func, hook_type in self.hook_funcs:
+            remove_hook(hook_func, hook_type, self.hook_identifier)
 
     def get_active_count(self) -> int:
         """
@@ -49,91 +53,56 @@ class HookProtocol(Protocol):
         Returns:
             The number of active hooks.
         """
-        raise NotImplementedError
+        return sum(
+            1
+            for hook_func, hook_type in self.hook_funcs
+            if has_hook(hook_func, hook_type, self.hook_identifier)
+        )
 
-    def bind(self, obj: Any) -> Self:
+    def bind(self, obj: object, identifier_extension: str | None = None) -> Self:
         """
-        Binds this hook to a specific object - to be used if this function is a method.
+        Creates a new hook function bound to the given object.
 
-        If this function is a method, this must be done before enabling the hook.
+        This must be called if the current hook wraps a method. You must only interact with the hook
+        this returns, you may not enable the hook on this level, otherwise you
 
         Args:
             obj: The object to bind to.
+            identifier_extension: If not None, extends the hook identifier with the given string.
+                                  You must provide different extensions if you intend to enable
+                                  multiple hooks on different instances at the same time, otherwise
+                                  their identifiers will conflict.
         Return:
             A reference to this hook.
         """
-        raise NotImplementedError
+        return type(self)(
+            self.__wrapped__.__get__(obj, type(obj)),
+            (
+                self.hook_identifier
+                if identifier_extension is None
+                else f"{self.hook_identifier}:{identifier_extension}"
+            ),
+            self.hook_funcs,
+        )
 
-    @overload
     def __call__(
         self,
         obj: UObject,
         args: WrappedStruct,
         ret: Any,
         func: BoundFunction,
-    ) -> HookBlockSignal | tuple[HookBlockSignal, Any]: ...
-
-    @overload
-    def __call__(
-        self,
-        bound_obj: Any,
-        obj: UObject,
-        args: WrappedStruct,
-        ret: Any,
-        func: BoundFunction,
-    ) -> HookBlockSignal | tuple[HookBlockSignal, Any]: ...
+    ) -> R:
+        """Calls the wrapped hook callback."""
+        return self.__wrapped__(obj, args, ret, func)
 
 
-class PostHookProtocol(HookProtocol, Protocol):
-    @overload
-    def __call__(
-        self,
-        obj: UObject,
-        args: WrappedStruct,
-        ret: Any,
-        func: BoundFunction,
-    ) -> None: ...
-
-    @overload
-    def __call__(
-        self,
-        bound_obj: Any,
-        obj: UObject,
-        args: WrappedStruct,
-        ret: Any,
-        func: BoundFunction,
-    ) -> None: ...
+type PreHookFunction = HookBase[PreHookRet]
+type PostHookFunction = HookBase[PostHookRet]
 
 
-def _hook_enable(self: HookProtocol) -> None:
-    # Disable first, to make sure we always use the latest version when enabling
-    _hook_disable(self)
-
-    func = (
-        self.__call__
-        if self.obj_to_bind_hooks_to is None
-        else functools.partial(self.__call__, self.obj_to_bind_hooks_to)
-    )
-    for hook_func, hook_type in self.hook_funcs:
-        add_hook(hook_func, hook_type, self.hook_identifier, func)
-
-
-def _hook_disable(self: HookProtocol) -> None:
-    for hook_func, hook_type in self.hook_funcs:
-        remove_hook(hook_func, hook_type, self.hook_identifier)
-
-
-def _hook_get_active_count(self: HookProtocol) -> int:
-    return sum(
-        1
-        for hook_func, hook_type in self.hook_funcs
-        if has_hook(hook_func, hook_type, self.hook_identifier)
-    )
-
-
-def _hook_bind(self: HookProtocol, obj: Any) -> HookProtocol:
-    self.obj_to_bind_hooks_to = obj
-    return self
+# Using a subclass to allow for proper isinstance checks
+@dataclass
+class HookType(HookBase[Any]): ...
 
 
 @overload
@@ -141,8 +110,8 @@ def hook(
     hook_func: str,
     hook_type: Literal[Type.PRE] = Type.PRE,
     *,
-    auto_enable: bool = False,
-) -> Callable[[AnyPreHook], HookProtocol]: ...
+    immediately_enable: bool = False,
+) -> Callable[[AnyPreHookCallback], PreHookFunction]: ...
 
 
 @overload
@@ -150,19 +119,27 @@ def hook(
     hook_func: str,
     hook_type: Literal[Type.POST, Type.POST_UNCONDITIONAL],
     *,
-    auto_enable: bool = False,
-) -> Callable[[AnyPostHook], PostHookProtocol]: ...
+    immediately_enable: bool = False,
+) -> Callable[[AnyPostHookCallback], PostHookFunction]: ...
 
 
-def hook(
+def hook(  # noqa: D417 - deprecated arg
     hook_func: str,
     hook_type: Type = Type.PRE,
     *,
-    auto_enable: bool = False,
+    auto_enable: bool | None = None,
+    immediately_enable: bool = False,
     hook_identifier: str | None = None,
-) -> Callable[[AnyPreHook], HookProtocol] | Callable[[AnyPostHook], PostHookProtocol]:
+) -> (
+    Callable[[AnyPreHookCallback], PreHookFunction]
+    | Callable[[AnyPostHookCallback], PostHookFunction]
+):
     """
     Decorator to register a function as a hook.
+
+    When used on a method, this essentially creates a factory. You MUST bind it to a specific
+    instance before using it further - see `HookBase.bind()` or `bind_all_hooks()`. This is done
+    automatically on subclasses of `Mod`.
 
     May be stacked on the same function multiple times - even with other decorators inbetween
     (assuming they follow the `__wrapped__` convention).
@@ -174,56 +151,103 @@ def hook(
         hook_func: The unrealscript function to hook.
         hook_type: What type of hook to add.
     Keyword Args:
-        auto_enable: If true, enables the hook after registering it. Should only be set on the
-                     outermost decorator.
-        hook_identifier: If not None, specified a custom hook identifier. May only be set on the
+        immediately_enable: If true, enables the hook *immediately after registering it*. Useful for
+                            test code and always-on libraries. DO NOT SET on hooks you expect to be
+                            enabled/disabled when your mod is. Should only be set on the outermost
+                            decorator.
+        hook_identifier: If not None, specifies a custom hook identifier. May only be set on the
                          innermost decorator. If None, generates one using the wrapped function's
                          module and qualified name.
     """
+    if auto_enable is not None:
+        warnings.warn(
+            "The 'auto_enable' argument is deprecated, since it's misleading. You should not set"
+            " it on hooks you expect to be enabled/disabled when your mod is, you can simplely"
+            " delete it. What it actually did is enable the hook immedidieately after registering,"
+            " ignoring if your mod's enabled or not. If you actually need this behaviour, switch to"
+            " the 'immediately_enable' argument.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        immediately_enable = auto_enable
+    del auto_enable
 
-    def decorator(func: AnyPreHook | AnyPostHook) -> HookProtocol:
-        if not isinstance(func, HookProtocol):
-            func = cast(HookProtocol, func)
+    def decorator(func: AnyPreHookCallback | AnyPostHookCallback) -> HookBase[Any]:
+        # HACK: There's no way to tell if we've wrapped a method or a function  # noqa: FIX004
+        #
+        # At the point decorators run, they're all functions, just with an extra arg - but we can't
+        # rely on any specific number of args or arg name.
+        #
+        # We also can't just wrap the function and see how it's called, since typically they're just
+        # passed straight to the hook, we're more of a registering decorator than a wrapping one.
+        #
+        # Regardless of what type we have, we need to store it on the hook function object. Since we
+        # can't at all tell between the two, we have to just store them in the same field, pretend
+        # it's always a function, and just hope the user calls bind as appropriate.
+        func = cast(PreHookCallbackFunc | PostHookCallbackFunc, func)
 
-            # Check if this function is a wrapper of an existing hook, and if so copy it's data
+        hook: HookBase[Any]
+        if isinstance(func, HookBase):
+            # If we're directly wrapping another hook, use it
+            hook = func
+        else:
+            # Look to see if we wrapped another hook function inbetween somewhere
             wrapped_func = func
             while (wrapped_func := getattr(wrapped_func, "__wrapped__", None)) is not None:
-                if isinstance(wrapped_func, HookProtocol):
-                    func.hook_funcs = wrapped_func.hook_funcs
-                    func.hook_identifier = wrapped_func.hook_identifier
-                    func.obj_to_bind_hooks_to = wrapped_func.obj_to_bind_hooks_to
+                if isinstance(wrapped_func, HookBase):
+                    # The functions wrapping this hook might rely on it, we can't really reuse the
+                    # same object, just copy it's identifier and funcs
+                    hook = HookBase(func, wrapped_func.hook_identifier, wrapped_func.hook_funcs)
+                    functools.update_wrapper(hook, func)
                     break
             else:
-                # Didn't find an existing hook, initialize our own data
-                func.hook_funcs = []
-
+                # There are no existing hooks, we're making the first one
+                identifier: str
                 if hook_identifier is None:
-                    # Don't want to add qualname to the protocol, but we know it must exist since
-                    # it's actually a function
-                    func_name = func.__qualname__  # type: ignore
-
                     module_name = (
                         "unknown_module"
                         if (module := inspect.getmodule(func)) is None
                         else module.__name__
                     )
-
-                    func.hook_identifier = f"{__name__}:hook-id:{module_name}.{func_name}"
+                    identifier = f"{__name__}:{module_name}:{func.__qualname__}"
                 else:
-                    func.hook_identifier = hook_identifier
+                    identifier = hook_identifier
 
-                func.obj_to_bind_hooks_to = None
+                hook = HookBase(func, identifier)
+                functools.update_wrapper(hook, func)
 
-            func.enable = _hook_enable.__get__(func, type(func))
-            func.disable = _hook_disable.__get__(func, type(func))
-            func.get_active_count = _hook_get_active_count.__get__(func, type(func))
-            func.bind = _hook_bind.__get__(func, type(func))
+        # If we already have hooks, make sure we're not trying to redefine the identifier
+        if hook.hook_funcs and hook_identifier is not None:
+            warnings.warn(
+                "Explicitly giving identifiers to outer hook decorators has no effect. Only set"
+                " one on the innermost decorator.",
+                stacklevel=3,
+            )
 
-        func.hook_funcs.append((hook_func, hook_type))
+        # Add this function
+        hook.hook_funcs.append((hook_func, hook_type))
 
-        if auto_enable:
-            func.enable()
-
-        return func
+        if immediately_enable:
+            hook.enable()
+        return hook
 
     return decorator
+
+
+def bind_all_hooks(obj: object, identifier_extension: str | None = None) -> None:
+    """
+    Binds all hooks on the given object, replacing the instance vars with their bound equivalents.
+
+    Equivalent to the following, for all hooks on the object:
+        obj.some_hook = obj.some_hook.bind(obj)
+
+    Args:
+        obj: The object to bind to.
+        identifier_extension: If not None, extends the hook identifier with the given string. You
+                              You must provide different extensions if you intend to enable multiple
+                              hooks on different instances at the same time, otherwise their
+                              identifiers will conflict.
+    """
+    for name, value in inspect.getmembers(obj):
+        if isinstance(value, HookBase):
+            setattr(obj, name, value.bind(obj, identifier_extension))

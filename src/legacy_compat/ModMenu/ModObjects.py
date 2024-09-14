@@ -19,7 +19,7 @@ from mods_base import (
     ButtonOption,
     Game,
     GroupedOption,
-    HookProtocol,
+    HookType,
     KeybindType,
     Mod,
     ModType,
@@ -223,7 +223,7 @@ class _NewMod(Mod):
     def options(self, val: Sequence[BaseOption]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
         raise NotImplementedError("Unable to set options on legacy sdk mod")
 
-    hooks: Sequence[HookProtocol] = ()
+    hooks: Sequence[HookType] = ()
     commands: Sequence[AbstractCommand] = ()
 
     _enabling_locked: bool = False
