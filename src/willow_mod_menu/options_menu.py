@@ -1,6 +1,6 @@
 # ruff: noqa: D103
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
 from typing import Any
 
@@ -25,6 +25,12 @@ from mods_base import (
     hook,
 )
 
+try:
+    from ui_utils import TrainingBox
+except ImportError:
+    TrainingBox = None
+
+from .description import get_mod_description
 from .favourites import is_favourite
 
 BACK_EVENT_ID = -1
@@ -362,7 +368,18 @@ class ModOptionsDataProvider(OptionsDataProvider):
 
     def __post_init__(self) -> None:
         def get_options_list() -> Iterator[BaseOption]:
-            yield ButtonOption("Description", description=self.mod.description)
+            # If we have access to a training box, we'll let you click the description to get the
+            # full thing, since just the option description is quite small
+            on_press: Callable[[ButtonOption], None] | None = None
+            if TrainingBox is not None:
+                full_description = TrainingBox(self.mod.name, get_mod_description(self.mod, True))
+                on_press = lambda _: full_description.show()  # noqa: E731
+
+            yield ButtonOption(
+                "Description",
+                description=self.mod.description,
+                on_press=on_press,
+            )
 
             if not self.mod.enabling_locked:
                 yield BoolOption(
@@ -457,6 +474,9 @@ def dataprovider_kbm_populate(
     # other menus, add the back caption - the standard machinery won't
     if len(data_provider_stack) == 1:
         the_list.AddListItem(BACK_EVENT_ID, the_list.BackCaption, False, False)
+
+    # Without this, the description of the first entry doesn't show up until you reselect it
+    obj.UpdateDescriptionText(OPTION_EVENT_ID_OFFSET, the_list)
 
     return Block
 

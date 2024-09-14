@@ -14,8 +14,6 @@ def show_chat_message(
     """
     Prints a message to chat - with protection against the offline crash.
 
-    Silently dropped if called while loading, when the player controller can't be found.
-
     Args:
         message: The message to print.
         user: The user to print the chat message as. If None, defaults to the current user.
@@ -25,7 +23,10 @@ def show_chat_message(
 
     pc = get_pc(possibly_loading=True)
     if pc is None:
-        return
+        raise RuntimeError(
+            "Unable to show chat message since player controller could not be found!",
+            message,
+        )
 
     if user is None:
         user = pc.PlayerReplicationInfo.PlayerName

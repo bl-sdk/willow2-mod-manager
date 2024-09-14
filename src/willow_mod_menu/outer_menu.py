@@ -6,9 +6,10 @@ import unrealsdk
 from unrealsdk.hooks import Block, Type, inject_next_call
 from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
-from mods_base import CoopSupport, EInputEvent, Game, Mod, get_ordered_mod_list, hook
+from mods_base import EInputEvent, Mod, get_ordered_mod_list, hook
 from mods_base.mod_list import base_mod
 
+from .description import get_mod_description
 from .favourites import is_favourite, toggle_favourite
 from .options_menu import push_mod_list, push_mod_options
 
@@ -191,47 +192,6 @@ def frontend_input_key(
     return None
 
 
-def create_description_text(mod: Mod) -> str:
-    """
-    Creates the text to use for a mod's description option.
-
-    Args:
-        mod: The mod to create the title for.
-    Returns:
-        The description text.
-    """
-    blocks: list[str] = []
-
-    match mod.coop_support:
-        case CoopSupport.Unknown:
-            # Choose this size and colour to make it look the same as the author text above it
-            # Can only add one line there, so hiding this at the top of the description
-            blocks.append("<font size='14' color='#a1e4ef'>Coop Support: Unknown</font>")
-        case CoopSupport.Incompatible:
-            blocks.append(
-                "<font size='14' color='#a1e4ef'>Coop Support:</font>"
-                " <font size='14'color='#ffff00'>Incompatible</font>",
-            )
-        case CoopSupport.RequiresAllPlayers:
-            blocks.append(
-                "<font size='14' color='#a1e4ef'>Coop Support: Requires All Players</font>",
-            )
-        case CoopSupport.ClientSide:
-            blocks.append("<font size='14' color='#a1e4ef'>Coop Support: Client Side</font>")
-
-    if Game.get_current() not in mod.supported_games:
-        supported = [g.name for g in Game if g in mod.supported_games and g.name is not None]
-        blocks.append(
-            "<font color='#ffff00'>Incompatible Game!</font>\n"
-            "This mod supports: " + ", ".join(supported),
-        )
-
-    if mod.description:
-        blocks.append(mod.description)
-
-    return "\n\n".join(blocks)
-
-
 # Called whenever the dlc menu is refreshed, we use it to replace all the entries with our own
 @hook("WillowGame.MarketplaceGFxMovie:RefreshDLC", immediately_enable=True)
 def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunction) -> type[Block]:
@@ -249,7 +209,7 @@ def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunct
         item.SetString(obj.Prop_offeringId, str(idx))
         item.SetString(obj.Prop_contentTitleText, mod.name)
         item.SetString(obj.Prop_costText, "By " + mod.author)
-        item.SetString(obj.Prop_descriptionText, create_description_text(mod))
+        item.SetString(obj.Prop_descriptionText, get_mod_description(mod, False))
         item.SetString(
             obj.Prop_statusText,
             # Same colour as author again
