@@ -72,6 +72,8 @@ from .data_providers.mod_list import ModListDataProvider  # noqa: E402
 from .data_providers.mod_options import ModOptionsDataProvider  # noqa: E402
 from .data_providers.options import OptionsDataProvider  # noqa: E402
 
+_GET_WILLOW_GLOBALS = unrealsdk.find_class("WillowGlobals").ClassDefaultObject.GetWillowGlobals
+
 
 # Called when filling in the kb/m options menu. This version shows our entries instead.
 @hook(
@@ -89,6 +91,19 @@ def dataprovider_kbm_populate(
         return None
 
     the_list: UObject = args.TheList
+
+    # Replicate a bit of the normal populate function
+    obj.MyOptionsMovie = (owner_movie := the_list.MyOwnerMovie)
+
+    obj.WPCOwner = (pc := owner_movie.WPCOwner)
+    if pc is not None:
+        pc.SetupInputDevices()
+    obj.CurrentKeyBindSelection = -1
+
+    obj.DeviceCollection = _GET_WILLOW_GLOBALS().GetGlobalsDefinition().InputDeviceCollection
+    obj.InitKeyBinding(the_list)
+
+    # Do our custom population
     data_provider_stack[-1].populate(obj, the_list)
 
     # Since our modded menus start with an empty data provider stack, but logically exist under
@@ -99,6 +114,25 @@ def dataprovider_kbm_populate(
     # Without this, the description of the first entry doesn't show up until you reselect it
     obj.UpdateDescriptionText(OPTION_EVENT_ID_OFFSET, the_list)
 
+    return Block
+
+
+# Called when filling in the kb/m options menu with it's keybinds. We need to use this to set the
+# keys for each entry, can't do it using the above hook for some reason.
+@hook(
+    "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:extOnPopulateKeys",
+    immediately_enable=True,
+)
+def dataprovider_kbm_populate_keys(
+    obj: UObject,
+    _2: WrappedStruct,
+    _3: Any,
+    _4: BoundFunction,
+) -> type[Block] | None:
+    if not data_provider_stack:
+        return None
+
+    data_provider_stack[-1].populate_keybind_keys(obj)
     return Block
 
 

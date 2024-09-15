@@ -65,7 +65,7 @@ class OptionsDataProvider(DataProvider):
                 and not option.is_hidden
                 and OptionsDataProvider.any_option_visible(option.children)
             )
-            or (not option.is_hidden and not isinstance(option, KeybindOption))
+            or (not isinstance(option, KeybindOption) and not option.is_hidden)
             for option in options
         )
 
@@ -214,6 +214,9 @@ class OptionsDataProvider(DataProvider):
 
     def populate(self, data_provider: UObject, the_list: UObject) -> None:  # noqa: D102
         self.add_option_list(data_provider, the_list, self.options, [])
+
+    def populate_keybind_keys(self, data_provider: UObject) -> None:  # noqa: ARG002, D102
+        return
 
     def handle_click(self, event_id: int, the_list: UObject) -> bool:  # noqa: D102
         match option := self.drawn_options[event_id - OPTION_EVENT_ID_OFFSET]:

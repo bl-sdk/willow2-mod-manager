@@ -24,6 +24,9 @@ class ModListDataProvider(DataProvider):
         for idx, mod in enumerate(self.drawn_mod_list):
             the_list.AddListItem(idx, mod.name, False)
 
+    def populate_keybind_keys(self, data_provider: UObject) -> None:  # noqa: ARG002, D102
+        return
+
     def handle_click(self, event_id: int, the_list: UObject) -> bool:  # noqa: D102
         push_mod_options(the_list, self.drawn_mod_list[event_id])
         return True

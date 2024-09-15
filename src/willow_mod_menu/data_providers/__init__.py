@@ -2,8 +2,12 @@ from abc import ABC, abstractmethod
 
 from unrealsdk.unreal import UObject
 
+# Copying these from the real menus
 BACK_EVENT_ID = -1
+KEYBINDS_EVENT_ID = 1000
+RESET_KEYBINDS_EVENT_ID = 1001
 
+# Putting all our options past this point
 OPTION_EVENT_ID_OFFSET = 2000
 
 
@@ -16,6 +20,16 @@ class DataProvider(ABC):
         Args:
             data_provider: The WillowScrollingListDataProviderOptionsBase to populate with.
             the_list: The WillowScrollingList to populate.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def populate_keybind_keys(self, data_provider: UObject) -> None:
+        """
+        Fills the data provider's ControllerMappingClip with the current key set for each bind.
+
+        Args:
+            data_provider: The WillowScrollingListDataProviderOptionsBase to add keys to.
         """
         raise NotImplementedError
 
