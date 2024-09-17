@@ -1,7 +1,7 @@
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
 
-from unrealsdk.unreal import UObject
+from unrealsdk.unreal import UObject, WrappedStruct
 
 from mods_base import (
     BaseOption,
@@ -14,7 +14,13 @@ from mods_base import (
 )
 from willow_mod_menu.description import get_mod_description
 
-from . import KEYBINDS_EVENT_ID, RESET_KEYBINDS_EVENT_ID
+from . import (
+    KB_TAG_HEADER,
+    KB_TAG_KEYBIND,
+    KB_TAG_UNREBINDABLE,
+    KEYBINDS_EVENT_ID,
+    RESET_KEYBINDS_EVENT_ID,
+)
 from .options import OptionsDataProvider
 
 try:
@@ -26,9 +32,6 @@ KEYBINDS_NAME = "$WillowMenu.MenuOptionDisplayNames.KeyBinds"
 KEYBINDS_DESC = "$WillowMenu.MenuOptionDisplayNames.KeyBindsDesc"
 RESET_KEYBINDS_NAME = "$WillowMenu.MenuOptionDisplayNames.ResetKeyBinds"
 RESET_KEYBINDS_DESC = "$WillowMenu.MenuOptionDisplayNames.ResetKeyBindsDesc"
-
-TAG_GENERAL = "willow_mod_menu"
-TAG_KEYBIND = f"{TAG_GENERAL}:keybind"
 
 DUMMY_ACTION = "DUMMY"
 
@@ -120,7 +123,8 @@ class ModOptionsDataProvider(OptionsDataProvider):
 
             match option:
                 case KeybindOption():
-                    tag = f"{TAG_KEYBIND if option.is_rebindable else TAG_GENERAL}:{tag_this_idx}"
+                    tag_prefix = KB_TAG_KEYBIND if option.is_rebindable else KB_TAG_UNREBINDABLE
+                    tag = f"{tag_prefix}:{tag_this_idx}"
                     caption = ("  " if group_stack else "") + option.display_name
 
                     keybind_idx = data_provider.AddKeyBindEntry(tag, DUMMY_ACTION, caption)
@@ -133,7 +137,7 @@ class ModOptionsDataProvider(OptionsDataProvider):
                     if len(option.children) == 0 or not (
                         isinstance(option.children[0], GroupedOption | NestedOption)
                     ):
-                        tag = f"{TAG_GENERAL}:{tag_this_idx}:pre_group"
+                        tag = f"{KB_TAG_HEADER}:{tag_this_idx}:pre_group"
                         caption = " - ".join(g.display_name for g in group_stack)
                         data_provider.AddKeyBindEntry(tag, DUMMY_ACTION, caption)
 
@@ -151,7 +155,7 @@ class ModOptionsDataProvider(OptionsDataProvider):
                         and self.any_keybind_visible(options[options_idx + 1 :])
                         and not isinstance(options[options_idx + 1], GroupedOption | NestedOption)
                     ):
-                        tag = f"{TAG_GENERAL}:{tag_this_idx}:post_group"
+                        tag = f"{KB_TAG_HEADER}:{tag_this_idx}:post_group"
                         caption = " - ".join(g.display_name for g in group_stack)
                         data_provider.AddKeyBindEntry(tag, DUMMY_ACTION, caption)
 
@@ -172,6 +176,31 @@ class ModOptionsDataProvider(OptionsDataProvider):
 
         self.add_keybinds_list(data_provider, self.options, [])
 
+    @staticmethod
+    def localize_keybind_key(option: KeybindOption, data_provider: UObject) -> str:
+        """
+        Gets the localized display string to use for the given keybind's key.
+
+        Args:
+            option: The keybind to get the string for.
+            data_provider: The data provider to use for localization.
+        Returns:
+            The localized display string.
+        """
+        localized_key: str
+        if option.value is None:
+            localized_key = ""
+        else:
+            localized_key = data_provider.GetLocalizedKeyName(option.value)
+            # If we failed to localize, just use the raw key name
+            if localized_key.startswith("?INT?"):
+                localized_key = option.value
+
+        if not option.is_rebindable:
+            localized_key = f"[ {localized_key} ]"
+
+        return localized_key
+
     def populate_keybind_keys(self, data_provider: UObject) -> None:  # noqa: D102
         controller_mapping_clip = data_provider.ControllerMappingClip
         controller_mapping_clip.EmptyKeyData()
@@ -182,27 +211,27 @@ class ModOptionsDataProvider(OptionsDataProvider):
                 key.Object = controller_mapping_clip.AddKeyData(key.Tag, key.Caption, "")
                 continue
 
-            option = self.drawn_keybinds[idx]
-
-            localized_key: str
-            if option.value is None or option.value == "None":
-                localized_key = ""
-            else:
-                localized_key = data_provider.GetLocalizedKeyName(option.value)
-                # If we failed to localize, just use the raw key name
-                if localized_key.startswith("?INT?"):
-                    localized_key = option.value
-
-            if not option.is_rebindable:
-                localized_key = f"[ {localized_key} ]"
-
+            localized_key = self.localize_keybind_key(self.drawn_keybinds[idx], data_provider)
             key.Object = controller_mapping_clip.AddKeyData(key.Tag, key.Caption, localized_key)
 
-    def handle_click(self, event_id: int, the_list: UObject) -> bool:  # noqa: D102
-        if event_id == KEYBINDS_EVENT_ID:
-            return True
+    def handle_key_rebind(self, data_provider: UObject, key: str) -> None:  # noqa: D102
+        idx: int = data_provider.CurrentKeyBindSelection
 
-        if event_id == RESET_KEYBINDS_EVENT_ID:
-            return True
+        key_entry: WrappedStruct
+        option: KeybindOption
+        try:
+            key_entry = data_provider.KeyBinds[idx]
+            option = self.drawn_keybinds[idx]
+        except (IndexError, KeyError):
+            return
 
-        return super().handle_click(event_id, the_list)
+        option.value = None if key == option.value else key
+
+        key_entry.Object.SetString("value", self.localize_keybind_key(option, data_provider))
+        data_provider.ControllerMappingClip.InvalidateKeyData()
+
+    def handle_reset_keybinds(self) -> None:  # noqa: D102
+        for keybind in self.drawn_keybinds.values():
+            if not keybind.is_rebindable:
+                continue
+            keybind.value = keybind.default_value

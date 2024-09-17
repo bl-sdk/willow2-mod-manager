@@ -8,7 +8,15 @@ from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 from mods_base import ENGINE, BaseOption, Mod, hook
 
-from .data_providers import BACK_EVENT_ID, OPTION_EVENT_ID_OFFSET, DataProvider
+from .data_providers import (
+    BACK_EVENT_ID,
+    KB_TAG_HEADER,
+    KB_TAG_UNREBINDABLE,
+    KEYBINDS_EVENT_ID,
+    OPTION_EVENT_ID_OFFSET,
+    RESET_KEYBINDS_EVENT_ID,
+    DataProvider,
+)
 
 data_provider_stack: list[DataProvider] = []
 
@@ -152,8 +160,11 @@ def dataprovider_kbm_handle_click(
 
     event_id: int = args.EventID
     the_list: UObject = args.TheList
-    if event_id == BACK_EVENT_ID:
+
+    if event_id in {BACK_EVENT_ID, RESET_KEYBINDS_EVENT_ID}:
         return None
+    if event_id == KEYBINDS_EVENT_ID:
+        return Block, True
 
     handled = data_provider_stack[-1].handle_click(event_id, the_list)
     return Block, handled
@@ -227,3 +238,62 @@ def scrolling_list_handle_pop(
 
     if not data_provider_stack:
         obj.MyOwnerMovie.WPCOwner.GetFrontendMovie().HideOptionsMovie()
+
+
+# Called when starting a rebind. We use it to block rebinding some entries in our custom menus.
+@hook(
+    "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:DoBind",
+    immediately_enable=True,
+)
+def dataprovider_kbm_do_bind(
+    obj: UObject,
+    _2: WrappedStruct,
+    _3: Any,
+    _4: BoundFunction,
+) -> type[Block] | None:
+    if not data_provider_stack:
+        return None
+
+    tag: str = obj.KeyBinds[obj.CurrentKeyBindSelection].Tag
+    return Block if tag.startswith((KB_TAG_HEADER, KB_TAG_UNREBINDABLE)) else None
+
+
+# Called after finishing a rebind. We update our own keys to the new value.
+@hook(
+    "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:BindCurrentSelection",
+    immediately_enable=True,
+)
+def dataprovider_kbm_bind_current_selection(
+    obj: UObject,
+    args: WrappedStruct,
+    _3: Any,
+    _4: BoundFunction,
+) -> type[Block] | None:
+    if not data_provider_stack:
+        return None
+
+    data_provider_stack[-1].handle_key_rebind(obj, args.key)
+    return Block
+
+
+# Called on resetting the key binds, we use it to reset our own.
+@hook(
+    "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:OnResetKeyBindsButtonClicked",
+    immediately_enable=True,
+)
+def dataprovider_kbm_on_reset_keys(
+    obj: UObject,
+    args: WrappedStruct,
+    _3: Any,
+    _4: BoundFunction,
+) -> type[Block] | None:
+    if not data_provider_stack:
+        return None
+
+    if args.Dlg.DialogResult == "Yes":
+        data_provider_stack[-1].handle_reset_keybinds()
+
+        # Redraw everything to update the shown keys
+        obj.extOnPopulateKeys()
+
+    return Block

@@ -344,14 +344,14 @@ class KeybindOption(ValueOption[str | None]):
         """
         Constructs an option bound from a keybind.
 
-        Changes to the option will be applied back onto the keybind.
+        Changes to the option will be applied back onto the keybind (though not in reverse).
 
         Args:
             bind: The keybind to construct from.
         Returns:
             A new binding option.
         """
-        return cls(
+        option = cls(
             identifier=bind.identifier,
             value=bind.key,
             is_rebindable=bind.is_rebindable,
@@ -361,6 +361,8 @@ class KeybindOption(ValueOption[str | None]):
             is_hidden=bind.is_hidden,
             on_change=lambda _, new_key: setattr(bind, "key", new_key),
         )
+        option.default_value = bind.default_key
+        return option
 
 
 @dataclass

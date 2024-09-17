@@ -131,11 +131,12 @@ def convert_to_new_style_keybind(
 
     new_bind = KeybindType(
         bind.Name,
-        bind.Key,
+        None if bind.Key == "None" else bind.Key,
         callback,
         is_hidden=bind.IsHidden,
         is_rebindable=bind.IsRebindable,
         event_filter=event_filter,
     )
     new_bind._rebind = set_key  # pyright: ignore[reportPrivateUsage]
+    new_bind.default_key = None if bind.DefaultKey == "None" else bind.DefaultKey
     return new_bind

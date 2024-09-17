@@ -264,3 +264,9 @@ class OptionsDataProvider(DataProvider):
                     f"Encountered unexpected option type {type(option)} in slider change handler",
                 )
                 return False
+
+    def handle_key_rebind(self, data_provider: UObject, key: str) -> None:  # noqa: ARG002, D102
+        return
+
+    def handle_reset_keybinds(self) -> None:  # noqa: D102
+        return

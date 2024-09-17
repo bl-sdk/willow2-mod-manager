@@ -10,6 +10,10 @@ RESET_KEYBINDS_EVENT_ID = 1001
 # Putting all our options past this point
 OPTION_EVENT_ID_OFFSET = 2000
 
+KB_TAG_KEYBIND = "willow_mod_menu:keybind"
+KB_TAG_UNREBINDABLE = "willow_mod_menu:unrebindable"
+KB_TAG_HEADER = "willow_mod_menu:header"
+
 
 class DataProvider(ABC):
     @abstractmethod
@@ -70,4 +74,20 @@ class DataProvider(ABC):
         Returns:
             True if the change was handled.
         """
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_key_rebind(self, data_provider: UObject, key: str) -> None:
+        """
+        Handles attempting to rebind a key.
+
+        Args:
+            data_provider: The WillowScrollingListDataProviderOptionsBase to rebind on.
+            key: The key which was input during the rebind menu.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def handle_reset_keybinds(self) -> None:
+        """Handles resetting the keybinds associated with this menu."""
         raise NotImplementedError

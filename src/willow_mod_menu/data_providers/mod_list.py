@@ -36,3 +36,9 @@ class ModListDataProvider(DataProvider):
 
     def handle_slider_change(self, event_id: int, new_value: int) -> bool:  # noqa: ARG002, D102
         return False
+
+    def handle_key_rebind(self, data_provider: UObject, key: str) -> None:  # noqa: ARG002, D102
+        return
+
+    def handle_reset_keybinds(self) -> None:  # noqa: D102
+        return
