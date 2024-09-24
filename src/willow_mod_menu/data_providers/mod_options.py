@@ -58,7 +58,10 @@ class ModOptionsDataProvider(OptionsDataProvider):
         # full thing, since just the option description is quite small
         on_press: Callable[[ButtonOption], None] | None = None
         if TrainingBox is not None:
-            full_description = TrainingBox(self.mod.name, get_mod_description(self.mod, True))
+            full_description = TrainingBox(
+                title=self.mod.name,
+                message=get_mod_description(self.mod, True),
+            )
             on_press = lambda _: full_description.show()  # noqa: E731
 
         yield ButtonOption(

@@ -1,6 +1,6 @@
 import warnings
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import KW_ONLY, dataclass, field
 from typing import TYPE_CHECKING, Any, Self
 
 import unrealsdk
@@ -30,23 +30,24 @@ else:
 @dataclass
 class TrainingBox:
     """
-    Class representing a training dialog box, like those used for the training messages.
+    Handles displaying a training dialog box, like those used for the tutorial messages.
 
     Attributes:
-        Title: The title text to display at the top of the training box.
-        Message: The message to display in the main caption of the training box.
-        MinDuration:
-            The amount of time the training box should display for before the user may close it.
-        PausesGame: If the training box should pause the game while it is displayed.
-        MenuHint:
-            If to display a hint to open your menu, and what menu should be opened when you do.
-             Defaults to 0, no hint. 1-5 represent the different the different menu tabs, in the
-             same order as the game: Missions; Map; Inventory; Skills; BAR.
-        Priority:
-            A byte representing the priority of the training box in reference to the game's other
-             `GfxMovie`s. Higher values display above lower ones.
+        title: The title text to display at the top of the training box.
+        message: The message to display in the main body of the training box.
+        min_duration: How long to display the training box for before the user may close it.
+        pauses_game: If the training box should pause the game while it is displayed.
+        menu_hint: Which menu to hint at opening when you close this training box.
+        priority: The priority of the training box in reference to the game's other movies.
+
+    Callbacks:
+        on_exit: Run when the training box is closed. Passed the training box.
+        on_input: Run on any input while the training box is open. Passed the training box, the key
+                  which was pressed, and the input event. May return the Block sentinel to block the
+                  game from processing the given input.
     """
 
+    _: KW_ONLY
     title: str
     message: str
     min_duration: float = 0
@@ -63,7 +64,7 @@ class TrainingBox:
         # In case you open multiple dialogs at once, we don't want the identifier to conflict, so
         # that closing one removes the hook of the other
         # Don't want to use `id(self)`, so that these are still constant if you reload the module
-        bind_all_hooks(self, f"{hash(self.title + self.message):x}")
+        bind_all_hooks(self, f"{hash(self.title):x}:{hash(self.message):x}")
 
     def show(self) -> None:
         """Displays the training box."""
@@ -73,6 +74,9 @@ class TrainingBox:
                 "Unable to show training box since player controller could not be found!",
                 self.message,
             )
+
+        if self.is_showing():
+            self.hide()
 
         dialog: UObject = pc.GFxUIManager.ShowTrainingDialog(
             self.message,
@@ -158,8 +162,8 @@ class TrainingBox:
         if not self._is_correct_training_box(obj):
             return
 
-        if self.on_exit is not None:
-            self.on_exit(self)
-
         self._training_box_input_key.disable()
         self._training_box_on_close.disable()
+
+        if self.on_exit is not None:
+            self.on_exit(self)
