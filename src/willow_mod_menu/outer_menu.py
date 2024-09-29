@@ -106,7 +106,10 @@ def frontend_update_tooltips(
     tooltip: str = spacing + obj.SelectTooltip
 
     cancel: str = obj.CancelString
-    if obj.WPCOwner.WorldInfo.NetMode == ENetMode.NM_Client and len(obj.TheList) <= 1:
+    if (
+        obj.WPCOwner.WorldInfo.NetMode == ENetMode.NM_Client
+        and len(obj.TheList.DataProviderStack) <= 1
+    ):
         cancel = obj.DisconnectString
     tooltip += spacing + obj.CancelTooltip.replace("%PLAYER1", cancel)
 
