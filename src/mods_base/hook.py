@@ -63,7 +63,11 @@ class HookType[R: (PreHookRet, PostHookRet)]:
         Creates a new hook function bound to the given object.
 
         This must be called if the current hook wraps a method. You must only interact with the hook
-        this returns, you may not enable the hook on this level, otherwise you
+        this returns, you may not enable the hook on this level, otherwise you will get exceptions
+        for missing or misaligned of parameters.
+
+        Generally you want to call this using:
+            self.some_hook = self.some_hook.bind(self, identifier_extension)
 
         Args:
             obj: The object to bind to.
@@ -72,7 +76,7 @@ class HookType[R: (PreHookRet, PostHookRet)]:
                                   multiple hooks on different instances at the same time, otherwise
                                   their identifiers will conflict.
         Return:
-            A reference to this hook.
+            The new hook function.
         """
         return type(self)(
             self.__wrapped__.__get__(obj, type(obj)),

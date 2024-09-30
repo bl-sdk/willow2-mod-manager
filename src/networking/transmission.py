@@ -8,6 +8,8 @@ from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 from mods_base import ENGINE, get_pc, hook
 
+from .registration import handle_received_message
+
 if TYPE_CHECKING:
     from enum import auto
 
@@ -85,7 +87,7 @@ precision. In practice the player ids stay low, so we just throw when this happe
 
 """  # noqa: E501
 
-# Since we have a limited amount of bandwith, and since we're transmitting them, try keep the
+# Since we have a limited amount of bandwidth, and since we're transmitting them, try keep the
 # message types a bit shorter
 CUSTOM_MESSAGE = "!willow_nw:"
 BROADCAST_MESSAGE = f"{CUSTOM_MESSAGE}b!"
@@ -183,6 +185,17 @@ def transmit(pri: UObject, identifier: str, msg: str) -> None:
         remote_pc.ClientMessage(msg, message_type, float(local_pri.PlayerID))
 
 
+def get_host_pri() -> UObject:
+    """
+    Gets the hosts's PlayerReplicationInfo object.
+
+    Returns:
+        The hosts's PlayerReplicationInfo.
+    """
+    # Seems they're always entry 0?
+    return ENGINE.GetCurrentWorldInfo().GRI.PRIArray[0]
+
+
 @hook("WillowGame.WillowPlayerController:ClientMessage", immediately_enable=True)
 def client_message_hook(  # noqa: D103
     calling_pc: UObject,
@@ -196,12 +209,12 @@ def client_message_hook(  # noqa: D103
 
     if not args.Type.startswith(CUSTOM_MESSAGE):
         return None
-    # No matter how we recieve the message, if it gets here it's always something we want to process
+    # No matter how we receive the message, if it gets here it's always something we want to process
 
     # Recover the sender's PRI
     sender_id = int(args.MsgLifeTime)
     for pri in ENGINE.GetCurrentWorldInfo().GRI.PRIArray:
-        if pri.PlayerID != sender_id:
+        if pri.PlayerID == sender_id:
             handle_received_message(
                 pri,
                 args.Type[CUSTOM_MESSAGE_PREFIX_LEN:],
@@ -261,15 +274,3 @@ def server_speech_hook(  # noqa: D103
         traceback.print_exc()
 
     return Block
-
-
-def handle_received_message(sender_pri: UObject, identifier: str, msg: str) -> None:
-    """
-    Handles a message being received on the game instance it's intended for.
-
-    Args:
-        sender_pri: The PlayerReplicationInfo of the player who sent it.
-        identifier: The message identifier.
-        msg: The received message.
-    """
-    print(f"recv from {sender_pri.Name} id: {identifier!r}, {msg!r}")
