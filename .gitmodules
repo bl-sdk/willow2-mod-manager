@@ -1,6 +1,6 @@
 [submodule "libs/pyunrealsdk"]
 	path = libs/pyunrealsdk
-	url = git@github.com:bl-sdk/pyunrealsdk.git
+	url = ../../bl-sdk/pyunrealsdk.git
 [submodule "libs/pluginloader"]
 	path = libs/pluginloader
-	url = git@github.com:bl-sdk/pluginloader.git
+	url = ../../bl-sdk/pluginloader.git
