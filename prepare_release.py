@@ -18,7 +18,21 @@ BASE_MOD = THIS_FOLDER / "src" / "mods_base"
 CONSOLE_MENU = THIS_FOLDER / "src" / "console_mod_menu"
 KEYBINDS = THIS_FOLDER / "src" / "keybinds"
 LEGACY_COMPAT = THIS_FOLDER / "src" / "legacy_compat"
+NETWORKING = THIS_FOLDER / "src" / "networking"
+STANDARD_MENU = THIS_FOLDER / "src" / "willow_mod_menu"
 UI_UTILS = THIS_FOLDER / "src" / "ui_utils"
+
+
+ALL_MOD_FOLDERS = (
+    BASE_MOD,
+    CONSOLE_MENU,
+    KEYBINDS,
+    LEGACY_COMPAT,
+    NETWORKING,
+    STANDARD_MENU,
+    UI_UTILS,
+)
+
 
 INIT_SCRIPT = THIS_FOLDER / "src" / "__main__.py"
 SETTINGS_GITIGNORE = THIS_FOLDER / "src" / "settings" / ".gitignore"
@@ -280,11 +294,7 @@ if __name__ == "__main__":
 
     assert install_dir.exists() and install_dir.is_dir(), "install dir doesn't exist"
 
-    mod_folders = [BASE_MOD, KEYBINDS, LEGACY_COMPAT, UI_UTILS]
-    if ALPHA:
-        mod_folders.append(CONSOLE_MENU)
-
     name = f"willow-sdk-{args.preset}.zip"
     print(f"Zipping {name} ...")
 
-    zip_release(Path(name), mod_folders, "debug" in args.preset, install_dir)
+    zip_release(Path(name), ALL_MOD_FOLDERS, "debug" in args.preset, install_dir)
