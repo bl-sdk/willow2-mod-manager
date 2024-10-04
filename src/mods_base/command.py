@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
+import importlib
 import shlex
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, overload
 
+from unrealsdk import logging
 from unrealsdk.commands import NEXT_LINE, add_command, has_command, remove_command
 
 
@@ -153,3 +157,38 @@ def capture_next_console_line(callback: Callable[[str], None]) -> None:
 def remove_next_console_line_capture() -> None:
     """If a next console line capture is currently active, removes it."""
     remove_command(NEXT_LINE)
+
+
+@command(
+    description=(
+        "Reloads the selected Python modules.\n"
+        "\n"
+        "When matching multiple modules, reloads them all twice, in opposite orders, to try weed"
+        " out any issues with order of initialization."
+    ),
+)
+def rlm(args: argparse.Namespace) -> None:
+    """Sample console command, which lets you more easily reload modules during development."""
+    modules_to_reload: set[str] = set()
+
+    module_patterns: list[str] = args.modules
+    for pattern in module_patterns:
+        modules_to_reload.update(fnmatch.filter(sys.modules.keys(), pattern))
+
+    if not modules_to_reload:
+        logging.error(
+            "Failed to find any modules matching: "
+            + ", ".join(f"'{pattern}'" for pattern in module_patterns),
+        )
+        return
+
+    module_list = list(modules_to_reload)
+    for module_name in module_list:
+        importlib.reload(sys.modules[module_name])
+    if len(module_list) > 1:
+        for module_name in reversed(module_list):
+            importlib.reload(sys.modules[module_name])
+
+
+rlm.add_argument("modules", nargs="+", help="The modules to reload. May contain glob patterns.")
+rlm.enable()
