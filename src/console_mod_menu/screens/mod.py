@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
 from unrealsdk import logging
@@ -38,6 +38,27 @@ class OptionListScreen(AbstractScreen):
 
     drawn_options: list[BaseOption] = field(default_factory=list, init=False)
 
+    @staticmethod
+    def any_option_visible(options: Sequence[BaseOption]) -> bool:
+        """
+        Recursively checks if any option in a sequence is visible.
+
+        Recurses into grouped options, but not nested ones. A grouped option which is not explicitly
+        hidden, but contains no visible children, does not count as visible.
+
+        Args:
+            options: The sequence of options to check.
+        """
+        return any(
+            (
+                isinstance(option, GroupedOption)
+                and not option.is_hidden
+                and OptionListScreen.any_option_visible(option.children)
+            )
+            or (not option.is_hidden)
+            for option in options
+        )
+
     def draw_options_list(
         self,
         options: Iterable[BaseOption],
@@ -65,11 +86,12 @@ class OptionListScreen(AbstractScreen):
                 case GroupedOption() if option in stack:
                     logging.dev_warning(f"Found recursive options group, not drawing: {option}")
                 case GroupedOption():
-                    draw(f"{option.display_name}:", indent=indent)
+                    if self.any_option_visible(option.children):
+                        draw(f"{option.display_name}:", indent=indent)
 
-                    stack.append(option)
-                    self.draw_options_list(option.children, stack)
-                    stack.pop()
+                        stack.append(option)
+                        self.draw_options_list(option.children, stack)
+                        stack.pop()
 
                 case ValueOption():
                     j_option: ValueOption[JSON] = option
