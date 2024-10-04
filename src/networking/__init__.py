@@ -1,4 +1,6 @@
 # Import for side effects
+from mods_base.mod_list import base_mod
+
 from . import (
     queue,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     transmission,  # noqa: F401  # pyright: ignore[reportUnusedImport]
@@ -7,6 +9,9 @@ from .decorators import NetworkFunction, broadcast, host, targeted
 from .factory import add_network_functions, bind_all_network_functions
 
 __all__: tuple[str, ...] = (
+    "__author__",
+    "__version__",
+    "__version_info__",
     "add_network_functions",
     "bind_all_network_functions",
     "broadcast",
@@ -14,6 +19,10 @@ __all__: tuple[str, ...] = (
     "NetworkFunction",
     "targeted",
 )
+
+__version_info__: tuple[int, int] = (1, 0)
+__version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
+__author__: str = "bl-sdk"
 
 """
 This module allows you to perform some basic message passing between players. After decorating a
@@ -110,3 +119,6 @@ bind_all_network_functions()
 
 Anything else is subject to change if/when we come up with better methods of transmitting data.
 """
+
+
+base_mod.components.append(base_mod.ComponentInfo("Networking", __version__))
