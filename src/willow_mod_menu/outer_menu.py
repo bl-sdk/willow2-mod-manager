@@ -57,10 +57,15 @@ def add_list_item(
 ) -> type[Block] | None:
     match args.Caption:
         case "$WillowMenu.WillowScrollingListDataProviderFrontEnd.DLC":
-            inject_next_call()
-            obj.AddListItem(MODS_EVENT_ID, MODS_MENU_NAME, False, False)
             return Block
-        case "$WillowMenu.WillowScrollingListDataProviderPause.Exit":
+        case (
+            "$WillowMenu.WillowScrollingListDataProviderFrontEnd.Disconnect"
+            | "$WillowMenu.WillowScrollingListDataProviderFrontEnd.Quit"
+            | "$WillowMenu.WillowScrollingListDataProviderPause.Exit"
+        ):
+            # Add the mod entry right before the final option in the menu
+            # Need to do it here, rather than while removing DLC, since the DLC menu does not exist
+            # in AoDK or in the pause screen
             inject_next_call()
             obj.AddListItem(MODS_EVENT_ID, MODS_MENU_NAME, False, False)
             return None
