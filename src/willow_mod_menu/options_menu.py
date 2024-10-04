@@ -258,6 +258,18 @@ def dataprovider_kbm_do_bind(
     return Block if tag.startswith((KB_TAG_HEADER, KB_TAG_UNREBINDABLE)) else None
 
 
+# Called to check if a key is allowed to be bound to. By default this just blocks controller keys.
+# We override it to always allow everything while in our modded menus.
+@hook(
+    "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:AllowBindKey",
+    immediately_enable=True,
+)
+def dataprovider_kbm_allow_bind_key(*_: Any) -> tuple[type[Block], bool] | None:
+    if not data_provider_stack:
+        return None
+    return Block, True
+
+
 # Called after finishing a rebind. We update our own keys to the new value.
 @hook(
     "WillowGame.WillowScrollingListDataProviderKeyboardMouseOptions:BindCurrentSelection",
