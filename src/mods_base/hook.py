@@ -108,10 +108,39 @@ def hook[R: (PreHookRet, PostHookRet)](
 
 
 @overload
+@warnings.deprecated(
+    "The 'auto_enable' arg has been deprecated due to being misleading, you likely don't need it.",
+)
+def hook[R: (PreHookRet, PostHookRet)](
+    hook_func: str,
+    hook_type: Literal[Type.PRE] = Type.PRE,
+    *,
+    auto_enable: bool,
+    immediately_enable: bool = False,
+) -> Callable[[HookCallbackFunction[R] | HookCallbackMethod[R]], HookType[R]]: ...
+
+
+@overload
 def hook(
     hook_func: str,
     hook_type: Literal[Type.POST, Type.POST_UNCONDITIONAL],
     *,
+    immediately_enable: bool = False,
+) -> Callable[
+    [HookCallbackFunction[PostHookRet] | HookCallbackMethod[PostHookRet]],
+    HookType[PostHookRet],
+]: ...
+
+
+@overload
+@warnings.deprecated(
+    "The 'auto_enable' arg has been deprecated due to being misleading, you likely don't need it.",
+)
+def hook(
+    hook_func: str,
+    hook_type: Literal[Type.POST, Type.POST_UNCONDITIONAL],
+    *,
+    auto_enable: bool,
     immediately_enable: bool = False,
 ) -> Callable[
     [HookCallbackFunction[PostHookRet] | HookCallbackMethod[PostHookRet]],
@@ -154,11 +183,9 @@ def hook[R: (PreHookRet, PostHookRet)](  # noqa: D417 - deprecated arg
     """
     if auto_enable is not None:
         warnings.warn(
-            "The 'auto_enable' argument is deprecated, since it's misleading. You should not set"
-            " it on hooks you expect to be enabled/disabled when your mod is, you can simplely"
-            " delete it. What it actually did is enable the hook immedidieately after registering,"
-            " ignoring if your mod's enabled or not. If you actually need this behaviour, switch to"
-            " the 'immediately_enable' argument.",
+            "The 'auto_enable' arg has been deprecated due to being misleading, you likely don't"
+            " need it. Hooks which are parts of your mod are always automatically enabled when the"
+            " mod is, setting the arg would in fact enable them even when it wasn't.",
             DeprecationWarning,
             stacklevel=2,
         )
