@@ -23,7 +23,7 @@ type HookCallbackMethod[R: (PreHookRet, PostHookRet)] = Callable[
 
 
 @dataclass
-class HookType[R: (PreHookRet, PostHookRet)]:
+class HookType[R: (PreHookRet, PostHookRet) = PreHookRet | PostHookRet]:
     __wrapped__: Callable[[UObject, WrappedStruct, Any, BoundFunction], R]
 
     hook_identifier: str

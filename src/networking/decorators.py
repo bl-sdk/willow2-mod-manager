@@ -14,7 +14,7 @@ from .transmission import get_host_pri
 
 
 @dataclass
-class NetworkFunction[**WrappedParams, **CallingParams](ABC):
+class NetworkFunction[**WrappedParams = ..., **CallingParams = ...](ABC):
     __wrapped__: Callable[WrappedParams, None]
 
     network_identifier: str = None  # type: ignore

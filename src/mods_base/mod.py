@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum, Flag, auto
 from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from unrealsdk import logging
 
@@ -147,7 +147,7 @@ class Mod:
     # constructor, and it'd force you to do None checks whenever you're accessing them
     keybinds: Sequence[KeybindType] = field(default=None)  # type: ignore
     options: Sequence[BaseOption] = field(default=None)  # type: ignore
-    hooks: Sequence[HookType[Any]] = field(default=None)  # type: ignore
+    hooks: Sequence[HookType] = field(default=None)  # type: ignore
     commands: Sequence[AbstractCommand] = field(default=None)  # type: ignore
 
     enabling_locked: bool = field(init=False)
@@ -169,7 +169,7 @@ class Mod:
             self.options = new_options
             need_to_search_instance_vars = True
 
-        new_hooks: list[HookType[Any]] = []
+        new_hooks: list[HookType] = []
         if find_hooks := self.hooks is None:  # type: ignore
             self.hooks = new_hooks
             need_to_search_instance_vars = True
@@ -192,7 +192,7 @@ class Mod:
                     case BaseOption() if find_options:
                         new_options.append(value)
                     case HookType() if find_hooks:
-                        bound_hook: HookType[Any] = value.bind(self)
+                        bound_hook: HookType = value.bind(self)
                         new_hooks.append(bound_hook)
                         setattr(self, name, bound_hook)
                     case AbstractCommand() if find_commands:

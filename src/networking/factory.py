@@ -2,7 +2,6 @@ import inspect
 import warnings
 from functools import wraps
 from types import ModuleType
-from typing import Any
 
 from mods_base import Mod
 
@@ -34,7 +33,7 @@ def scan_for_network_functions(
     module: ModuleType | None,
     mod: Mod | None,
     identifier_extension: str | None = None,
-) -> list[NetworkFunction[Any, Any]]:
+) -> list[NetworkFunction]:
     """
     Scans for network functions in a mod and it's module.
 
@@ -45,7 +44,7 @@ def scan_for_network_functions(
     Returns:
         The found list of network functions.
     """
-    network_functions: list[NetworkFunction[Any, Any]] = []
+    network_functions: list[NetworkFunction] = []
 
     if module is not None:
         network_functions.extend(
@@ -77,7 +76,7 @@ def add_network_enable_disable_wrappers(mod: Mod) -> None:
         mod: The mod to add the enable/disable wrappers to.
     """
 
-    def get_network_funcs() -> list[NetworkFunction[Any, Any]]:
+    def get_network_funcs() -> list[NetworkFunction]:
         return getattr(mod, MOD_NETWORK_FUNCTIONS_ATTR, [])
 
     # Enable
@@ -105,7 +104,7 @@ def add_network_enable_disable_wrappers(mod: Mod) -> None:
 
 def add_network_functions(
     mod: Mod,
-    network_functions: list[NetworkFunction[Any, Any]] | None = None,
+    network_functions: list[NetworkFunction] | None = None,
     *,
     identifier_extension: str | None = None,
     scan_module: bool = True,

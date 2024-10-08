@@ -38,7 +38,7 @@ def build_mod(
     settings_file: Path | None = None,
     keybinds: Sequence[KeybindType] | None = None,
     options: Sequence[BaseOption] | None = None,
-    hooks: Sequence[HookType[Any]] | None = None,
+    hooks: Sequence[HookType] | None = None,
     commands: Sequence[AbstractCommand] | None = None,
     auto_enable: bool | None = None,
     on_enable: Callable[[], None] | None = None,
@@ -157,7 +157,7 @@ class ModFactoryFields(TypedDict):
     settings_file: Path | None
     keybinds: Sequence[KeybindType] | None
     options: Sequence[BaseOption] | None
-    hooks: Sequence[HookType[Any]] | None
+    hooks: Sequence[HookType] | None
     commands: Sequence[AbstractCommand] | None
     auto_enable: bool | None
     on_enable: Callable[[], None] | None
@@ -303,7 +303,7 @@ def update_fields_with_module_search(  # noqa: C901 - difficult to split up
         fields["options"] = new_options
         need_to_search_module = True
 
-    new_hooks: list[HookType[Any]] = []
+    new_hooks: list[HookType] = []
     if find_hooks := fields["hooks"] is None:
         fields["hooks"] = new_hooks
         need_to_search_module = True
@@ -330,7 +330,7 @@ def update_fields_with_module_search(  # noqa: C901 - difficult to split up
                 new_options.append(value)
 
             case HookType() if find_hooks:
-                hook: HookType[Any] = value
+                hook: HookType = value
                 new_hooks.append(hook)
 
             case AbstractCommand() if find_commands:
