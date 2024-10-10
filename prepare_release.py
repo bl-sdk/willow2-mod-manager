@@ -39,6 +39,12 @@ SETTINGS_GITIGNORE = THIS_FOLDER / "src" / "settings" / ".gitignore"
 
 LICENSE = THIS_FOLDER / "LICENSE"
 
+MODS_WITH_EXISTING_LICENSE = {
+    # These have their own due to being submodules
+    BASE_MOD,
+    CONSOLE_MENU,
+}
+
 BUILD_DIR_BASE = THIS_FOLDER / "out" / "build"
 INSTALL_DIR_BASE = THIS_FOLDER / "out" / "install"
 
@@ -48,6 +54,11 @@ STUBS_LICENSE = THIS_FOLDER / "libs" / "pyunrealsdk" / "LICENSE"
 PYPROJECT_FILE = THIS_FOLDER / "manager_pyproject.toml"
 
 
+# Primarily to skip over all the dotfiles in mods which are submodules
+VALID_MOD_FILE_SUFFIXES = {".py", ".pyi", ".pyd", ".md"}
+
+
+# Regex to extract presets from a `cmake --list-presets` command
 LIST_PRESETS_RE = re.compile('  "(.+)"')
 
 
@@ -121,7 +132,7 @@ def iter_mod_files(mod_folder: Path, debug: bool) -> Iterator[Path]:
         if file.parent.name == "__pycache__":
             continue
 
-        if file.suffix == ".cpp":
+        if file.suffix not in VALID_MOD_FILE_SUFFIXES:
             continue
         if file.suffix == ".pyd" and file.stem.endswith("_d") != debug:
             continue
@@ -170,7 +181,8 @@ def _zip_mod_folders(zip_file: ZipFile, mod_folders: Sequence[Path], debug: bool
                 )
 
             # Add the license
-            zip_file.write(LICENSE, ZIP_MODS_FOLDER / mod.name / LICENSE.name)
+            license_file = mod / "LICENSE" if mod in MODS_WITH_EXISTING_LICENSE else LICENSE
+            zip_file.write(license_file, ZIP_MODS_FOLDER / mod.name / LICENSE.name)
         else:
             # Otherwise, we can add it as a .sdkmod
             buffer = BytesIO()
@@ -182,7 +194,8 @@ def _zip_mod_folders(zip_file: ZipFile, mod_folders: Sequence[Path], debug: bool
                     )
 
                 # Add the license
-                sdkmod_zip.write(LICENSE, Path(mod.name) / LICENSE.name)
+                license_file = mod / "LICENSE" if mod in MODS_WITH_EXISTING_LICENSE else LICENSE
+                sdkmod_zip.write(license_file, Path(mod.name) / LICENSE.name)
 
             buffer.seek(0)
             zip_file.writestr(
