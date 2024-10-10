@@ -231,15 +231,6 @@ def _zip_dlls(zip_file: ZipFile, install_dir: Path) -> None:
 
         zip_file.write(file, dest)
 
-    py_stem = next(install_dir.glob("python*.zip")).stem
-    zip_file.writestr(
-        str(ZIP_PLUGINS_FOLDER / (py_stem + "._pth")),
-        (
-            f"{py_stem}.zip\n"  # dummy comment to force multiline
-            "DLLs\n"
-        ),
-    )
-
 
 def zip_release(
     output: Path,
