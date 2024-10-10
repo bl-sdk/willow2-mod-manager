@@ -4,3 +4,9 @@
 [submodule "libs/pluginloader"]
 	path = libs/pluginloader
 	url = ../../bl-sdk/pluginloader.git
+[submodule "src/mods_base"]
+	path = src/mods_base
+	url = ../../bl-sdk/mods_base.git
+[submodule "src/console_mod_menu"]
+	path = src/console_mod_menu
+	url = ../../bl-sdk/console_mod_menu.git
