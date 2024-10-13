@@ -1,4 +1,5 @@
 # ruff: noqa: D103
+import os
 import traceback
 from typing import TYPE_CHECKING, Any
 
@@ -41,6 +42,8 @@ DLC_MENU_CONTROLLER_TO_KB_KEY_MAP = {
     "XboxTypeS_LeftTrigger": "PageUp",
     "XboxTypeS_RightTrigger": "PageDown",
 }
+
+FRIENDLY_DISPLAY_VERSION = os.environ.get("WILLOW_MOD_MENU_DISPLAY_VERSION", base_mod.version)
 
 drawn_mod_list: list[Mod] = []
 
@@ -208,7 +211,7 @@ def marketplace_refresh(obj: UObject, _2: WrappedStruct, _3: Any, _4: BoundFunct
     obj.ClearFilters()
     obj.SetFilterFromStringAndSortNew("", "", "")
 
-    obj.SetStoreHeader("Mods", False, base_mod.version, "SDK Mod Manager")
+    obj.SetStoreHeader("Mods", False, FRIENDLY_DISPLAY_VERSION, "SDK Mod Manager")
 
     drawn_mod_list[:] = get_ordered_mod_list()
     for idx, mod in enumerate(drawn_mod_list):

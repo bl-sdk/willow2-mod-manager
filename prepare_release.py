@@ -10,6 +10,8 @@ from os import path
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from pick_release_name import pick_release_name
+
 ALPHA = True
 
 THIS_FOLDER = Path(__file__).parent
@@ -90,6 +92,47 @@ def cmake_install(build_dir: Path) -> None:
 
 
 @cache
+def get_git_commit_hash(identifier: str | None = None) -> str:
+    """
+    Gets the full commit hash of the current git repo.
+
+    Args:
+        identifier: The identifier of the commit to get, or None to get the latest.
+    Returns:
+        The commit hash.
+    """
+    args = ["git", "show", "-s", "--format=%H"]
+    if identifier is not None:
+        args.append(identifier)
+
+    return subprocess.run(
+        args,
+        cwd=Path(__file__).parent,
+        check=True,
+        stdout=subprocess.PIPE,
+        encoding="utf8",
+    ).stdout.strip()
+
+
+@cache
+def check_git_is_dirty() -> bool:
+    """
+    Checks if the git repo is dirty.
+
+    Returns:
+        True if the repo is dirty.
+    """
+    # This command returns the list of modified files, so any output means dirty
+    return any(
+        subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=Path(__file__).parent,
+            check=True,
+            stdout=subprocess.PIPE,
+        ).stdout,
+    )
+
+
 def get_git_repo_version() -> str:
     """
     Gets a version string representing the current state of the git repo.
@@ -97,23 +140,7 @@ def get_git_repo_version() -> str:
     Returns:
         The version string.
     """
-    commit_hash = subprocess.run(
-        ["git", "show", "-s", "--format=%H"],
-        check=True,
-        stdout=subprocess.PIPE,
-        encoding="utf8",
-    ).stdout.strip()
-
-    # This command returns the list of modified files, so any output means dirty
-    is_dirty = any(
-        subprocess.run(
-            ["git", "status", "--porcelain"],
-            check=True,
-            stdout=subprocess.PIPE,
-        ).stdout,
-    )
-
-    return commit_hash[:8] + (", dirty" if is_dirty else "")
+    return get_git_commit_hash()[:8] + (", dirty" if check_git_is_dirty() else "")
 
 
 def iter_mod_files(mod_folder: Path, debug: bool) -> Iterator[Path]:
@@ -165,6 +192,10 @@ def _zip_init_script(zip_file: ZipFile) -> None:
 
     if not ALPHA:
         init_script_env += "MOD_MANAGER_LEGACY_MOD_MIGRATION=1\n"
+
+    init_script_env += (
+        f"WILLOW_MOD_MENU_DISPLAY_VERSION={pick_release_name(get_git_commit_hash())}\n"
+    )
 
     zip_file.writestr(str(ZIP_PLUGINS_FOLDER / "unrealsdk.env"), init_script_env)
 
@@ -289,6 +320,9 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if check_git_is_dirty():
+        print("WARNING: git repo is dirty")
 
     install_dir = INSTALL_DIR_BASE / str(args.preset)
 
