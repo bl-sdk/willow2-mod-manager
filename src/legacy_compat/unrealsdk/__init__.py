@@ -1,5 +1,6 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
+import inspect
 import warnings
 from collections.abc import Callable
 from contextlib import suppress
@@ -76,6 +77,14 @@ Log = print
 
 
 def GetVersion() -> tuple[int, int, int]:
+    caller = inspect.stack()[1]
+
+    # Rougelands does a weird version check by adding strings and converting that to an int
+    # [(0, 7, 11) -> "0711" -> 711] > [(1, 0, 0) -> "100" -> 100]
+    # Give it it's own fake version to make the check succeed
+    if caller.filename.endswith("RoguelandsGamemode\\__init__.py") and caller.function == "Enable":
+        return (0, 9999, 9999)
+
     return __version_info__
 
 
@@ -358,7 +367,25 @@ UObject.FindObjectsContaining = uobject_find_objects_containing  # type: ignore
 
 
 def ustructproperty_get_struct(self: UStructProperty) -> UStruct:
+    warnings.warn(
+        "UStructProperty.GetStruct is deprecated. Use the 'Struct' field directly.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return self.Struct
 
 
 UStructProperty.GetStruct = ustructproperty_get_struct  # type: ignore
+
+
+@staticmethod
+def uobject_path_name(obj: UObject, /) -> str:
+    warnings.warn(
+        "UObject.PathName is deprecated. Use 'obj._path_name()' or 'str(obj)' as appropriate.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return obj._path_name()
+
+
+UObject.PathName = uobject_path_name  # type: ignore
