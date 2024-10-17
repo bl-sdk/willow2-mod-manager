@@ -427,6 +427,48 @@ NEW_MOD_FOLDER: Path = Path(__file__).parent
 NEW_SETTINGS_FOLDER: Path = NEW_MOD_FOLDER / "settings"
 
 
+def migrate_mod_settings_file(
+    old_settings_file: Path,
+    new_settings_file: Path,
+    mod_name: str,
+) -> bool:
+    """
+    Migrates a single legacy mod's settings file to the new settings folder.
+
+    Args:
+        old_settings_file: The path of the old settings file.
+        new_settings_file: The path to migrate the settings file to.
+        mod_name: The name of the mod this file is from, to be used in log messages.
+    Returns:
+        True if successfully migrated, false if an error occurred.
+    """
+    if not old_settings_file.exists():
+        # Mod doesn't have settings, can continue
+        return True
+
+    with old_settings_file.open("r") as old, new_settings_file.open("w") as new:
+        data: dict[str, Any]
+        try:
+            data = json.load(old)
+            if not isinstance(data, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
+                raise ValueError
+        except (json.JSONDecodeError, ValueError):
+            logging.warning(
+                f"The settings file for legacy mod '{mod_name}' appears to be invalid. Not"
+                f" migrating it to prevent losing data.",
+            )
+            return False
+
+        for old_name, new_name in LEGACY_TO_NEW_SETTING_REMAPPING.items():
+            if old_name in data:
+                data[new_name] = data.pop(old_name)
+        json.dump(data, new, indent=4)
+
+    old_settings_file.unlink()
+
+    return True
+
+
 def migrate_legacy_mods_folder() -> bool:
     """
     Migrates any mods and their settings files from the legacy mod folder into the new one.
@@ -465,25 +507,9 @@ def migrate_legacy_mods_folder() -> bool:
             )
             continue
 
-        with old_settings_file.open("r") as old, new_settings_file.open("w") as new:
-            data: dict[str, Any]
-            try:
-                data = json.load(old)
-                if not isinstance(data, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
-                    raise ValueError
-            except (json.JSONDecodeError, ValueError):
-                logging.warning(
-                    f"The settings file for legacy mod '{entry.name}' appears to be invalid. Not"
-                    f" migrating it to prevent losing data.",
-                )
-                continue
+        if not migrate_mod_settings_file(old_settings_file, new_settings_file, entry.name):
+            continue
 
-            for old_name, new_name in LEGACY_TO_NEW_SETTING_REMAPPING.items():
-                if old_name in data:
-                    data[new_name] = data.pop(old_name)
-            json.dump(data, new, indent=4)
-
-        old_settings_file.unlink()
         shutil.move(entry, new_mod_folder)
         migrated_any = True
 
