@@ -19,8 +19,9 @@ from unrealsdk.hooks import (
     Block,
     Type,
     add_hook,
-    inject_next_call,
+    inject_next_call,  # pyright: ignore[reportDeprecated]
     log_all_calls,
+    prevent_hooking_direct_calls,
     remove_hook,
 )
 from unrealsdk.unreal import (
@@ -166,7 +167,8 @@ def RegisterHook(func_name: str, hook_id: str, hook_function: _SDKHook, /) -> No
         _ret: Any,
         func: BoundFunction,
     ) -> type[Block] | None:
-        return Block if not hook_function(obj, func.func, args) else None
+        with prevent_hooking_direct_calls():
+            return Block if not hook_function(obj, func.func, args) else None
 
     add_hook(
         _translate_hook_func_name(func_name),
@@ -192,7 +194,7 @@ def DoInjectedCallNext() -> None:
     # However, in truth, any call from Python to unreal skipped hooks, so calling it actually
     # skipped the *second* unreal function call.
     # Since this was basically never useful, try change the behaviour to what people assumed
-    inject_next_call()
+    inject_next_call()  # pyright: ignore[reportDeprecated]
 
 
 def LogAllCalls(should_log: bool, /) -> None:

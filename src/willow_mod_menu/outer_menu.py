@@ -4,7 +4,7 @@ import traceback
 from typing import TYPE_CHECKING, Any
 
 import unrealsdk
-from unrealsdk.hooks import Block, Type, inject_next_call
+from unrealsdk.hooks import Block, Type, prevent_hooking_direct_calls
 from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 from mods_base import EInputEvent, Mod, get_ordered_mod_list, hook
@@ -69,8 +69,8 @@ def add_list_item(
             # Add the mod entry right before the final option in the menu
             # Need to do it here, rather than while removing DLC, since the DLC menu does not exist
             # in AoDK or in the pause screen
-            inject_next_call()
-            obj.AddListItem(MODS_EVENT_ID, MODS_MENU_NAME, False, False)
+            with prevent_hooking_direct_calls():
+                obj.AddListItem(MODS_EVENT_ID, MODS_MENU_NAME, False, False)
             return None
         case _:
             return None
