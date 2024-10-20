@@ -5,13 +5,13 @@ from __future__ import annotations
 import copy
 import inspect
 import json
-import warnings
 from abc import ABCMeta
 from dataclasses import dataclass, field
 from enum import Enum, Flag, IntEnum, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, cast
 
+from legacy_compat import legacy_compat
 from mods_base import (
     SETTINGS_DIR,
     AbstractCommand,
@@ -62,21 +62,6 @@ Mods = _LegacyModList()  # pyright: ignore[reportGeneralTypeIssues]
 def RegisterMod(mod: SDKMod) -> None:
     Mods.append(mod)
     LoadModSettings(mod)
-
-
-# Unfortunately we need to keep this active the entire time, since the calls happen at runtime, so
-# add a warning when it's used
-@staticmethod
-def game_get_current() -> Literal[Game.BL2, Game.TPS, Game.AoDK, Game.BL3, Game.WL]:
-    warnings.warn(
-        "Game.GetCurrent is deprecated - use Game.get_current instead",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return Game.get_current()
-
-
-Game.GetCurrent = game_get_current  # type: ignore
 
 
 class ModPriorities(IntEnum):
@@ -205,14 +190,17 @@ class _NewMod(Mod):
             self.legacy_mod.Options,
             self.legacy_mod,
         )
-        extra_settings_inputs = [
-            ButtonOption(
-                action,
-                on_press=lambda _, action=action: self.legacy_mod.SettingsInputPressed(action),
-            )
-            for action in self.legacy_mod.SettingsInputs.values()
-            if action not in {"Enable", "Disable"}
-        ]
+
+        extra_settings_inputs: list[ButtonOption] = []
+        for action in self.legacy_mod.SettingsInputs.values():
+            if action in {"Enable", "Disable"}:
+                continue
+
+            def on_press(_: ButtonOption, action: str = action) -> None:
+                with legacy_compat():
+                    self.legacy_mod.SettingsInputPressed(action)
+
+            extra_settings_inputs.append(ButtonOption(action, on_press=on_press))
 
         if extra_settings_inputs:
             options.insert(0, GroupedOption("Actions", extra_settings_inputs))
@@ -328,8 +316,17 @@ class _LegacyModMeta(ABCMeta):
 
         # Swap the enable/disable functions around
         # On enabling the new mod, we want to run the old mod function too
-        new_mod.on_enable = instance.Enable
-        new_mod.on_disable = instance.Disable
+        def on_enable() -> None:
+            with legacy_compat():
+                instance.Enable()
+
+        def on_disable() -> None:
+            with legacy_compat():
+                instance.Disable()
+
+        new_mod.on_enable = on_enable
+        new_mod.on_disable = on_disable
+
         # In case some of the old mod logic calls enable, we need to redirect that to the new enable
         instance.Enable = new_mod.enable
         instance.Disable = new_mod.disable

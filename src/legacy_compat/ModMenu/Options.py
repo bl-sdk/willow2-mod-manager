@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from reprlib import recursive_repr
 from typing import TYPE_CHECKING, Any
 
+from legacy_compat import legacy_compat
 from mods_base import (
     JSON,
     BaseOption,
@@ -298,7 +299,8 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
             legacy_option: Base = option,
         ) -> None:
             if mod is not None and not mod.new_mod_obj.suppress_mod_option_changed:
-                mod.ModOptionChanged(legacy_option, new_val)  # type: ignore
+                with legacy_compat():
+                    mod.ModOptionChanged(legacy_option, new_val)  # type: ignore
             legacy_option.CurrentValue = new_val  # type: ignore
 
         converted_option: BaseOption

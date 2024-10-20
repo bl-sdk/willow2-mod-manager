@@ -1,9 +1,8 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
 import inspect
-import warnings
-from collections.abc import Callable
-from contextlib import suppress
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager, suppress
 from functools import cache, wraps
 from typing import Any
 
@@ -21,7 +20,6 @@ from unrealsdk.hooks import (
     add_hook,
     inject_next_call,  # pyright: ignore[reportDeprecated]
     log_all_calls,
-    prevent_hooking_direct_calls,
     remove_hook,
 )
 from unrealsdk.unreal import (
@@ -35,6 +33,7 @@ from unrealsdk.unreal import (
     WrappedStruct,
 )
 
+from legacy_compat import compat_handlers, legacy_compat
 from mods_base import ENGINE
 
 # This is mutable so mod menu can add to it
@@ -167,7 +166,7 @@ def RegisterHook(func_name: str, hook_id: str, hook_function: _SDKHook, /) -> No
         _ret: Any,
         func: BoundFunction,
     ) -> type[Block] | None:
-        with prevent_hooking_direct_calls():
+        with legacy_compat():
             return Block if not hook_function(obj, func.func, args) else None
 
     add_hook(
@@ -220,14 +219,18 @@ def KeepAlive(obj: UObject, /) -> None:
 
 
 # ==================================================================================================
-# Compatibility methods
-# Unfortunately we need to keep these active the entire time, since the calls happen at runtime
+# Compatibility methods wrappers
 
 # The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
 # them to a wrapped struct instance
 _default_object_setattr = UObject.__setattr__
 _default_struct_setattr = WrappedStruct.__setattr__
 _default_func_call = BoundFunction.__call__
+# The old sdk had interface properties return an FScriptInterface struct. Since you only ever
+# accessed the object on this, the new sdk just returns the object directly.
+# This means old code already has a UObject, but tries to access the `ObjectPointer` field. Detect
+# when this fails, and no-op it.
+_default_object_getattr = UObject.__getattr__
 
 
 @wraps(UObject.__setattr__)
@@ -236,12 +239,6 @@ def _object_setattr(self: UObject, name: str, value: Any) -> None:
         with suppress(ValueError):
             prop = self.Class._find_prop(name)
             if isinstance(prop, UStructProperty):
-                warnings.warn(
-                    "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_struct(), or WrappedStruct directly.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
                 value = WrappedStruct(prop.Struct, *value)
     _default_object_setattr(self, name, value)
 
@@ -252,12 +249,6 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
         with suppress(ValueError):
             prop = self._type._find_prop(name)
             if isinstance(prop, UStructProperty):
-                warnings.warn(
-                    "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_struct(), or WrappedStruct directly.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
                 value = WrappedStruct(prop.Struct, *value)
     _default_struct_setattr(self, name, value)
 
@@ -292,37 +283,18 @@ def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:
         if idx < len(mutable_args):
             value = mutable_args[idx]
             if isinstance(value, tuple):
-                warnings.warn(
-                    "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_struct(), or WrappedStruct directly.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
                 mutable_args[idx] = WrappedStruct(prop.Struct, *value)
             continue
 
         if (key := lower_kwargs.get(prop.Name.lower(), None)) is not None:
             value = kwargs[key]
             if isinstance(value, tuple):
-                warnings.warn(
-                    "Setting struct properties using tuples is deprecated. Use"
-                    " unrealsdk.make_struct(), or WrappedStruct directly.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
                 kwargs[key] = WrappedStruct(prop.Struct, *value)
             continue
 
         # No need to do any sanity checking on args since the default version will do that
 
     return _default_func_call(self, *mutable_args, **kwargs)
-
-
-# The old sdk had interface properties return an FScriptInterface struct. Since you only ever
-# accessed the object on this, the new sdk just returns the object directly.
-# This means old code already has a UObject, but tries to access the `ObjectPointer` field. Detect
-# when this fails, and no-op it.
-_default_object_getattr = UObject.__getattr__
 
 
 @wraps(UObject.__getattr__)
@@ -332,29 +304,14 @@ def _object_getattr(self: UObject, name: str) -> Any:
     except AttributeError as ex:
         if name != "ObjectPointer":
             raise ex
-
-        warnings.warn(
-            "Interface properties now return the object directly, accessing '.ObjectPointer' is"
-            " deprecated.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         return self
 
 
-UObject.__getattr__ = _object_getattr
-UObject.__setattr__ = _object_setattr
-BoundFunction.__call__ = _boundfunc_call
-WrappedStruct.__setattr__ = _struct_setattr
+# Brand new compatibility methods
 
 
 @staticmethod
-def uobject_find_objects_containing(StringLookup: str, /) -> list[UObject]:
-    warnings.warn(
-        "UObject.FindObjectsContaining is deprecated.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+def _uobject_find_objects_containing(StringLookup: str, /) -> list[UObject]:
     # Not implementing this properly, it's only used in three places with two sets of args, so just
     # give them what they actually want
     if StringLookup == "WillowCoopGameInfo WillowGame.Default__WillowCoopGameInfo":
@@ -365,29 +322,37 @@ def uobject_find_objects_containing(StringLookup: str, /) -> list[UObject]:
     raise NotImplementedError
 
 
-UObject.FindObjectsContaining = uobject_find_objects_containing  # type: ignore
-
-
-def ustructproperty_get_struct(self: UStructProperty) -> UStruct:
-    warnings.warn(
-        "UStructProperty.GetStruct is deprecated. Use the 'Struct' field directly.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+def _ustructproperty_get_struct(self: UStructProperty) -> UStruct:
     return self.Struct
-
-
-UStructProperty.GetStruct = ustructproperty_get_struct  # type: ignore
 
 
 @staticmethod
 def uobject_path_name(obj: UObject, /) -> str:
-    warnings.warn(
-        "UObject.PathName is deprecated. Use 'obj._path_name()' or 'str(obj)' as appropriate.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
     return obj._path_name()
 
 
-UObject.PathName = uobject_path_name  # type: ignore
+@contextmanager
+def _unreal_method_compat_handler() -> Iterator[None]:
+    UObject.__getattr__ = _object_getattr
+    UObject.__setattr__ = _object_setattr
+    BoundFunction.__call__ = _boundfunc_call
+    WrappedStruct.__setattr__ = _struct_setattr
+
+    UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
+    UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
+    UObject.PathName = uobject_path_name  # type: ignore
+
+    try:
+        yield
+    finally:
+        UObject.__getattr__ = _default_object_getattr
+        UObject.__setattr__ = _default_object_setattr
+        BoundFunction.__call__ = _default_func_call
+        WrappedStruct.__setattr__ = _default_struct_setattr
+
+        del UObject.FindObjectsContaining  # type: ignore
+        del UStructProperty.GetStruct  # type: ignore
+        del UObject.PathName  # type: ignore
+
+
+compat_handlers.append(_unreal_method_compat_handler)

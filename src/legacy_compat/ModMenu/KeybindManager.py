@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import TYPE_CHECKING, ClassVar
 
+from legacy_compat import legacy_compat
 from mods_base import EInputEvent, KeybindType
+from mods_base.keybinds import KeybindCallback_Event, KeybindCallback_NoArgs
 
 from .DeprecationHelper import Deprecated, PrintWarning
 
 if TYPE_CHECKING:
-    from mods_base.keybinds import KeybindCallback_Event, KeybindCallback_NoArgs
-
     from .ModObjects import SDKMod
 
 __all__: tuple[str, ...] = (
@@ -75,6 +75,57 @@ class Keybind:
             raise IndexError("list index out of range")
 
 
+def convert_new_style_callbacks(
+    bind: Keybind,
+    mod: "SDKMod | None" = None,
+) -> tuple[KeybindCallback_Event | KeybindCallback_NoArgs | None, EInputEvent | None]:
+    """
+    Converts a legacy keybind to a new-style callback and event filter.
+
+    Args:
+        bind: The legacy keybind.
+        mod: The legacy mod object to send change callbacks to.
+    Returns:
+        A tuple of the callback and the event filter.
+    """
+
+    # Man this is awful
+    if bind.OnPress is not None:
+        if len(inspect.signature(bind.OnPress).parameters) < 1:
+
+            def on_press_no_event() -> None:
+                with legacy_compat():
+                    bind.OnPress()  # type: ignore
+
+            return on_press_no_event, EInputEvent.IE_Pressed
+        else:  # noqa: RET505
+
+            def on_press_event(event: EInputEvent) -> None:
+                with legacy_compat():
+                    bind.OnPress(InputEvent(event))  # type: ignore
+
+            return on_press_event, None
+    elif mod is not None:
+        game_input = functools.partial(mod.GameInputPressed, bind)
+
+        if len(inspect.signature(game_input).parameters) < 1:
+
+            def game_input_no_event() -> None:
+                with legacy_compat():
+                    game_input()  # type: ignore
+
+            return game_input_no_event, EInputEvent.IE_Pressed
+        else:  # noqa: RET505
+
+            def game_input_event(event: EInputEvent) -> None:
+                with legacy_compat():
+                    game_input(InputEvent(event))
+
+            return game_input_event, None
+    else:
+        return None, EInputEvent.IE_Pressed
+
+
 def convert_to_new_style_keybind(
     bind: Keybind | list[str],
     mod: "SDKMod | None" = None,
@@ -101,33 +152,7 @@ def convert_to_new_style_keybind(
 
         bind = Keybind(bind[0], bind[1])
 
-    callback: KeybindCallback_Event | KeybindCallback_NoArgs | None
-    event_filter: EInputEvent | None
-
-    # Man this is awful
-    if bind.OnPress is not None:
-        if len(inspect.signature(bind.OnPress).parameters) < 1:
-            on_press_no_event: Callable[[], None] = bind.OnPress  # type: ignore
-            callback = on_press_no_event
-            event_filter = EInputEvent.IE_Pressed
-        else:
-            on_press_event: Callable[[InputEvent], None] = bind.OnPress  # type: ignore
-            callback = lambda event: on_press_event(InputEvent(event))  # noqa: E731
-            event_filter = None
-    elif mod is not None:
-        game_input = functools.partial(mod.GameInputPressed, bind)
-
-        if len(inspect.signature(game_input).parameters) < 1:
-            game_input_no_event: Callable[[], None] = game_input  # type: ignore
-            callback = game_input_no_event
-            event_filter = EInputEvent.IE_Pressed
-        else:
-            game_input_event: Callable[[InputEvent], None] = game_input  # type: ignore
-            callback = lambda event: game_input_event(InputEvent(event))  # noqa: E731
-            event_filter = None
-    else:
-        callback = None
-        event_filter = EInputEvent.IE_Pressed
+    callback, event_filter = convert_new_style_callbacks(bind, mod)
 
     new_bind = KeybindType(
         bind.Name,

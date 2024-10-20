@@ -1,9 +1,14 @@
+import warnings
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, ExitStack, contextmanager
+
 from mods_base.mod_list import base_mod
 
 __all__: tuple[str, ...] = (
     "__author__",
     "__version__",
     "__version_info__",
+    "ENABLED",
     "legacy_compat",
 )
 
@@ -11,19 +16,14 @@ __version_info__: tuple[int, int] = (1, 0)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
-# Kill switch. May have to update this at some point if we decide to keep this around longer.
-if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4"}:
-    import warnings
-    from collections.abc import Iterator
-    from contextlib import contextmanager
+ENABLED: bool
+compat_handlers: list[Callable[[], AbstractContextManager[None]]] = []
 
-    from unrealsdk import logging
 
-    logging.warning("Legacy SDK Compatibility has been disabled")
-
-    @contextmanager
-    def legacy_compat() -> Iterator[None]:
-        """Context manager which enables legacy SDK import compatibility while active."""
+@contextmanager
+def legacy_compat() -> Iterator[None]:
+    """Context manager which enables legacy SDK compatibility while active."""
+    if not ENABLED:
         warnings.warn(
             "Legacy import compatibility has been removed.",
             DeprecationWarning,
@@ -31,6 +31,37 @@ if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4"}
         )
         yield
         return
+
+    warnings.warn(
+        "Using deprecated legacy import compatibility.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+    # If we're in a recursive call, don't do anything, only let the outermost one handle it
+    if legacy_compat.currently_active:  # type: ignore
+        yield
+        return
+
+    try:
+        legacy_compat.currently_active = True  # type: ignore
+        with ExitStack() as stack:
+            for handler in compat_handlers:
+                stack.enter_context(handler())
+            yield
+    finally:
+        legacy_compat.currently_active = False  # type: ignore
+
+
+legacy_compat.currently_active = False  # type: ignore
+
+
+# Kill switch. May have to update this at some point if we decide to keep this around longer.
+if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4"}:
+    from unrealsdk import logging
+
+    logging.warning("Legacy SDK Compatibility has been disabled")
+    ENABLED = False  # pyright: ignore[reportConstantRedefinition]
 else:
     import ctypes
     import inspect
@@ -43,10 +74,17 @@ else:
     from pathlib import Path
     from types import ModuleType
 
+    from unrealsdk.hooks import prevent_hooking_direct_calls
+
+    from mods_base import MODS_DIR
+
     from . import ModMenu
     from . import unrealsdk as old_unrealsdk
 
     base_mod.components.append(base_mod.ComponentInfo("Legacy SDK Compat", __version__))
+
+    ENABLED = True  # pyright: ignore[reportConstantRedefinition]
+    compat_handlers.append(prevent_hooking_direct_calls)
 
     """
     There are two parts to legacy SDK compatibility.
@@ -58,7 +96,7 @@ else:
     `Mods` folder was part of the packaging, `mods/xyz` was packaged under `Mods.xyz`. This is no
     longer the case in this version, it's just under a top level `xyz`. We can't trust users to
     extract legacy mods any differently to updated ones, so we need to redirect these imports
-     automatically.
+    automatically.
     """
 
     # First, create a fake mods module
@@ -66,7 +104,7 @@ else:
 
     """
     To allow importing submodules at all, to convert the module into a package, we need to set
-     __path__. But to what? This requires a bit of reading between the lines.
+    __path__. But to what? This requires a bit of reading between the lines.
 
     > The find_spec() method of meta path finders is called with two or three arguments. The first
     > is the fully qualified name of the module being imported, for example foo.bar.baz. The second
@@ -81,7 +119,7 @@ else:
     Mods.__path__ = None  # type:  ignore
 
     # This is needed for some mods
-    Mods.__file__ = str(Path(__file__).parent.parent)
+    Mods.__file__ = str(MODS_DIR)
 
     # This is essentially an extra version of sys.modules which we swap during legacy compat
     # When we exit compat, we'll move any new imports under `Mods` into this, since we don't want to
@@ -143,14 +181,8 @@ else:
             return None
 
     @contextmanager
-    def legacy_compat() -> Iterator[None]:
-        """Context manager which enables legacy SDK import compatibility while active."""
-        warnings.warn(
-            "Using deprecated legacy import compatibility.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-
+    def import_compat_handler() -> Iterator[None]:
+        """Context manager to add the import compatibility."""
         # Backup any current modules with the same name as a legacy one
         overwritten_modules = {
             name: mod for name, mod in sys.modules.items() if name in legacy_modules
@@ -173,3 +205,5 @@ else:
                     legacy_modules[name] = sys.modules.pop(name)
             # And add any overwritten modules back in
             sys.modules |= overwritten_modules
+
+    compat_handlers.append(import_compat_handler)

@@ -1,9 +1,10 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from types import ModuleType
 
-import unrealsdk as new_unrealsdk  # noqa: F401  # pyright: ignore[reportUnusedImport]
-
+from legacy_compat import compat_handlers
 from legacy_compat import unrealsdk as old_unrealsdk
 
 from . import ModObjects, Options
@@ -81,3 +82,15 @@ Options.Spinner.StartingChoice = property(  # type: ignore
     Deprecated(_msg, lambda self: self.StartingValue),  # type: ignore
     Deprecated(_msg, lambda self, val: self.__setattr__("StartingValue", val)),  # type: ignore
 )
+
+
+@contextmanager
+def _game_get_current_compat_handler() -> Iterator[None]:
+    Game.GetCurrent = Game.get_current  # type: ignore
+    try:
+        yield
+    finally:
+        del Game.GetCurrent  # type: ignore
+
+
+compat_handlers.append(_game_get_current_compat_handler)
