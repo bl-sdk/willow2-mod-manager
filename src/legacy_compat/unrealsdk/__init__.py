@@ -24,9 +24,22 @@ from unrealsdk.hooks import (
 )
 from unrealsdk.unreal import (
     BoundFunction,
+    UArrayProperty,
+    UBoolProperty,
+    UByteProperty,
     UClass,
+    UClassProperty,
+    UComponentProperty,
+    UDelegateProperty,
+    UFloatProperty,
     UFunction,
+    UInterfaceProperty,
+    UIntProperty,
+    UNameProperty,
     UObject,
+    UObjectProperty,
+    UProperty,
+    UStrProperty,
     UStruct,
     UStructProperty,
     WrappedArray,
@@ -221,16 +234,29 @@ def KeepAlive(obj: UObject, /) -> None:
 # ==================================================================================================
 # Compatibility methods wrappers
 
-# The legacy SDK had you set structs via a tuple of their values in sequence, we need to convert
-# them to a wrapped struct instance
+# There are a number of things we're fixing with these:
+# 1. The legacy sdk had you set structs via a tuple of their values in sequence, we need to convert
+#    them to a wrapped struct instance.
+# 2. The legacy sdk had interface properties return an FScriptInterface struct, but since you only
+#    ever accessed the object, the new sdk just returns it directly. This means old code already has
+#    a UObject, but tries to access the `ObjectPointer` field, which we replace with a no-op.
+# 3. The legacy sdk treated all out params as be optional, even if they weren't actually.
+# 4. The new sdk always returns Ellipsis for a void function, meaning a void function with out
+#    params returns an extra value compared to the legacy one.
+_default_object_getattr = UObject.__getattr__
 _default_object_setattr = UObject.__setattr__
 _default_struct_setattr = WrappedStruct.__setattr__
 _default_func_call = BoundFunction.__call__
-# The old sdk had interface properties return an FScriptInterface struct. Since you only ever
-# accessed the object on this, the new sdk just returns the object directly.
-# This means old code already has a UObject, but tries to access the `ObjectPointer` field. Detect
-# when this fails, and no-op it.
-_default_object_getattr = UObject.__getattr__
+
+
+@wraps(UObject.__getattr__)
+def _object_getattr(self: UObject, name: str) -> Any:
+    try:
+        return _default_object_getattr(self, name)
+    except AttributeError as ex:
+        if name != "ObjectPointer":
+            raise ex
+        return self
 
 
 @wraps(UObject.__setattr__)
@@ -253,12 +279,48 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
     _default_struct_setattr(self, name, value)
 
 
+def _get_default_value_for_prop(prop: UProperty) -> Any:
+    """
+    Gets the default value to use for a required property if it wasn't given.
+
+    Args:
+        prop: The property to get the default value of.
+    Returns:
+        The default value.
+    """
+    match prop:
+        case UArrayProperty():
+            return ()
+        case UBoolProperty():
+            return False
+        case UByteProperty() | UFloatProperty() | UIntProperty():
+            return 0
+        case (
+            UClassProperty()
+            | UComponentProperty()
+            | UDelegateProperty()
+            | UInterfaceProperty()
+            | UObjectProperty()
+        ):
+            return None
+        case UNameProperty() | UStrProperty():
+            return ""
+        case UStructProperty():
+            return WrappedStruct(prop.Struct)
+        case _:
+            raise RuntimeError(
+                f"Wasn't given value for required arg {prop}, and couldn't find default"
+                f" value to keep legacy compatibility.",
+            )
+
+
 @wraps(BoundFunction.__call__)
-def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:
-    # If we have no tuples can quickly fall back
-    if not (
-        any(isinstance(x, tuple) for x in args)
-        or any(isinstance(x, tuple) for x in kwargs.values())
+def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:  # noqa: C901 - just barely over and not worth splitting more
+    # If we have no out params and no struct properties, can fall back to the default
+    if not any(
+        (prop.PropertyFlags & 0x100) != 0  # UProperty::PROP_FLAG_OUT
+        or isinstance(prop, UStructProperty)
+        for prop in self.func._properties()
     ):
         return _default_func_call(self, *args, **kwargs)
 
@@ -276,35 +338,30 @@ def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:
         if (prop.PropertyFlags & 0x400) != 0 and not seen_return:  # UProperty::PROP_FLAG_RETURN
             seen_return = True
             continue
-        # Can add an early continue here, unlike the C++ version, since `idx` is auto updated
-        if not isinstance(prop, UStructProperty):
-            continue
 
         if idx < len(mutable_args):
-            value = mutable_args[idx]
-            if isinstance(value, tuple):
+            if isinstance(prop, UStructProperty) and isinstance(value := mutable_args[idx], tuple):
                 mutable_args[idx] = WrappedStruct(prop.Struct, *value)
             continue
 
-        if (key := lower_kwargs.get(prop.Name.lower(), None)) is not None:
-            value = kwargs[key]
-            if isinstance(value, tuple):
+        if (key := lower_kwargs.get(prop.Name.lower(), ...)) is not ...:
+            if isinstance(prop, UStructProperty) and isinstance(value := kwargs[key], tuple):
                 kwargs[key] = WrappedStruct(prop.Struct, *value)
             continue
 
+        # If we don't have a value for this param, and it's a required out param
+        # UProperty::PROP_FLAG_OPTIONAL = 0x10
+        # UProperty::PROP_FLAG_OUT = 0x100
+        if (prop.PropertyFlags & 0x110) == 0x100:  # noqa: PLR2004
+            # Give it a default value
+            mutable_args.insert(idx, _get_default_value_for_prop(prop))
+
         # No need to do any sanity checking on args since the default version will do that
 
-    return _default_func_call(self, *mutable_args, **kwargs)
-
-
-@wraps(UObject.__getattr__)
-def _object_getattr(self: UObject, name: str) -> Any:
-    try:
-        return _default_object_getattr(self, name)
-    except AttributeError as ex:
-        if name != "ObjectPointer":
-            raise ex
-        return self
+    ret = _default_func_call(self, *mutable_args, **kwargs)
+    if isinstance(ret, tuple) and ret[0] == Ellipsis:
+        return tuple(ret[1:])  # type: ignore
+    return ret  # type: ignore
 
 
 # Brand new compatibility methods
