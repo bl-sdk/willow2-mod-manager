@@ -212,7 +212,7 @@ def dataprovider_base_handle_slider_change(
 
     event_id: int = args.EventID
     new_value: int = args.NewSliderValue
-    data_provider_stack[-1].handle_spinner_change(event_id, new_value)
+    data_provider_stack[-1].handle_slider_change(event_id, new_value)
 
     # Same as above, unconditionally return handled
     return Block, True
