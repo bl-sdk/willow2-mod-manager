@@ -237,14 +237,16 @@ def KeepAlive(obj: UObject, /) -> None:
 # There are a number of things we're fixing with these:
 # 1. The legacy sdk had you set structs via a tuple of their values in sequence, we need to convert
 #    them to a wrapped struct instance.
-# 2. The legacy sdk had interface properties return an FScriptInterface struct, but since you only
+# 2. The legacy sdk returned None instead of throwing an attribute error when a field didn't exist.
+# 3. The legacy sdk had interface properties return an FScriptInterface struct, but since you only
 #    ever accessed the object, the new sdk just returns it directly. This means old code already has
 #    a UObject, but tries to access the `ObjectPointer` field, which we replace with a no-op.
-# 3. The legacy sdk treated all out params as be optional, even if they weren't actually.
-# 4. The new sdk always returns Ellipsis for a void function, meaning a void function with out
+# 4. The legacy sdk treated all out params as be optional, even if they weren't actually.
+# 5. The new sdk always returns Ellipsis for a void function, meaning a void function with out
 #    params returns an extra value compared to the legacy one.
 _default_object_getattr = UObject.__getattr__
 _default_object_setattr = UObject.__setattr__
+_default_struct_getattr = WrappedStruct.__getattr__
 _default_struct_setattr = WrappedStruct.__setattr__
 _default_func_call = BoundFunction.__call__
 
@@ -253,10 +255,10 @@ _default_func_call = BoundFunction.__call__
 def _object_getattr(self: UObject, name: str) -> Any:
     try:
         return _default_object_getattr(self, name)
-    except AttributeError as ex:
-        if name != "ObjectPointer":
-            raise ex
-        return self
+    except AttributeError:
+        if name == "ObjectPointer":
+            return self
+        return None
 
 
 @wraps(UObject.__setattr__)
@@ -267,6 +269,16 @@ def _object_setattr(self: UObject, name: str, value: Any) -> None:
             if isinstance(prop, UStructProperty):
                 value = WrappedStruct(prop.Struct, *value)
     _default_object_setattr(self, name, value)
+
+
+@wraps(WrappedStruct.__getattr__)
+def _struct_getattr(self: WrappedStruct, name: str) -> Any:
+    try:
+        return _default_struct_getattr(self, name)
+    except AttributeError:
+        if name == "ObjectPointer":
+            return self
+        return None
 
 
 @wraps(WrappedStruct.__setattr__)
@@ -393,6 +405,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     UObject.__getattr__ = _object_getattr
     UObject.__setattr__ = _object_setattr
     BoundFunction.__call__ = _boundfunc_call
+    WrappedStruct.__getattr__ = _struct_getattr
     WrappedStruct.__setattr__ = _struct_setattr
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
@@ -405,6 +418,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         UObject.__getattr__ = _default_object_getattr
         UObject.__setattr__ = _default_object_setattr
         BoundFunction.__call__ = _default_func_call
+        WrappedStruct.__getattr__ = _default_struct_getattr
         WrappedStruct.__setattr__ = _default_struct_setattr
 
         del UObject.FindObjectsContaining  # type: ignore
