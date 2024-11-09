@@ -315,14 +315,17 @@ class _LegacyModMeta(ABCMeta):
         new_mod.__post_init__()
 
         # Swap the enable/disable functions around
+        original_enable = instance.Enable
+        original_disable = instance.Disable
+
         # On enabling the new mod, we want to run the old mod function too
         def on_enable() -> None:
             with legacy_compat():
-                instance.Enable()
+                original_enable()
 
         def on_disable() -> None:
             with legacy_compat():
-                instance.Disable()
+                original_disable()
 
         new_mod.on_enable = on_enable
         new_mod.on_disable = on_disable
