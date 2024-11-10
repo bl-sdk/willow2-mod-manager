@@ -1,7 +1,8 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from functools import wraps
 from reprlib import recursive_repr
 from typing import TYPE_CHECKING, Any
 
@@ -10,6 +11,7 @@ from mods_base import (
     JSON,
     BaseOption,
     BoolOption,
+    ButtonOption,
     HiddenOption,
     NestedOption,
     SliderOption,
@@ -274,7 +276,98 @@ class Nested(Field):
         )
 
 
-mods_to_suppress_mod_option_changed_on: set["SDKMod"] = set()
+def _apply_hardcoded_option_fixups[J: JSON](  # noqa: C901 - will always need complex mod specific code
+    option: Base,
+    mod: "SDKMod | None",
+    on_change: Callable[[ValueOption[J], Any], None],
+) -> BaseOption | None:
+    """
+    Applies any hardcoded, mod-specific, option fixups, if applicable.
+
+    Args:
+        option: The legacy option to check for fixups.
+        mod: The legacy mod this option is from.
+        on_change: The on change callback to use (if a value option).
+    Returns:
+        The new style option, or None to use the standard conversion.
+    """
+    # This will need a rewrite if we want to be more generic
+    if mod is None:
+        return None
+    if mod.Name not in {"Commander", "Loot Randomizer"}:
+        return None
+    del on_change
+
+    # Loot randomizer's callback fields map nicely onto a button
+    if type(option).__name__ == "CallbackField" and isinstance(option, Field):
+
+        def on_press(_: ButtonOption) -> None:
+            with legacy_compat():
+                option.Callback()  # type: ignore
+
+        return ButtonOption(
+            option.Caption,
+            description=option.Description,
+            is_hidden=option.IsHidden,
+            on_press=on_press,
+        )
+
+    # Callback nested options are slightly more awkward, they fire a callback on clicking the
+    # button, which we replicate by doing so on each access to children
+    if type(option).__name__ == "CallbackNested" and isinstance(option, Nested):
+        converted_option = NestedOption(
+            option.Caption,
+            tuple(convert_option_list_to_new_style_options(option.Children, mod)),
+            description=option.Description,
+            is_hidden=option.IsHidden,
+        )
+
+        original_getattribute = converted_option.__getattribute__
+
+        @wraps(converted_option.__getattribute__)
+        def getattribute_children_callback(name: str) -> Any:
+            if name == "children":
+                with legacy_compat():
+                    option.Callback()  # type: ignore
+            return original_getattribute(name)
+
+        converted_option.__getattribute__ = getattribute_children_callback
+
+    # The new seed option only gets filled after enabling the mod. Replicating it's logic is a bit
+    # too complex, so just place a default dummy option telling people to do that.
+    if option.Caption == "New Seed" and isinstance(option, Nested) and len(option.Children) == 0:
+        return NestedOption(
+            option.Caption,
+            (ButtonOption("Please Enable The Mod First"),),
+            description=option.Description,
+            is_hidden=option.IsHidden,
+        )
+
+    # Commander's custom commands option is the only custom one it uses, so it hides all its logic
+    # inside the hook. This is difficult to get to, so we instead just recreate it from scratch.
+    if option.Caption == "Custom Commands" and isinstance(option, Field):
+
+        def custom_command_callback(_: ButtonOption) -> None:
+            with legacy_compat():
+                try:
+                    from Mods.Commander import Configurator  # type: ignore
+
+                    Configurator.CustomConfigurator()  # type: ignore
+                except ImportError:
+                    import webbrowser
+
+                    webbrowser.open(
+                        "https://github.com/mopioid/Borderlands-Commander/wiki/Custom-Commands",
+                    )
+
+        return ButtonOption(
+            option.Caption,
+            description=option.Description,
+            is_hidden=option.IsHidden,
+            on_press=custom_command_callback,
+        )
+
+    return None
 
 
 def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way to make this simpler
@@ -298,62 +391,72 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
             new_val: Any,
             legacy_option: Base = option,
         ) -> None:
-            if mod is not None and not mod.new_mod_obj.suppress_mod_option_changed:
+            if (
+                mod is not None
+                and mod.new_mod_obj.is_enabled
+                and not mod.new_mod_obj.suppress_mod_option_changed
+            ):
                 with legacy_compat():
                     mod.ModOptionChanged(legacy_option, new_val)  # type: ignore
             legacy_option.CurrentValue = new_val  # type: ignore
 
-        converted_option: BaseOption
-        match option:
-            case Nested():
-                converted_option = NestedOption(
-                    option.Caption,
-                    tuple(convert_option_list_to_new_style_options(option.Children, mod)),
-                    description=option.Description,
-                    is_hidden=option.IsHidden,
-                )
-            case Field():
-                continue
-            case Boolean():
-                converted_option = BoolOption(
-                    option.Caption,
-                    option.CurrentValue,
-                    option.Choices[1],
-                    option.Choices[0],
-                    description=option.Description,
-                    is_hidden=option.IsHidden,
-                    on_change=on_change,
-                )
-            case Spinner():
-                converted_option = SpinnerOption(
-                    option.Caption,
-                    option.CurrentValue,
-                    list(option.Choices),
-                    description=option.Description,
-                    is_hidden=option.IsHidden,
-                    on_change=on_change,
-                )
-            case Slider():
-                converted_option = SliderOption(
-                    option.Caption,
-                    option.CurrentValue,
-                    option.MinValue,
-                    option.MaxValue,
-                    option.Increment,
-                    description=option.Description,
-                    is_hidden=option.IsHidden,
-                    on_change=on_change,
-                )
-            case Hidden():
-                hidden_option: Hidden[Any] = option
-                converted_option = HiddenOption(
-                    hidden_option.Caption,
-                    hidden_option.CurrentValue,
-                    description=hidden_option.Description,
-                    on_change=on_change,
-                )
-            case _:
-                raise TypeError(f"Unable to convert legacy option of type {type(option)}")
+        converted_option = _apply_hardcoded_option_fixups(option, mod, on_change)
+
+        if converted_option is None:
+            match option:
+                case Nested():
+                    converted_option = NestedOption(
+                        option.Caption,
+                        tuple(convert_option_list_to_new_style_options(option.Children, mod)),
+                        description=option.Description,
+                        is_hidden=option.IsHidden,
+                    )
+                case Field():
+                    converted_option = ButtonOption(
+                        option.Caption,
+                        description=option.Description,
+                        is_hidden=option.IsHidden,
+                    )
+                case Boolean():
+                    converted_option = BoolOption(
+                        option.Caption,
+                        option.CurrentValue,
+                        option.Choices[1],
+                        option.Choices[0],
+                        description=option.Description,
+                        is_hidden=option.IsHidden,
+                        on_change=on_change,
+                    )
+                case Spinner():
+                    converted_option = SpinnerOption(
+                        option.Caption,
+                        option.CurrentValue,
+                        list(option.Choices),
+                        description=option.Description,
+                        is_hidden=option.IsHidden,
+                        on_change=on_change,
+                    )
+                case Slider():
+                    converted_option = SliderOption(
+                        option.Caption,
+                        option.CurrentValue,
+                        option.MinValue,
+                        option.MaxValue,
+                        option.Increment,
+                        description=option.Description,
+                        is_hidden=option.IsHidden,
+                        on_change=on_change,
+                    )
+                case Hidden():
+                    hidden_option: Hidden[Any] = option
+                    converted_option = HiddenOption(
+                        hidden_option.Caption,
+                        hidden_option.CurrentValue,
+                        description=hidden_option.Description,
+                        on_change=on_change,
+                    )
+                case _:
+                    raise TypeError(f"Unable to convert legacy option of type {type(option)}")
 
         if mod is not None:
             converted_option.mod = mod.new_mod_obj

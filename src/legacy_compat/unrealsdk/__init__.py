@@ -171,7 +171,18 @@ def _translate_hook_func_name(func_name: str) -> str:
         # Couldn't find it, the colon may have to be a step further left
 
 
+_HOOK_BLACKLIST: set[tuple[str, str]] = {
+    # These two are used to manually implement buttons in the option list. The options handling code
+    # hardcodes some fixups for these instead, so suppress their hooks
+    ("WillowGame.WillowScrollingList.OnClikEvent", "Commander"),
+    ("WillowGame.WillowScrollingList.OnClikEvent", "LootRandomizer"),
+}
+
+
 def RegisterHook(func_name: str, hook_id: str, hook_function: _SDKHook, /) -> None:
+    if (func_name, hook_id) in _HOOK_BLACKLIST:
+        return
+
     @wraps(hook_function)
     def translated_hook(
         obj: UObject,

@@ -323,6 +323,12 @@ class _LegacyModMeta(ABCMeta):
             with legacy_compat():
                 original_enable()
 
+                # And even though this was deprecated, some mods still rely on the changed events
+                # fired after the mod was enabled
+                for option in instance.Options:
+                    if isinstance(option, Options.Value):
+                        instance.ModOptionChanged(option, option.CurrentValue)  # type: ignore
+
         def on_disable() -> None:
             with legacy_compat():
                 original_disable()
