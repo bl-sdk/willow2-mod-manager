@@ -1,8 +1,8 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
 import inspect
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager, suppress
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from functools import cache, wraps
 from typing import Any
 
@@ -39,6 +39,7 @@ from unrealsdk.unreal import (
     UObject,
     UObjectProperty,
     UProperty,
+    UScriptStruct,
     UStrProperty,
     UStruct,
     UStructProperty,
@@ -259,7 +260,59 @@ _default_object_getattr = UObject.__getattr__
 _default_object_setattr = UObject.__setattr__
 _default_struct_getattr = WrappedStruct.__getattr__
 _default_struct_setattr = WrappedStruct.__setattr__
+# Array looks a little weird since it's generic, just remember WrappedArray[Any] == WrappedArray
+_default_array_setitem = WrappedArray[Any].__setitem__
 _default_func_call = BoundFunction.__call__
+
+
+def _create_struct_from_tuples(struct: UScriptStruct, value: tuple[Any, ...]) -> WrappedStruct:
+    """
+    Recusively creates a wrapped struct from it's tuple equivalent.
+
+    Args:
+        struct: The struct type to create:
+        value: The tuple to create it with.
+    Returns:
+        The new struct.
+    """
+    return WrappedStruct(
+        struct,
+        *(
+            _create_struct_from_tuples(prop.Struct, inner_val)  # pyright: ignore[reportUnknownArgumentType]
+            if isinstance(prop, UStructProperty) and isinstance(inner_val, tuple)
+            else inner_val
+            for prop, inner_val in zip(struct._properties(), value, strict=False)
+        ),
+    )
+
+
+def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
+    """
+    Convert any tuple-based structs in the given value into Wrapped Structs.
+
+    Args:
+        prop: The property being set.
+        value: The value it's getting set to.
+    Returns:
+        The possibly converted value.
+    """
+
+    # If it's a struct being set as a tuple directly
+    if isinstance(prop, UStructProperty) and isinstance(value, tuple):
+        return _create_struct_from_tuples(prop.Struct, value)  # pyright: ignore[reportUnknownArgumentType]
+
+    # If it's an array of structs, need to convert each value
+    if isinstance(prop, UArrayProperty) and isinstance(prop.Inner, UStructProperty):
+        seq_value: Sequence[Any] = value
+
+        return tuple(
+            _create_struct_from_tuples(prop.Inner.Struct, inner_val)  # pyright: ignore[reportUnknownArgumentType]
+            if isinstance(inner_val, tuple)
+            else inner_val
+            for inner_val in seq_value
+        )
+
+    return value
 
 
 @wraps(UObject.__getattr__)
@@ -274,12 +327,13 @@ def _object_getattr(self: UObject, name: str) -> Any:
 
 @wraps(UObject.__setattr__)
 def _object_setattr(self: UObject, name: str, value: Any) -> None:
-    if isinstance(value, tuple):
-        with suppress(ValueError):
-            prop = self.Class._find_prop(name)
-            if isinstance(prop, UStructProperty):
-                value = WrappedStruct(prop.Struct, *value)
-    _default_object_setattr(self, name, value)
+    try:
+        prop = self.Class._find_prop(name)
+    except ValueError:
+        _default_object_setattr(self, name, value)
+        return
+
+    _default_object_setattr(self, name, _convert_struct_tuple_if_required(prop, value))
 
 
 @wraps(WrappedStruct.__getattr__)
@@ -294,12 +348,32 @@ def _struct_getattr(self: WrappedStruct, name: str) -> Any:
 
 @wraps(WrappedStruct.__setattr__)
 def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
-    if isinstance(value, tuple):
-        with suppress(ValueError):
-            prop = self._type._find_prop(name)
-            if isinstance(prop, UStructProperty):
-                value = WrappedStruct(prop.Struct, *value)
-    _default_struct_setattr(self, name, value)
+    try:
+        prop = self._type._find_prop(name)
+    except ValueError:
+        _default_struct_setattr(self, name, value)
+        return
+
+    _default_struct_setattr(self, name, _convert_struct_tuple_if_required(prop, value))
+
+
+@wraps(WrappedArray[Any].__setitem__)
+def _array_setitem[T](self: WrappedArray[T], idx: int | slice, value: T | Sequence[T]) -> None:
+    if isinstance(value, Sequence):
+        val_seq: Sequence[T] = value
+        _default_array_setitem(
+            self,
+            idx,
+            tuple(
+                _convert_struct_tuple_if_required(self._type, inner_val) for inner_val in val_seq
+            ),
+        )
+    else:
+        _default_array_setitem(
+            self,
+            idx,
+            _convert_struct_tuple_if_required(self._type, value),
+        )
 
 
 def _get_default_value_for_prop(prop: UProperty) -> Any:
@@ -338,7 +412,7 @@ def _get_default_value_for_prop(prop: UProperty) -> Any:
 
 
 @wraps(BoundFunction.__call__)
-def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:  # noqa: C901 - just barely over and not worth splitting more
+def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:
     # If we have no out params and no struct properties, can fall back to the default
     if not any(
         (prop.PropertyFlags & 0x100) != 0  # UProperty::PROP_FLAG_OUT
@@ -363,13 +437,11 @@ def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:  # n
             continue
 
         if idx < len(mutable_args):
-            if isinstance(prop, UStructProperty) and isinstance(value := mutable_args[idx], tuple):
-                mutable_args[idx] = WrappedStruct(prop.Struct, *value)
+            mutable_args[idx] = _convert_struct_tuple_if_required(prop, mutable_args[idx])
             continue
 
         if (key := lower_kwargs.get(prop.Name.lower(), ...)) is not ...:
-            if isinstance(prop, UStructProperty) and isinstance(value := kwargs[key], tuple):
-                kwargs[key] = WrappedStruct(prop.Struct, *value)
+            kwargs[key] = _convert_struct_tuple_if_required(prop, kwargs[key])
             continue
 
         # If we don't have a value for this param, and it's a required out param
@@ -415,9 +487,10 @@ def uobject_path_name(obj: UObject, /) -> str:
 def _unreal_method_compat_handler() -> Iterator[None]:
     UObject.__getattr__ = _object_getattr
     UObject.__setattr__ = _object_setattr
-    BoundFunction.__call__ = _boundfunc_call
     WrappedStruct.__getattr__ = _struct_getattr
     WrappedStruct.__setattr__ = _struct_setattr
+    WrappedArray.__setitem__ = _array_setitem  # type: ignore
+    BoundFunction.__call__ = _boundfunc_call
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
     UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
@@ -428,9 +501,10 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     finally:
         UObject.__getattr__ = _default_object_getattr
         UObject.__setattr__ = _default_object_setattr
-        BoundFunction.__call__ = _default_func_call
         WrappedStruct.__getattr__ = _default_struct_getattr
         WrappedStruct.__setattr__ = _default_struct_setattr
+        WrappedArray.__setitem__ = _default_array_setitem
+        BoundFunction.__call__ = _default_func_call
 
         del UObject.FindObjectsContaining  # type: ignore
         del UStructProperty.GetStruct  # type: ignore
