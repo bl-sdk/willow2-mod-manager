@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
-from functools import wraps
+from dataclasses import KW_ONLY, dataclass
 from reprlib import recursive_repr
 from typing import TYPE_CHECKING, Any
 
@@ -276,6 +276,30 @@ class Nested(Field):
         )
 
 
+# Some mods edit the options shown under a nested option. Create a proxy type which generates it's
+# children lazily, so that these update without needing the option itself to be replaced.
+@dataclass
+class _NestedProxy(NestedOption):
+    _: KW_ONLY
+    legacy_option: Nested
+    # Since we're using a custom type anyway, add a callback needed by some of the option fixups
+    on_enter: Callable[["_NestedProxy"], None] | None = None
+
+    @property
+    def children(self) -> Sequence[BaseOption]:  # pyright: ignore[reportIncompatibleVariableOverride]
+        if self.on_enter is not None:
+            self.on_enter(self)
+
+        return convert_option_list_to_new_style_options(
+            self.legacy_option.Children,
+            None if (new_mod := self.mod) is None else new_mod.legacy_mod,  # type: ignore
+        )
+
+    @children.setter
+    def children(self, value: Sequence[BaseOption]) -> None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        pass
+
+
 def _apply_hardcoded_option_fixups[J: JSON](  # noqa: C901 - will always need complex mod specific code
     option: Base,
     mod: "SDKMod | None",
@@ -312,33 +336,31 @@ def _apply_hardcoded_option_fixups[J: JSON](  # noqa: C901 - will always need co
             on_press=on_press,
         )
 
-    # Callback nested options are slightly more awkward, they fire a callback on clicking the
-    # button, which we replicate by doing so on each access to children
+    # And with out custom _NestedProxy, callback nesteds are relatively simple too
     if type(option).__name__ == "CallbackNested" and isinstance(option, Nested):
-        converted_option = NestedOption(
+
+        def on_enter(_: _NestedProxy) -> None:
+            with legacy_compat():
+                option.Callback()  # type: ignore
+
+        return _NestedProxy(
             option.Caption,
             tuple(convert_option_list_to_new_style_options(option.Children, mod)),
             description=option.Description,
             is_hidden=option.IsHidden,
+            legacy_option=option,
+            on_enter=on_enter,
         )
-
-        original_getattribute = converted_option.__getattribute__
-
-        @wraps(converted_option.__getattribute__)
-        def getattribute_children_callback(name: str) -> Any:
-            if name == "children":
-                with legacy_compat():
-                    option.Callback()  # type: ignore
-            return original_getattribute(name)
-
-        converted_option.__getattribute__ = getattribute_children_callback
 
     # The new seed option only gets filled after enabling the mod. Replicating it's logic is a bit
     # too complex, so just place a default dummy option telling people to do that.
     if option.Caption == "New Seed" and isinstance(option, Nested) and len(option.Children) == 0:
         return NestedOption(
             option.Caption,
-            (ButtonOption("Please Enable The Mod First"),),
+            (
+                ButtonOption("Please enable the mod first,"),
+                ButtonOption("then re-open the mod menu"),
+            ),
             description=option.Description,
             is_hidden=option.IsHidden,
         )
@@ -405,11 +427,12 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
         if converted_option is None:
             match option:
                 case Nested():
-                    converted_option = NestedOption(
+                    converted_option = _NestedProxy(
                         option.Caption,
                         tuple(convert_option_list_to_new_style_options(option.Children, mod)),
                         description=option.Description,
                         is_hidden=option.IsHidden,
+                        legacy_option=option,
                     )
                 case Field():
                     converted_option = ButtonOption(
