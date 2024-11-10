@@ -3,6 +3,7 @@
 import inspect
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from functools import cache, wraps
 from typing import Any
 
@@ -235,12 +236,14 @@ def LoadPackage(filename: str, flags: int = 0, force: bool = False) -> None:  # 
 
 
 def KeepAlive(obj: UObject, /) -> None:
-    # Don't think this loop is strictly necessary - the parent objects should stay loaded since
-    # they're referenced via Outer - but it's replicating the old code
-    iter_obj: UObject | None = obj
-    while iter_obj is not None:
-        iter_obj.ObjectFlags |= 0x4000
-        iter_obj = iter_obj.Outer
+    # Use legacy compat to be sure we have `ObjectFlags.A`
+    with legacy_compat():
+        # Don't think this loop is strictly necessary - the parent objects should stay loaded since
+        # they're referenced via Outer - but it's replicating the old code
+        iter_obj: UObject | None = obj
+        while iter_obj is not None:
+            iter_obj.ObjectFlags.A |= 0x4000  # type: ignore
+            iter_obj = iter_obj.Outer
 
 
 # ==================================================================================================
@@ -253,10 +256,13 @@ def KeepAlive(obj: UObject, /) -> None:
 # 3. The legacy sdk had interface properties return an FScriptInterface struct, but since you only
 #    ever accessed the object, the new sdk just returns it directly. This means old code already has
 #    a UObject, but tries to access the `ObjectPointer` field, which we replace with a no-op.
-# 4. The legacy sdk treated all out params as be optional, even if they weren't actually.
-# 5. The new sdk always returns Ellipsis for a void function, meaning a void function with out
+# 4. The `ObjectFlags` field on objects used to be split into the upper and lower 32 bits (B and A
+#    respectively), new sdk returns a single 64 bit int. Return a proxy object instead.
+# 5. The legacy sdk treated all out params as be optional, even if they weren't actually.
+# 6. The new sdk always returns Ellipsis for a void function, meaning a void function with out
 #    params returns an extra value compared to the legacy one.
 _default_object_getattr = UObject.__getattr__
+_default_object_getattribute = UObject.__getattribute__
 _default_object_setattr = UObject.__setattr__
 _default_struct_getattr = WrappedStruct.__getattr__
 _default_struct_setattr = WrappedStruct.__setattr__
@@ -323,6 +329,43 @@ def _object_getattr(self: UObject, name: str) -> Any:
         if name == "ObjectPointer":
             return self
         return None
+
+
+@dataclass
+class _ObjectFlagsProxy:
+    _obj: UObject
+
+    @property
+    def A(self) -> int:
+        flags = _default_object_getattribute(self._obj, "ObjectFlags")
+        return flags & 0xFFFFFFFF
+
+    @A.setter
+    def A(self, val: int) -> None:
+        flags = _default_object_getattribute(self._obj, "ObjectFlags")
+        self._obj.ObjectFlags = (val & 0xFFFFFFFF) | (flags & ~0xFFFFFFFF)
+
+    @property
+    def B(self) -> int:
+        flags = _default_object_getattribute(self._obj, "ObjectFlags")
+        return flags >> 32
+
+    @B.setter
+    def B(self, val: int) -> None:
+        flags = _default_object_getattribute(self._obj, "ObjectFlags")
+        self._obj.ObjectFlags = (flags & 0xFFFFFFFF) | (val << 32)
+
+    # This also ensures the setattr works properly, since it'll just cast to int
+    def __int__(self) -> int:
+        return _default_object_getattribute(self._obj, "ObjectFlags")
+
+
+# Because we want to overwrite an exiting field, we have to use getattribute over getattr
+@wraps(UObject.__getattribute__)
+def _object_getattribute(self: UObject, name: str) -> Any:
+    if name == "ObjectFlags":
+        return _ObjectFlagsProxy(self)
+    return _default_object_getattribute(self, name)
 
 
 @wraps(UObject.__setattr__)
@@ -486,6 +529,7 @@ def uobject_path_name(obj: UObject, /) -> str:
 @contextmanager
 def _unreal_method_compat_handler() -> Iterator[None]:
     UObject.__getattr__ = _object_getattr
+    UObject.__getattribute__ = _object_getattribute
     UObject.__setattr__ = _object_setattr
     WrappedStruct.__getattr__ = _struct_getattr
     WrappedStruct.__setattr__ = _struct_setattr
@@ -500,6 +544,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         yield
     finally:
         UObject.__getattr__ = _default_object_getattr
+        UObject.__getattribute__ = _default_object_getattribute
         UObject.__setattr__ = _default_object_setattr
         WrappedStruct.__getattr__ = _default_struct_getattr
         WrappedStruct.__setattr__ = _default_struct_setattr
