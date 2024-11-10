@@ -273,7 +273,7 @@ _default_func_call = BoundFunction.__call__
 
 def _create_struct_from_tuples(struct: UScriptStruct, value: tuple[Any, ...]) -> WrappedStruct:
     """
-    Recusively creates a wrapped struct from it's tuple equivalent.
+    Recursively creates a wrapped struct from it's tuple equivalent.
 
     Args:
         struct: The struct type to create:
