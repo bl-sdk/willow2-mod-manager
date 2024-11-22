@@ -249,25 +249,39 @@ def KeepAlive(obj: UObject, /) -> None:
 # ==================================================================================================
 # Compatibility methods wrappers
 
-# There are a number of things we're fixing with these:
-# 1. The legacy sdk had you set structs via a tuple of their values in sequence, we need to convert
-#    them to a wrapped struct instance.
-# 2. The legacy sdk returned None instead of throwing an attribute error when a field didn't exist.
-# 3. The legacy sdk had interface properties return an FScriptInterface struct, but since you only
-#    ever accessed the object, the new sdk just returns it directly. This means old code already has
-#    a UObject, but tries to access the `ObjectPointer` field, which we replace with a no-op.
-# 4. The `ObjectFlags` field on objects used to be split into the upper and lower 32 bits (B and A
-#    respectively), new sdk returns a single 64 bit int. Return a proxy object instead.
-# 5. The legacy sdk treated all out params as be optional, even if they weren't actually.
-# 6. The new sdk always returns Ellipsis for a void function, meaning a void function with out
-#    params returns an extra value compared to the legacy one.
+"""
+There are a number of things we're fixing with these.
+
+Property Access:
+- The legacy sdk had you set structs via a tuple of their values in sequence, we need to convert
+  them to a wrapped struct instance.
+- The legacy sdk returned None instead of throwing an attribute error when a field didn't exist.
+- The legacy sdk had interface properties return an FScriptInterface struct, but since you only ever
+  accessed the object, the new sdk just returns it directly. This means old code already has a
+  UObject, but tries to access the `ObjectPointer` field, which we replace with a no-op.
+
+UObject:
+- The `ObjectFlags` field on objects used to be split into the upper and lower 32 bits (B and A
+  respectively), new sdk returns a single 64 bit int. Return a proxy object instead.
+- In the legacy sdk the __repr__ of objects was just kind of wrong, but we need to replicate it.
+
+BoundFunction:
+- The legacy sdk treated all out params as be optional, even if they weren't actually.
+- The new sdk always returns Ellipsis for a void function, meaning a void function with out params
+  returns an extra value compared to the legacy one.
+"""
+
 _default_object_getattr = UObject.__getattr__
 _default_object_getattribute = UObject.__getattribute__
 _default_object_setattr = UObject.__setattr__
+_default_object_repr = UObject.__repr__
+
 _default_struct_getattr = WrappedStruct.__getattr__
 _default_struct_setattr = WrappedStruct.__setattr__
+
 # Array looks a little weird since it's generic, just remember WrappedArray[Any] == WrappedArray
 _default_array_setitem = WrappedArray[Any].__setitem__
+
 _default_func_call = BoundFunction.__call__
 
 
@@ -322,7 +336,7 @@ def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
 
 
 @wraps(UObject.__getattr__)
-def _object_getattr(self: UObject, name: str) -> Any:
+def _uobject_getattr(self: UObject, name: str) -> Any:
     try:
         return _default_object_getattr(self, name)
     except AttributeError:
@@ -362,14 +376,14 @@ class _ObjectFlagsProxy:
 
 # Because we want to overwrite an exiting field, we have to use getattribute over getattr
 @wraps(UObject.__getattribute__)
-def _object_getattribute(self: UObject, name: str) -> Any:
+def _uobject_getattribute(self: UObject, name: str) -> Any:
     if name == "ObjectFlags":
         return _ObjectFlagsProxy(self)
     return _default_object_getattribute(self, name)
 
 
 @wraps(UObject.__setattr__)
-def _object_setattr(self: UObject, name: str, value: Any) -> None:
+def _uobject_setattr(self: UObject, name: str, value: Any) -> None:
     try:
         prop = self.Class._find_prop(name)
     except ValueError:
@@ -377,6 +391,16 @@ def _object_setattr(self: UObject, name: str, value: Any) -> None:
         return
 
     _default_object_setattr(self, name, _convert_struct_tuple_if_required(prop, value))
+
+
+@wraps(UObject.__repr__)
+def _uobject_repr(self: UObject) -> str:
+    current = self
+    output = f"{self.Name}"
+    while current := current.Outer:
+        output = f"{current.Name}.{output}"
+
+    return f"{self.Class.Name} {output}"
 
 
 @wraps(WrappedStruct.__getattr__)
@@ -528,17 +552,21 @@ def uobject_path_name(obj: UObject, /) -> str:
 
 @contextmanager
 def _unreal_method_compat_handler() -> Iterator[None]:
-    UObject.__getattr__ = _object_getattr
-    UObject.__getattribute__ = _object_getattribute
-    UObject.__setattr__ = _object_setattr
+    UObject.__getattr__ = _uobject_getattr
+    UObject.__getattribute__ = _uobject_getattribute
+    UObject.__setattr__ = _uobject_setattr
+    UObject.__repr__ = _uobject_repr
+
     WrappedStruct.__getattr__ = _struct_getattr
     WrappedStruct.__setattr__ = _struct_setattr
+
     WrappedArray.__setitem__ = _array_setitem  # type: ignore
     BoundFunction.__call__ = _boundfunc_call
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
     UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
     UObject.PathName = uobject_path_name  # type: ignore
+    UObject.GetFullName = _uobject_repr  # type: ignore
 
     try:
         yield
@@ -546,14 +574,18 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         UObject.__getattr__ = _default_object_getattr
         UObject.__getattribute__ = _default_object_getattribute
         UObject.__setattr__ = _default_object_setattr
+        UObject.__repr__ = _default_object_repr
+
         WrappedStruct.__getattr__ = _default_struct_getattr
         WrappedStruct.__setattr__ = _default_struct_setattr
+
         WrappedArray.__setitem__ = _default_array_setitem
         BoundFunction.__call__ = _default_func_call
 
         del UObject.FindObjectsContaining  # type: ignore
         del UStructProperty.GetStruct  # type: ignore
         del UObject.PathName  # type: ignore
+        del UObject.GetFullName  # type: ignore
 
 
 compat_handlers.append(_unreal_method_compat_handler)
