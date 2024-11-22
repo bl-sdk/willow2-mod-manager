@@ -69,7 +69,7 @@ else:
     import warnings
     from collections.abc import Iterator, Sequence
     from contextlib import contextmanager
-    from importlib.machinery import ModuleSpec
+    from importlib.machinery import ModuleSpec, SourceFileLoader
     from importlib.util import spec_from_file_location
     from pathlib import Path
     from types import ModuleType
@@ -165,9 +165,24 @@ else:
             # EridiumLib adds it's dist folder with a path relative to the executable - fix that
             # We also have some problems with it's copy of requests, so redirect that to our copy
             if fullname == "requests" and cls.get_importing_file().parent.name == "EridiumLib":
+                # Can't easily load the real requests, but turns out all we actually need is a get
+                # method, which is allowed to just throw
+                # Using a custom loader to inject it rather than loading from file, since the latter
+                # doesn't work properly if we're packaged inside a .sdkmod
+                class FakeRequestsLoader(SourceFileLoader):
+                    def get_data(self, path: str) -> bytes:  # noqa: ARG002
+                        return (
+                            b"def get(url: str, timeout: int) -> str:  # noqa: D103\n"
+                            b"    raise NotImplementedError"
+                        )
+
                 return spec_from_file_location(
                     "Mods.EridiumLib.fake_dist.requests",
-                    Path(__file__).parent / "eridiumlib_requests.py",
+                    "<fake location>",
+                    loader=FakeRequestsLoader(
+                        "Mods.EridiumLib.fake_dist.requests",
+                        "<fake location>",
+                    ),
                 )
             if (
                 fullname == "semver"
