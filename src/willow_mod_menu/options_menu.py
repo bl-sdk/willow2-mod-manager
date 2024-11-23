@@ -4,7 +4,7 @@ from typing import Any
 
 import unrealsdk
 from unrealsdk.hooks import Block
-from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
+from unrealsdk.unreal import BoundFunction, UObject, WeakPointer, WrappedStruct
 
 from mods_base import ENGINE, BaseOption, Mod, hook
 
@@ -19,6 +19,11 @@ from .data_providers import (
 )
 
 data_provider_stack: list[DataProvider] = []
+
+# Keep track of the latest WillowScrollingList we've been writing options to
+# This is just to be a bit nicer to anyone trying to extend the menu, rather than needing to use
+# find object calls to get back to it
+latest_list: WeakPointer = WeakPointer(None)
 
 
 def push_options(the_list: UObject, screen_name: str, options: Sequence[BaseOption]) -> None:
@@ -39,6 +44,9 @@ def push_options(the_list: UObject, screen_name: str, options: Sequence[BaseOpti
     data_provider_stack.append(OptionsDataProvider(options))
     the_list.PushDataProvider(provider)
 
+    global latest_list
+    latest_list = WeakPointer(the_list)
+
 
 def push_mod_options(the_list: UObject, mod: Mod) -> None:
     """
@@ -57,6 +65,9 @@ def push_mod_options(the_list: UObject, mod: Mod) -> None:
     data_provider_stack.append(ModOptionsDataProvider(mod=mod))
     the_list.PushDataProvider(provider)
 
+    global latest_list
+    latest_list = WeakPointer(the_list)
+
 
 def push_mod_list(the_list: UObject) -> None:
     """
@@ -73,6 +84,9 @@ def push_mod_list(the_list: UObject) -> None:
 
     data_provider_stack.append(ModListDataProvider())
     the_list.PushDataProvider(provider)
+
+    global latest_list
+    latest_list = WeakPointer(the_list)
 
 
 # Avoid circular imports
