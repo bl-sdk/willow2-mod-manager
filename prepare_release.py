@@ -201,7 +201,7 @@ def _zip_config_file(zip_file: ZipFile) -> None:
         f"\n"
         f"[mod_manager]\n"
         f"display_version = {json.dumps(display_version)}\n"
-        f"legacy_mod_migration = false\n"
+        f"legacy_mod_migration = true\n"
         f"\n"
         f"[willow2_mod_menu]\n"
         f"display_version = {json.dumps(release_name)}\n"
