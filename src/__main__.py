@@ -16,7 +16,6 @@ from __future__ import annotations
 import contextlib
 import importlib
 import json
-import os
 import re
 import shutil
 import sys
@@ -73,7 +72,7 @@ def init_debugpy() -> None:
             debugpy.wait_for_client()  # pyright: ignore[reportUnknownMemberType]  # noqa: T100
             debugpy.breakpoint()  # pyright: ignore[reportUnknownMemberType]  # noqa: T100
 
-        if "PYUNREALSDK_DEBUGPY" not in os.environ:
+        if not unrealsdk.config.get("pyunrealsdk", {}).get("debugpy", False):
             logging.dev_warning(
                 "Was able to start debugpy, but the `PYUNREALSDK_DEBUGPY` environment variable is"
                 " not set. This may prevent breakpoints from working properly.",
@@ -108,7 +107,9 @@ def get_all_mod_folders() -> Sequence[Path]:
 
     extra_folders = []
     with contextlib.suppress(json.JSONDecodeError, TypeError):
-        extra_folders = [Path(x) for x in json.loads(os.environ.get(EXTRA_FOLDERS_ENV_VAR, ""))]
+        extra_folders = [
+            Path(x) for x in unrealsdk.config.get("mod_manager", {}).get("extra_folders", [])
+        ]
 
     return [Path(__file__).parent, *extra_folders]
 
@@ -382,24 +383,6 @@ def check_proton_bugs() -> None:
             "===============================================================================",
         )
 
-    """
-    Env vars not propagating
-    ------------------------
-    We set various env vars in `unrealsdk.env`, which unrealsdk sets via `SetEnvironmentVariableA`.
-    On some proton versions this does not get propagated through to Python - despite clearly having
-    worked for pyunrealsdk, if we're able to run this script. Some of these are used by Python, and
-    may cause issues if we cannot find them.
-    """
-    if "PYUNREALSDK_INIT_SCRIPT" not in os.environ:
-        logging.error(
-            "===============================================================================\n"
-            "Some environment variables don't seem to have propagated into Python. This may\n"
-            "cause issues in parts of the mod manager or individual mods which expect them.\n"
-            "\n"
-            "Some particular Proton versions cause this, try switch to another one.\n"
-            "===============================================================================",
-        )
-
 
 LEGACY_MOD_MIGRATION_BLACKLIST: set[str] = {
     # Old Mod Manager
@@ -477,7 +460,9 @@ def migrate_legacy_mods_folder() -> bool:
         True if any migrations were performed.
     """
 
-    if legacy_compat is None or LEGACY_MOD_MIGRATIONS_ENV_VAR not in os.environ:
+    if legacy_compat is None or not (
+        unrealsdk.config.get("mod_manager", {}).get("legacy_mod_migration", False)
+    ):
         return False
 
     if not LEGACY_MOD_FOLDER.exists():

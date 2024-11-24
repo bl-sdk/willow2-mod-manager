@@ -1,5 +1,4 @@
 # ruff: noqa: D103
-import os
 import traceback
 from typing import TYPE_CHECKING, Any
 
@@ -43,7 +42,10 @@ DLC_MENU_CONTROLLER_TO_KB_KEY_MAP = {
     "XboxTypeS_RightTrigger": "PageDown",
 }
 
-FRIENDLY_DISPLAY_VERSION = os.environ.get("WILLOW_MOD_MENU_DISPLAY_VERSION", base_mod.version)
+FRIENDLY_DISPLAY_VERSION = unrealsdk.config.get("willow2_mod_menu", {}).get(
+    "display_version",
+    base_mod.version,
+)
 
 drawn_mod_list: list[Mod] = []
 

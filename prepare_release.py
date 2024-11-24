@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import re
 import shutil
 import subprocess
@@ -11,8 +12,6 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from pick_release_name import pick_release_name
-
-ALPHA = True
 
 THIS_FOLDER = Path(__file__).parent
 
@@ -175,29 +174,40 @@ ZIP_PLUGINS_FOLDER = ZIP_EXECUTABLE_FOLDER / "Plugins"
 
 
 def _zip_init_script(zip_file: ZipFile) -> None:
-    output_init_script = ZIP_MODS_FOLDER / INIT_SCRIPT.name
-    zip_file.write(INIT_SCRIPT, output_init_script)
-    init_script_env = (
-        # Path.relative_to doesn't work when where's no common base, need to use os.path
-        # While the file goes in the plugins folder, this path is relative to *the executable*
-        f"PYUNREALSDK_INIT_SCRIPT={path.relpath(output_init_script, ZIP_EXECUTABLE_FOLDER)}\n"
-        f"PYUNREALSDK_PYEXEC_ROOT={path.relpath(ZIP_MODS_FOLDER, ZIP_EXECUTABLE_FOLDER)}\n"
-        f"UNREALSDK_LOCKING_PROCESS_EVENT=1\n"
-    )
+    zip_file.write(INIT_SCRIPT, ZIP_MODS_FOLDER / INIT_SCRIPT.name)
 
-    # We also define the display version via an env var, do that here too
+
+def _zip_config_file(zip_file: ZipFile) -> None:
+    # Path.relative_to doesn't work when where's no common base, need to use os.path
+    # While the file goes in the plugins folder, this path is relative to *the executable*
+    init_script_path = path.relpath(ZIP_MODS_FOLDER / INIT_SCRIPT.name, ZIP_EXECUTABLE_FOLDER)
+    pyexec_root = path.relpath(ZIP_MODS_FOLDER, ZIP_EXECUTABLE_FOLDER)
+
     version_number = tomllib.loads(PYPROJECT_FILE.read_text())["project"]["version"]
     git_version = get_git_repo_version()
-    init_script_env += f"MOD_MANAGER_DISPLAY_VERSION={version_number} ({git_version})\n"
+    display_version = f"{version_number} ({git_version})"
 
-    if not ALPHA:
-        init_script_env += "MOD_MANAGER_LEGACY_MOD_MIGRATION=1\n"
+    release_name = pick_release_name(get_git_commit_hash())
 
-    init_script_env += (
-        f"WILLOW_MOD_MENU_DISPLAY_VERSION={pick_release_name(get_git_commit_hash())}\n"
+    # Tomllib doesn't support dumping yet, so we have to create it as a string
+    # Using `json.dumps` to escape strings, since it should be mostly compatible
+    config = (
+        f"[unrealsdk]\n"
+        f"locking_process_event = true\n"
+        f"\n"
+        f"[pyunrealsdk]\n"
+        f"init_script = {json.dumps(init_script_path)}\n"
+        f"pyexec_root = {json.dumps(pyexec_root)}\n"
+        f"\n"
+        f"[mod_manager]\n"
+        f"display_version = {json.dumps(display_version)}\n"
+        f"legacy_mod_migration = false\n"
+        f"\n"
+        f"[willow2_mod_menu]\n"
+        f"display_version = {json.dumps(release_name)}\n"
     )
 
-    zip_file.writestr(str(ZIP_PLUGINS_FOLDER / "unrealsdk.env"), init_script_env)
+    zip_file.writestr(str(ZIP_PLUGINS_FOLDER / "unrealsdk.toml"), config)
 
 
 def _zip_mod_folders(zip_file: ZipFile, mod_folders: Sequence[Path], debug: bool) -> None:
@@ -298,6 +308,7 @@ def zip_release(
 
     with ZipFile(output, "w", ZIP_DEFLATED, compresslevel=9) as zip_file:
         _zip_init_script(zip_file)
+        _zip_config_file(zip_file)
         _zip_mod_folders(zip_file, mod_folders, debug)
         _zip_stubs(zip_file)
         _zip_settings(zip_file)
