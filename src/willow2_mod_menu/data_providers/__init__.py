@@ -10,9 +10,9 @@ RESET_KEYBINDS_EVENT_ID = 1001
 # Putting all our options past this point
 OPTION_EVENT_ID_OFFSET = 2000
 
-KB_TAG_KEYBIND = "willow_mod_menu:keybind"
-KB_TAG_UNREBINDABLE = "willow_mod_menu:unrebindable"
-KB_TAG_HEADER = "willow_mod_menu:header"
+KB_TAG_KEYBIND = "willow2_mod_menu:keybind"
+KB_TAG_UNREBINDABLE = "willow2_mod_menu:unrebindable"
+KB_TAG_HEADER = "willow2_mod_menu:header"
 
 
 class DataProvider(ABC):

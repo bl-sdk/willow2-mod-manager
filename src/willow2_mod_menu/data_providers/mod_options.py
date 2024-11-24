@@ -12,7 +12,7 @@ from mods_base import (
     Mod,
     NestedOption,
 )
-from willow_mod_menu.description import get_mod_description
+from willow2_mod_menu.description import get_mod_description
 
 from . import (
     KB_TAG_HEADER,

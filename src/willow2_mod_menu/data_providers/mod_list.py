@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 from unrealsdk.unreal import UObject
 
 from mods_base import Mod, get_ordered_mod_list
-from willow_mod_menu.favourites import is_favourite
-from willow_mod_menu.options_menu import push_mod_options
+from willow2_mod_menu.favourites import is_favourite
+from willow2_mod_menu.options_menu import push_mod_options
 
 from . import DataProvider
 

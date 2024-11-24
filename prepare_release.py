@@ -20,7 +20,7 @@ CONSOLE_MENU = THIS_FOLDER / "src" / "console_mod_menu"
 KEYBINDS = THIS_FOLDER / "src" / "keybinds"
 LEGACY_COMPAT = THIS_FOLDER / "src" / "legacy_compat"
 NETWORKING = THIS_FOLDER / "src" / "networking"
-STANDARD_MENU = THIS_FOLDER / "src" / "willow_mod_menu"
+STANDARD_MENU = THIS_FOLDER / "src" / "willow2_mod_menu"
 UI_UTILS = THIS_FOLDER / "src" / "ui_utils"
 
 

@@ -15,7 +15,7 @@ from mods_base import (
     SliderOption,
     SpinnerOption,
 )
-from willow_mod_menu.options_menu import push_options
+from willow2_mod_menu.options_menu import push_options
 
 from . import OPTION_EVENT_ID_OFFSET, DataProvider
 
