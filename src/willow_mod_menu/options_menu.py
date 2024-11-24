@@ -23,7 +23,7 @@ data_provider_stack: list[DataProvider] = []
 # Keep track of the latest WillowScrollingList we've been writing options to
 # This is just to be a bit nicer to anyone trying to extend the menu, rather than needing to use
 # find object calls to get back to it
-latest_list: WeakPointer = WeakPointer(None)
+latest_list: WeakPointer = WeakPointer()
 
 
 def push_options(the_list: UObject, screen_name: str, options: Sequence[BaseOption]) -> None:

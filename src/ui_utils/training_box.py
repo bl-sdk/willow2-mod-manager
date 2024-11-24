@@ -58,7 +58,7 @@ class TrainingBox:
     on_exit: Callable[[Self], None] | None = None
     on_input: Callable[[Self, str, EInputEvent], Block | type[Block] | None] | None = None
 
-    _gfx_object: WeakPointer = field(init=False, default=WeakPointer(None))
+    _gfx_object: WeakPointer = field(init=False, default=WeakPointer())
 
     def __post_init__(self) -> None:
         # In case you open multiple dialogs at once, we don't want the identifier to conflict, so
@@ -112,7 +112,7 @@ class TrainingBox:
             return
 
         dialog.Close()
-        self._gfx_object = WeakPointer(None)
+        self._gfx_object = WeakPointer()
 
     def _is_correct_training_box(self, obj: UObject) -> bool:
         """
