@@ -38,8 +38,8 @@ __all__: tuple[str, ...] = (
     "EnabledSaveType",
     "Game",
     "ModPriorities",
-    "Mods",
     "ModTypes",
+    "Mods",
     "RegisterMod",
     "SDKMod",
 )

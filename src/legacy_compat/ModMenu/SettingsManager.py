@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 __all__: tuple[str, ...] = (
     "GetSettingsFilePath",
-    "SaveModSettings",
-    "SaveAllModSettings",
     "LoadModSettings",
+    "SaveAllModSettings",
+    "SaveModSettings",
 )
 
 

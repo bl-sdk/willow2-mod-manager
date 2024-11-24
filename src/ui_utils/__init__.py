@@ -8,18 +8,18 @@ from .reorder_box import ReorderBox
 from .training_box import EBackButtonScreen, TrainingBox
 
 __all__: tuple[str, ...] = (
+    "EBackButtonScreen",
+    "OptionBox",
+    "OptionBoxButton",
+    "ReorderBox",
+    "TrainingBox",
     "__author__",
     "__version__",
     "__version_info__",
     "clipboard_copy",
     "clipboard_paste",
-    "EBackButtonScreen",
-    "OptionBox",
-    "OptionBoxButton",
-    "ReorderBox",
     "show_chat_message",
     "show_hud_message",
-    "TrainingBox",
 )
 
 __version_info__: tuple[int, int] = (1, 0)

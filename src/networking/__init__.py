@@ -9,6 +9,7 @@ from .decorators import NetworkFunction, broadcast, host, targeted
 from .factory import add_network_functions, bind_all_network_functions
 
 __all__: tuple[str, ...] = (
+    "NetworkFunction",
     "__author__",
     "__version__",
     "__version_info__",
@@ -16,7 +17,6 @@ __all__: tuple[str, ...] = (
     "bind_all_network_functions",
     "broadcast",
     "host",
-    "NetworkFunction",
     "targeted",
 )
 

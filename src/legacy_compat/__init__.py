@@ -5,10 +5,10 @@ from contextlib import AbstractContextManager, ExitStack, contextmanager
 from mods_base.mod_list import base_mod
 
 __all__: tuple[str, ...] = (
+    "ENABLED",
     "__author__",
     "__version__",
     "__version_info__",
-    "ENABLED",
     "legacy_compat",
 )
 
