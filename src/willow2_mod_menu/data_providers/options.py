@@ -230,9 +230,6 @@ class OptionsDataProvider(DataProvider):
                 push_options(the_list, option.display_name, option.children)
                 return True
             case _:
-                logging.dev_warning(
-                    f"Encountered unexpected option type {type(option)} in click handler",
-                )
                 return False
 
     def handle_spinner_change(self, event_id: int, new_choice_idx: int) -> bool:  # noqa: D102
