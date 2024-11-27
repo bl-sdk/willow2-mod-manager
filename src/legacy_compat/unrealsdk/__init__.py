@@ -82,10 +82,11 @@ FArray = WrappedArray
 UPackage = UObject
 
 
-# There is no longer an equivalent of this type, but we need to keep something around for isinstance
-# checks
+# There is no longer an equivalent of this type, but we need to keep something around, both for
+# isinstance checks and for something to return
+@dataclass
 class FScriptInterface:
-    pass
+    ObjectPointer: UObject | None
 
 
 Log = print
@@ -257,8 +258,7 @@ Property Access:
   them to a wrapped struct instance.
 - The legacy sdk returned None instead of throwing an attribute error when a field didn't exist.
 - The legacy sdk had interface properties return an FScriptInterface struct, but since you only ever
-  accessed the object, the new sdk just returns it directly. This means old code already has a
-  UObject, but tries to access the `ObjectPointer` field, which we replace with a no-op.
+  accessed the object, the new sdk just returns it directly. We need to return the struct instead.
 
 UObject:
 - The `ObjectFlags` field on objects used to be split into the upper and lower 32 bits (B and A
@@ -280,6 +280,7 @@ _default_struct_getattr = WrappedStruct.__getattr__
 _default_struct_setattr = WrappedStruct.__setattr__
 
 # Array looks a little weird since it's generic, just remember WrappedArray[Any] == WrappedArray
+_default_array_getitem = WrappedArray[Any].__getitem__
 _default_array_setitem = WrappedArray[Any].__setitem__
 
 _default_func_call = BoundFunction.__call__
@@ -338,11 +339,16 @@ def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
 @wraps(UObject.__getattr__)
 def _uobject_getattr(self: UObject, name: str) -> Any:
     try:
-        return _default_object_getattr(self, name)
-    except AttributeError:
-        if name == "ObjectPointer":
-            return self
+        prop = self.Class._find(name)
+    except ValueError:
         return None
+
+    value = self._get_field(prop)
+
+    if isinstance(prop, UInterfaceProperty):
+        return FScriptInterface(value)
+
+    return value
 
 
 @dataclass
@@ -406,11 +412,16 @@ def _uobject_repr(self: UObject) -> str:
 @wraps(WrappedStruct.__getattr__)
 def _struct_getattr(self: WrappedStruct, name: str) -> Any:
     try:
-        return _default_struct_getattr(self, name)
-    except AttributeError:
-        if name == "ObjectPointer":
-            return self
+        prop = self._type._find(name)
+    except ValueError:
         return None
+
+    value = self._get_field(prop)
+
+    if isinstance(prop, UInterfaceProperty):
+        return FScriptInterface(value)
+
+    return value
 
 
 @wraps(WrappedStruct.__setattr__)
@@ -424,10 +435,24 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
     _default_struct_setattr(self, name, _convert_struct_tuple_if_required(prop, value))
 
 
+@wraps(WrappedArray[Any].__getitem__)
+def _array_getitem[T](self: WrappedArray[T], idx: int | slice) -> T | list[T]:
+    value = _default_array_getitem(self, idx)
+
+    if not isinstance(self._type, UInterfaceProperty):
+        return value
+
+    if isinstance(idx, slice):
+        val_seq: Sequence[T] = value  # type: ignore
+        return [FScriptInterface(x) for x in val_seq]  # type: ignore
+
+    return FScriptInterface(value)  # type: ignore
+
+
 @wraps(WrappedArray[Any].__setitem__)
 def _array_setitem[T](self: WrappedArray[T], idx: int | slice, value: T | Sequence[T]) -> None:
-    if isinstance(value, Sequence):
-        val_seq: Sequence[T] = value
+    if isinstance(idx, slice):
+        val_seq: Sequence[T] = value  # type: ignore
         _default_array_setitem(
             self,
             idx,
@@ -560,6 +585,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     WrappedStruct.__getattr__ = _struct_getattr
     WrappedStruct.__setattr__ = _struct_setattr
 
+    WrappedArray.__getitem__ = _array_getitem  # type: ignore
     WrappedArray.__setitem__ = _array_setitem  # type: ignore
     BoundFunction.__call__ = _boundfunc_call
 
@@ -579,6 +605,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         WrappedStruct.__getattr__ = _default_struct_getattr
         WrappedStruct.__setattr__ = _default_struct_setattr
 
+        WrappedArray.__getitem__ = _default_array_getitem
         WrappedArray.__setitem__ = _default_array_setitem
         BoundFunction.__call__ = _default_func_call
 
