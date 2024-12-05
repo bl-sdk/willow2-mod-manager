@@ -179,6 +179,10 @@ _HOOK_BLACKLIST: set[tuple[str, str]] = {
     # hardcodes some fixups for these instead, so suppress their hooks
     ("WillowGame.WillowScrollingList.OnClikEvent", "Commander"),
     ("WillowGame.WillowScrollingList.OnClikEvent", "LootRandomizer"),
+    # This hook is used to fix the offline mode say crash - which is something included in unrealsdk
+    # itself now. Since the semantics of multiple blocking hooks on the same function changed (which
+    # is not something we replicate), having both means trying to chat will print the message twice.
+    ("WillowGame.TextChatGFxMovie.AddChatMessage", "Offline Helpers"),
 }
 
 
