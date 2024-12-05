@@ -300,7 +300,9 @@ def import_mods(mods_to_import: Collection[ModInfo]) -> None:
     Args:
         mods_to_import: The list of mods to import.
     """
-    for mod in mods_to_import:
+    # False sorts before True, import all legacy mods last, so that any new mods can setup their own
+    # legacy compat first
+    for mod in sorted(mods_to_import, key=lambda x: x.legacy):
         try:
             if mod.legacy and legacy_compat is not None:
                 with legacy_compat():

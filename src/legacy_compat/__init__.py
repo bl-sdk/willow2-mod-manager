@@ -1,6 +1,7 @@
 import warnings
 from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
+from types import ModuleType
 
 from mods_base.mod_list import base_mod
 
@@ -9,6 +10,7 @@ __all__: tuple[str, ...] = (
     "__author__",
     "__version__",
     "__version_info__",
+    "add_compat_module",
     "legacy_compat",
 )
 
@@ -56,6 +58,29 @@ def legacy_compat() -> Iterator[None]:
 legacy_compat.currently_active = False  # type: ignore
 
 
+def add_compat_module(name: str, module: ModuleType) -> None:  # pyright: ignore[reportRedeclaration]
+    """
+    Adds a custom compatibility module, which will be swapped in while legacy compat is active.
+
+    Args:
+        name: The name of the module to add. Must start with 'Mods.'.
+        module: The module to add.
+    """
+    # Choose to define the disabled version up here, so the public interface is all in once place,
+    # and then replace it lower down
+    _ = module
+
+    # Even though we're not actually going to do anything here, replicate the error for consistency
+    if not name.startswith("Mods."):
+        raise ValueError("Legacy compat modules must start with 'Mods.'")
+
+    warnings.warn(
+        "Legacy import compatibility has been removed.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
 # Kill switch. May have to update this at some point if we decide to keep this around longer.
 if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4"}:
     from unrealsdk import logging
@@ -69,10 +94,10 @@ else:
     import warnings
     from collections.abc import Iterator, Sequence
     from contextlib import contextmanager
+    from functools import wraps
     from importlib.machinery import ModuleSpec, SourceFileLoader
     from importlib.util import spec_from_file_location
     from pathlib import Path
-    from types import ModuleType
 
     from unrealsdk.hooks import prevent_hooking_direct_calls
 
@@ -222,3 +247,13 @@ else:
             sys.modules |= overwritten_modules
 
     compat_handlers.append(import_compat_handler)
+
+    @wraps(add_compat_module)
+    def add_compat_module(name: str, module: ModuleType) -> None:  # noqa: D103
+        if not name.startswith("Mods."):
+            raise ValueError("Legacy compat modules must start with 'Mods.'")
+
+        if name in legacy_modules:
+            raise ValueError(f"Legacy compat module '{name}' already exists!")
+
+        legacy_modules[name] = module
