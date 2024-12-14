@@ -398,6 +398,8 @@ LEGACY_MOD_MIGRATION_BLACKLIST: set[str] = {
     # Misc
     "__pycache__",
     "SideMissionRandomizer",
+    "RoguelandsGamemode",
+    "RoguelandsMiniGamemode",
 }
 
 
