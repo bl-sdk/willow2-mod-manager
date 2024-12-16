@@ -193,7 +193,7 @@ def _zip_config_file(zip_file: ZipFile) -> None:
     # Using `json.dumps` to escape strings, since it should be mostly compatible
     config = (
         f"[unrealsdk]\n"
-        f"locking_process_event = true\n"
+        f"locking_function_calls = true\n"
         f"\n"
         f"[pyunrealsdk]\n"
         f"init_script = {json.dumps(init_script_path)}\n"
