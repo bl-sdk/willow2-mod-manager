@@ -343,7 +343,7 @@ if __name__ == "__main__":
 
     assert install_dir.exists() and install_dir.is_dir(), "install dir doesn't exist"
 
-    name = f"willow-sdk-{args.preset}.zip"
+    name = f"willow2-sdk-{args.preset}.zip"
     print(f"Zipping {name} ...")
 
     zip_release(Path(name), ALL_MOD_FOLDERS, "debug" in args.preset, install_dir)

@@ -72,7 +72,7 @@ jobs:
       if: inputs.new-release-tag != '' && startswith(matrix.preset, 'msvc')
       run: |
         python prepare_release.py ${{ matrix.preset }} --skip-install
-        mv willow-sdk-${{ matrix.preset }}.zip willow-sdk.zip
+        mv willow2-sdk-${{ matrix.preset }}.zip willow2-sdk.zip
 
     - name: Upload Artifact
       if: inputs.new-release-tag == '' || startswith(matrix.preset, 'msvc')
