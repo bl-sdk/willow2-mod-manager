@@ -291,13 +291,9 @@ jobs:
 
   release-dev-ci:
     runs-on: ubuntu-latest
-    #if: >
-    #  github.ref == 'refs/heads/master'
-    #  && github.repository == 'bl-sdk/willow2-mod-manager'
-    #  && inputs.new-release-tag == ''
     if: >
-      github.ref == 'refs/heads/v3'
-      && github.repository == 'apple1417/willow2-mod-manager'
+      github.ref == 'refs/heads/master'
+      && github.repository == 'bl-sdk/willow2-mod-manager'
       && inputs.new-release-tag == ''
 
     needs:
@@ -331,11 +327,10 @@ jobs:
 
   release-draft-full:
     runs-on: ubuntu-latest
-    if: 1 == 0
-    #if: >
-    #  github.ref == 'refs/heads/master'
-    #  && github.repository == 'bl-sdk/willow2-mod-manager'
-    #  && inputs.new-release-tag != ''
+    if: >
+      github.ref == 'refs/heads/master'
+      && github.repository == 'bl-sdk/willow2-mod-manager'
+      && inputs.new-release-tag != ''
 
     needs:
       - build-ubuntu
