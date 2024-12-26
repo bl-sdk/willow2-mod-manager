@@ -1,0 +1,54 @@
+---
+WarningsAsErrors:    ""
+HeaderFilterRegex:   "src/*.h"
+Checks: >
+    -*,
+    bugprone-*
+    clang-analyzer-*,
+    cppcoreguidelines-*,
+    -cppcoreguidelines-avoid-do-while,
+    -cppcoreguidelines-avoid-non-const-global-variables,
+    -cppcoreguidelines-prefer-member-initializer,
+    -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+    -cppcoreguidelines-pro-type-reinterpret-cast,
+    -cppcoreguidelines-pro-type-union-access,
+    -cppcoreguidelines-pro-type-vararg,
+    misc-*,
+    -misc-include-cleaner,
+    -misc-non-private-member-variables-in-classes,
+    -misc-no-recursion,
+    modernize-*,
+    -modernize-avoid-c-arrays,
+    -modernize-redundant-void-arg,
+    -modernize-use-trailing-return-type,
+    performance-*,
+    -performance-no-int-to-ptr,
+    portability-*,
+    readability-*,
+    -readability-qualified-auto,
+
+    -bugprone-narrowing-conversions,
+    -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-avoid-magic-numbers,
+    -cppcoreguidelines-c-copy-assignment-signature,
+    -cppcoreguidelines-explicit-virtual-functions,
+    -cppcoreguidelines-macro-to-enum,
+    -cppcoreguidelines-non-private-member-variables-in-classes,
+CheckOptions:
+    cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+    cppcoreguidelines-rvalue-reference-param-not-moved.IgnoreUnnamedParams: true
+    misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
+
+    readability-identifier-naming.GlobalConstantCase:   UPPER_CASE
+    readability-identifier-naming.MacroDefinitionCase:  UPPER_CASE
+
+    readability-identifier-naming.ClassCase:            CamelCase
+    readability-identifier-naming.EnumCase:             CamelCase
+    readability-identifier-naming.StructCase:           CamelCase
+
+    readability-identifier-naming.FunctionCase:         lower_case
+    readability-identifier-naming.MemberCase:           lower_case
+    readability-identifier-naming.NamespaceCase:        lower_case
+    readability-identifier-naming.ParameterCase:        lower_case
+    readability-identifier-naming.VariableCase:         lower_case
+---

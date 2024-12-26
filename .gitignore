@@ -1,6 +1,30 @@
-__pycache__
-.env
-.mypy_cache
+.vs
 .vscode
 
-PythonSDK.zip
+# C/C++ excludes
+.cache/clangd
+.gdbinit
+out
+
+# User scripts with templates
+postbuild
+postbuild.bat
+
+# CMake (from https://github.com/github/gitignore/blob/main/CMake.gitignore)
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+CMakeUserPresets.json
+__pycache__
+
+*.pyd
+*-sdk-*.zip
+*.sdkmod

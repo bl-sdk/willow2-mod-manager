@@ -1,0 +1,105 @@
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+pythonPlatform = "Windows"
+
+include = ["src"]
+stubPath = "libs/pyunrealsdk/stubs"
+reportMissingModuleSource = false
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+# Last time rules scrutinised: ruff 0.6.9 / 2024-10-08
+select = [
+    "F",
+    "W",
+    "E",
+    "C90",
+    "I",
+    "N",
+    "D",
+    "UP",
+    "YTT",
+    "ANN",
+    "ASYNC",
+    "S",
+    "BLE",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "DTZ",
+    "T10",
+    "FA",
+    "ISC",
+    "ICN",
+    "LOG",
+    "G",
+    "PIE",
+    "PYI",
+    "Q",
+    "RSE",
+    "RET",
+    "SLOT",
+    "SIM",
+    "TID",
+    "TCH",
+    "INT",
+    "ARG",
+    "PTH",
+    "TD",
+    "FIX",
+    "ERA",
+    "PGH",
+    "PL",
+    "FLY",
+    "PERF",
+    "FURB",
+    "RUF",
+]
+ignore = [
+    "D100",
+    "D101",
+    "D104",
+    "D105",
+    "D106",
+    "D107",
+    "D202",
+    "D203",
+    "D212",
+    "D401",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D410",
+    "D411",
+    "D413",
+    "ANN101",
+    "ANN102",
+    "ANN401",
+    "S101",
+    "S603",
+    "S607",
+    "PYI011",
+    "PYI021",
+    "PYI029",
+    "PYI044",
+    "PGH003",
+    "PLR0904",
+    "PLR0911",
+    "PLR0912",
+    "PLR0913",
+    "PLR0915",
+    "PLR6301",
+    "PLW0603",
+    "PLW2901",
+    "FURB140",
+    "FURB167",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*.pyi" = ["D418", "A002", "A003"]

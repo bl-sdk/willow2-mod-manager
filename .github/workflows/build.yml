@@ -1,0 +1,366 @@
+name: CI
+
+on:
+  push: {}
+  pull_request: {}
+  workflow_dispatch:
+    inputs:
+      new-release-tag:
+        description: >
+          New Release Tag. If given, creates a (draft) full release using the given tag, if empty,
+          updates the dev release.
+        type: string
+        required: false
+
+env:
+  LLVM_MINGW_VERSION: llvm-mingw-20240619-msvcrt-ubuntu-20.04-x86_64
+  LLVM_MINGW_DOWNLOAD: https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-msvcrt-ubuntu-20.04-x86_64.tar.xz
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+        - clang-release
+        - msvc-release
+
+    steps:
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang')
+      uses: egor-tensin/setup-clang@v1
+
+    - name: Add MSVC to PATH
+      if: startswith(matrix.preset, 'msvc')
+      uses: TheMrMilchmann/setup-msvc-dev@v3
+      with:
+        arch: x86
+
+    - name: Setup CMake and Ninja
+      uses: lukka/get-cmake@latest
+
+    # We only actually need this python version to run the download script, we're not going to link
+    # against it, so don't need to specify arch
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ">=3.11"
+
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure build
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      run: |
+        pip install requests
+
+        cmake . --preset ${{ matrix.preset }} -G Ninja
+
+    - name: Build
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      run: cmake --build out/build/${{ matrix.preset }} --target install
+
+    - name: Prepare Release Zip (dev ci)
+      if: inputs.new-release-tag == ''
+      run: python prepare_release.py ${{ matrix.preset }} --skip-install
+
+    - name: Prepare Release Zip (draft full)
+      if: inputs.new-release-tag != '' && startswith(matrix.preset, 'msvc')
+      run: |
+        python prepare_release.py ${{ matrix.preset }} --skip-install
+        mv willow-sdk-${{ matrix.preset }}.zip willow-sdk.zip
+
+    - name: Upload Artifact
+      if: inputs.new-release-tag == '' || startswith(matrix.preset, 'msvc')
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.preset }}
+        path: "*.zip"
+
+  build-ubuntu:
+    # Require at least 24 for the mingw build
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+        - clang-cross-release
+        - llvm-mingw-release
+        - mingw-release
+
+    steps:
+    - name: Setup CMake and Ninja
+      uses: lukka/get-cmake@latest
+
+    - name: Setup apt packages
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: msitools python3-requests
+        version: ${{ runner.os }}-apt
+
+    - name: Setup LLVM MinGW
+      if: startswith(matrix.preset, 'llvm-mingw')
+      run: |
+        wget -nv ${{ env.LLVM_MINGW_DOWNLOAD }}
+        tar -xf ${{ env.LLVM_MINGW_VERSION }}.tar.xz -C ~/
+        echo $(readlink -f ~/${{ env.LLVM_MINGW_VERSION }}/bin) >> $GITHUB_PATH
+
+    - name: Setup MinGW
+      if: startswith(matrix.preset, 'mingw')
+      uses: egor-tensin/setup-mingw@v2
+      with:
+        platform: ${{ fromJSON('["x86", "x64"]')[contains(matrix.preset, 'x64')] }}
+
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang-cross')
+      uses: egor-tensin/setup-clang@v1
+
+    - name: Restore win sdk cache
+      if: startswith(matrix.preset, 'clang-cross')
+      uses: actions/cache@v4
+      id: cache-win-sdk
+      with:
+        path: ~/win-sdk
+        key: ${{ runner.os }}-win-sdk
+
+    - name: Setup win sdk
+      if: startswith(matrix.preset, 'clang-cross') && steps.cache-win-sdk.outputs.cache-hit != 'true'
+      run: |
+        git clone https://github.com/mstorsjo/msvc-wine.git
+        msvc-wine/vsdownload.py --accept-license --dest ~/win-sdk Microsoft.VisualStudio.Workload.VCTools
+        msvc-wine/install.sh ~/win-sdk
+        rm -r msvc-wine
+
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure CMake
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      # The extra msvc wine arg won't do anything if we're not cross compiling
+      run: >
+        cmake .
+        --preset ${{ matrix.preset }}
+        -G Ninja
+        -DMSVC_WINE_ENV_SCRIPT=$(readlink -f ~)/win-sdk/bin/${{ fromJSON('["x86", "x64"]')[contains(matrix.preset, 'x64')] }}/msvcenv.sh
+
+    - name: Build
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      run: cmake --build out/build/${{ matrix.preset }} --target install
+
+    - name: Prepare Release Zip (dev ci)
+      if: inputs.new-release-tag == ''
+      run: python prepare_release.py ${{ matrix.preset }} --skip-install
+
+    - name: Upload Artifact
+      if: inputs.new-release-tag == ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.preset }}
+        path: "*.zip"
+
+# ==============================================================================
+
+  clang-tidy:
+    runs-on: windows-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        preset:
+        - clang-release
+
+    steps:
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang')
+      uses: egor-tensin/setup-clang@v1
+
+    - name: Setup CMake and Ninja
+      uses: lukka/get-cmake@latest
+
+    # Need newer python to run the python lib downloader script
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ">=3.10"
+
+    # Needed pyyaml for clang tidy to enable `-export-fixes` and requests for the python lib downloader
+    - name: Install pip packages
+      run: pip install pyyaml requests
+
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Configure CMake
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      run: cmake . --preset ${{ matrix.preset }} -DCMAKE_DISABLE_PRECOMPILE_HEADERS=On
+
+    - name: Remove `.modmap`s from compile commands
+      run: |
+        (Get-Content "out\build\${{ matrix.preset }}\compile_commands.json")    `
+          -replace "@CMakeFiles.+?\.modmap", ""                                 `
+        | Set-Content                                                           `
+          -Path "out\build\${{ matrix.preset }}\compile_commands.json"
+
+    - name: Run clang-tidy
+      working-directory: ${{ env.GITHUB_WORKSPACE }}
+      run: |
+        python (Get-Command run-clang-tidy).Source                              `
+          -p "out\build\${{ matrix.preset }}"                                   `
+          -export-fixes clang-tidy-fixes.yml                                    `
+          $([Regex]::Escape("$pwd\src") + ".+\.(c|cpp|h|hpp)$")
+
+    - name: Process clang-tidy warnings
+      uses: asarium/clang-tidy-action@v1
+      with:
+        fixesFile: clang-tidy-fixes.yml
+
+  clang-format:
+    runs-on: windows-latest
+
+    steps:
+    - name: Setup Clang
+      if: startswith(matrix.preset, 'clang')
+      uses: egor-tensin/setup-clang@v1
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run clang-format
+      run: |
+        clang-format                                                            `
+          -n -Werror                                                            `
+          $(Get-ChildItem                                                       `
+              src                                                               `
+              -File                                                             `
+              -Recurse                                                          `
+              -Include ("*.c", "*.cpp", "*.h", "*.hpp")                         `
+            | % FullName)
+
+  spelling:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check spelling
+      uses: crate-ci/typos@master
+
+  pyright:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Run pyright
+      uses: jakebailey/pyright-action@v2
+      with:
+        working-directory: ./src
+
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Ruff Linting
+      uses: chartboost/ruff-action@v1
+      with:
+        src: ./src
+
+    - name: Run Ruff Formatting
+      uses: chartboost/ruff-action@v1
+      with:
+        src: ./src
+        args: format --check
+
+# ==============================================================================
+
+  release-dev-ci:
+    runs-on: ubuntu-latest
+    if: >
+      github.ref == 'refs/heads/master'
+      && github.repository == 'bl-sdk/willow2-mod-manager'
+      && inputs.new-release-tag == ''
+
+    needs:
+      - build-ubuntu
+      - build-windows
+      - clang-tidy
+      - clang-format
+      - spelling
+      - pyright
+      - ruff
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Upload releases
+      uses: andelf/nightly-release@main
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: nightly
+        files: "*/*.zip"
+        name: Automated Development Release
+        prerelease: true
+        body: >
+          This release is automatically built from the latest passing commits on master - it might
+          break things. Only use this if you know what you're doing.
+
+  release-draft-full:
+    runs-on: ubuntu-latest
+    if: >
+      github.ref == 'refs/heads/master'
+      && github.repository == 'bl-sdk/willow2-mod-manager'
+      && inputs.new-release-tag != ''
+
+    needs:
+      - build-ubuntu
+      - build-windows
+      - clang-tidy
+      - clang-format
+      - spelling
+      - pyright
+      - ruff
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Create new release tag
+      uses: rickstaa/action-create-tag@v1
+      with:
+        tag: ${{ inputs.new-release-tag }}
+
+    - name: Upload releases
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ inputs.new-release-tag }}
+        files: "*/*.zip"
+        fail_on_unmatched_files: true
+        draft: true
+        generate_release_notes: true

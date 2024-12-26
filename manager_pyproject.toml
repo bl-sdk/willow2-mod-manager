@@ -1,0 +1,15 @@
+# This file is primary for the mod db, the entry for the mod manager points at it
+# It is also used by the release script to get the version number
+# It *is* ok to edit the version in here before release,, the mod db checks the version on the
+# actual releases instead
+
+[project]
+name = "willow_mod_manager"
+version = "3.0"
+authors = [{ name = "bl-sdk" }]
+
+[tool.sdkmod]
+name = "BL2/TPS/AoDK Mod Manager"
+license = {name = "LGPL3", url = "https://choosealicense.com/licenses/lgpl-3.0/" }
+download = "https://github.com/bl-sdk/willow-mod-manager/releases/latest"
+coop_support = "ClientSide"

@@ -1,0 +1,22 @@
+[files]
+extend-exclude = [
+    "fmt",
+    "minhook",
+    "pybind11",
+    "LICENSE",
+    ".typos.toml"
+]
+
+[default]
+extend-ignore-re = [
+    # Ignore markdown links to github commits/trees
+    "\\[[0-9a-fA-F]+?\\]\\(https://github.com/.+?/.+?/(commit|tree)/.+?\\)",
+    # Ignore this specific hook string, which gearbox typo'd
+    "\"WillowGame\\.WillowScrollingList\\.OnClikEvent\"",
+]
+
+[default.extend-identifiers]
+llibgcc_s_seh = "llibgcc_s_seh"
+
+[default.extend-words]
+UE = "UE"

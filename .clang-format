@@ -1,0 +1,15 @@
+---
+Language:                       Cpp
+BasedOnStyle:                   Chromium
+
+AllowShortBlocksOnASingleLine:  Empty
+BreakBeforeBinaryOperators:     NonAssignment
+ColumnLimit:                    100
+IndentWidth:                    4
+InsertBraces:                   true
+SortIncludes:                   CaseInsensitive
+IncludeCategories:
+  - Regex:                      '".*pch\.h"'
+    Priority:                   -1
+    CaseSensitive:              true
+---
