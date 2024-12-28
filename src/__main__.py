@@ -393,6 +393,7 @@ LEGACY_MOD_MIGRATION_BLACKLIST: set[str] = {
     "SideMissionRandomizer",
     "RoguelandsGamemode",
     "RoguelandsMiniGamemode",
+    "ProjectileRandomizer",
 }
 
 
