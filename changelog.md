@@ -6,6 +6,7 @@ Completely rewrite. Broad overview:
 - Upgraded to Python 3.13.1 (6 major versions!).
 - Native Python modules (e.g. ctypes, ssl) are included by default.
 - Added support for writing your own native Python modules which integrate with the SDK.
+- Python's stdout and stderr are hooked up to the SDK's logging system.
 
 - Hooks can now be explicitly specified as pre or post-hooks.
 - Pre-hooks can now overwrite a function's return value.
