@@ -42,13 +42,6 @@ FULL_TRACEBACKS: bool = False
 # happen at import time
 WAIT_FOR_CLIENT: bool = False
 
-# A json list of paths to also to import mods from - you can add your repo to keep it separated
-EXTRA_FOLDERS_ENV_VAR: str = "MOD_MANAGER_EXTRA_FOLDERS"
-
-# Won't try migrate legacy mods into this folder unless this env var is set
-# Useful while still actively developing for both versions
-LEGACY_MOD_MIGRATIONS_ENV_VAR: str = "MOD_MANAGER_LEGACY_MOD_MIGRATION"
-
 
 @dataclass
 class ModInfo:
@@ -74,8 +67,8 @@ def init_debugpy() -> None:
 
         if not unrealsdk.config.get("pyunrealsdk", {}).get("debugpy", False):
             logging.dev_warning(
-                "Was able to start debugpy, but the `PYUNREALSDK_DEBUGPY` environment variable is"
-                " not set. This may prevent breakpoints from working properly.",
+                "Was able to start debugpy, but the `pyunrealsdk.debugpy` config variable is not"
+                " set to true. This may prevent breakpoints from working properly.",
             )
 
         # Make WrappedArrays resolve the same as lists
@@ -99,7 +92,7 @@ def init_debugpy() -> None:
 
 def get_all_mod_folders() -> Sequence[Path]:
     """
-    Gets all mod folders to try import from, including extra folders defined via env var.
+    Gets all mod folders to try import from, including extra folders defined via config file.
 
     Returns:
         A sequence of mod folder paths.
