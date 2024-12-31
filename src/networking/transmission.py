@@ -192,8 +192,7 @@ def get_host_pri() -> UObject:
     Returns:
         The hosts's PlayerReplicationInfo.
     """
-    # Seems they're always entry 0?
-    return ENGINE.GetCurrentWorldInfo().GRI.PRIArray[0]
+    return next(filter(lambda pri: pri.bIsPartyLeader, ENGINE.GetCurrentWorldInfo().GRI.PRIArray))
 
 
 @hook("WillowGame.WillowPlayerController:ClientMessage", immediately_enable=True)
