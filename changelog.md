@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.1: (codename tbd)
+
+### [pyunrealsdk v1.5.1](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v151)
+> - Changed type hinting of `unrealsdk.find_all` to return an `Iterable[UObject]`, instead of
+>   `Iterator[UObject]`. This mirrors what was actually happening at runtime.
+
+### [unrealsdk v1.6.0](https://github.com/bl-sdk/unrealsdk/blob/master/changelog.md#v160)
+> - Handled `UStruct` differing in size between BL2 and TPS.
+
 ## v3.0: Sheriff's Badge
 Completely rewrite. Broad overview:
 
