@@ -370,7 +370,9 @@ UNIQUE_ITEM_NAMES = [
     "Zim",
 ]
 
-PREVIOUS_RELEASE_NAMES = []
+PREVIOUS_RELEASE_NAMES = [
+    "Sheriff's Badge",
+]
 
 
 @cache

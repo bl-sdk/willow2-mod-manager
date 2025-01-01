@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.0: (codename tbd)
+## v3.0: Sheriff's Badge
 Completely rewrite. Broad overview:
 
 - Upgraded to Python 3.13.1 (6 major versions!).
