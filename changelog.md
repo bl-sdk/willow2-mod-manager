@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.1: (codename tbd)
+## v3.1: Omni-Cannon
 
 ### [pyunrealsdk v1.5.1](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v151)
 > - Changed type hinting of `unrealsdk.find_all` to return an `Iterable[UObject]`, instead of
