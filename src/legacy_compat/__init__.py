@@ -89,15 +89,11 @@ if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4"}
     ENABLED = False  # pyright: ignore[reportConstantRedefinition]
 else:
     import ctypes
-    import inspect
     import sys
     import warnings
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Iterator
     from contextlib import contextmanager
     from functools import wraps
-    from importlib.machinery import ModuleSpec, SourceFileLoader
-    from importlib.util import spec_from_file_location
-    from pathlib import Path
 
     from unrealsdk.hooks import prevent_hooking_direct_calls
 
@@ -105,6 +101,7 @@ else:
 
     from . import ModMenu
     from . import unrealsdk as old_unrealsdk
+    from .meta_path_finder import LegacyCompatMetaPathFinder
 
     base_mod.components.append(base_mod.ComponentInfo("Legacy SDK Compat", __version__))
 
@@ -160,65 +157,6 @@ else:
         # This normally points at an older version, we can point it at the current
         "Mods.UserFeedback.ctypes": ctypes,
     }
-
-    # On top of this, we do actually need a full import hook to redirect other mod-specific imports
-
-    class LegacyCompatMetaPathFinder:
-        @staticmethod
-        def get_importing_file() -> Path:
-            """
-            Gets the file which triggered the in progress import.
-
-            Returns:
-                The importing file.
-            """
-            # Skip the frame for this function and find_spec below
-            for frame in inspect.stack()[2:]:
-                # Then skip everything in the import machinery
-                if "importlib" in frame.filename:
-                    continue
-                return Path(frame.filename)
-            raise RuntimeError
-
-        @classmethod
-        def find_spec(
-            cls,
-            fullname: str,
-            path: Sequence[str] | None = None,  # noqa: ARG003
-            target: ModuleType | None = None,  # noqa: ARG003
-        ) -> ModuleSpec | None:
-            # EridiumLib adds it's dist folder with a path relative to the executable - fix that
-            # We also have some problems with it's copy of requests, so redirect that to our copy
-            if fullname == "requests" and cls.get_importing_file().parent.name == "EridiumLib":
-                # Can't easily load the real requests, but turns out all we actually need is a get
-                # method, which is allowed to just throw
-                # Using a custom loader to inject it rather than loading from file, since the latter
-                # doesn't work properly if we're packaged inside a .sdkmod
-                class FakeRequestsLoader(SourceFileLoader):
-                    def get_data(self, path: str) -> bytes:  # noqa: ARG002
-                        return (
-                            b"def get(url: str, timeout: int) -> str:  # noqa: D103\n"
-                            b"    raise NotImplementedError"
-                        )
-
-                return spec_from_file_location(
-                    "Mods.EridiumLib.fake_dist.requests",
-                    "<fake location>",
-                    loader=FakeRequestsLoader(
-                        "Mods.EridiumLib.fake_dist.requests",
-                        "<fake location>",
-                    ),
-                )
-            if (
-                fullname == "semver"
-                and (mod_folder := cls.get_importing_file().parent).name == "EridiumLib"
-            ):
-                return spec_from_file_location(
-                    "Mods.EridiumLib.fake_dist.semver",
-                    mod_folder / "dist" / "semver.py",
-                )
-
-            return None
 
     @contextmanager
     def import_compat_handler() -> Iterator[None]:
