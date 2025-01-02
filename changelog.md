@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.2: (codename tbd)
+## v3.2: Razorback
 
 ### Legacy Compat v1.1
 - Fixed that some legacy mods would not auto-enable properly.
