@@ -4,6 +4,9 @@
 
 ### Legacy Compat v1.1
 - Fixed that some legacy mods would not auto-enable properly.
+- Added a compat handler for object names - they didn't use to include the number. This previously
+  caused crash when trying to load Exodus.
+- Added a fixup to Constructor, and Constructor-based mods, to handle the new mod folder location.
 
 ### [pyunrealsdk v1.5.2](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v152)
 This version has no `pyunrealsdk` changes, it simply pulled in a new version of `unrealsdk`.
