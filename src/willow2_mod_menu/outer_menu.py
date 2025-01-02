@@ -35,6 +35,7 @@ MODS_MENU_NAME: str = "MODS"
 DLC_MENU_CONTROLLER_TO_KB_KEY_MAP = {
     "Gamepad_LeftStick_Up": "Up",
     "Gamepad_LeftStick_Down": "Down",
+    "XboxTypeS_Start": "Enter",
     "XboxTypeS_A": "Enter",
     "XboxTypeS_B": "Escape",
     "XboxTypeS_Y": "Q",
@@ -271,15 +272,12 @@ def marketplace_input_key(
     _3: Any,
     _4: BoundFunction,
 ) -> tuple[type[Block], bool] | None:
+    key: str = DLC_MENU_CONTROLLER_TO_KB_KEY_MAP.get(args.ukey, args.ukey)
+
     try:
-        key: str = DLC_MENU_CONTROLLER_TO_KB_KEY_MAP.get(args.ukey, args.ukey)
         event: EInputEvent = args.uevent
 
         match key, event:
-            # Keep the standard handling
-            case (("Escape" | "Up" | "Down" | "W" | "S"), _):
-                return None
-
             # Page up/down are actually bugged on Gearbox's end: they look for both a released event
             # and a pressed or repeat, which is a contradition that can never be true.
             # Since there can be quite a few mods and we want to be able to scroll through them
@@ -320,14 +318,17 @@ def marketplace_input_key(
                 return Block, True
 
             case _, _:
-                return Block, True
+                pass
 
-    # If we let this function process normally, most inputs end up opening the steam store page
-    # Make sure we always block it
     except Exception:  # noqa: BLE001
         traceback.print_exc()
 
-    return Block, True
+    # These inputs trigger logic in the standard menu, block them all, even if we got an exception.
+    # If we let them through it usually ends up opening the steam store page.
+    if key in {"Enter", "Q", "E"}:
+        return Block, True
+
+    return None
 
 
 # Called to close the options menu. We temporarily enable it while in a mod options menu triggered

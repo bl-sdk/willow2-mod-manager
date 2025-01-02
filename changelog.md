@@ -1,5 +1,19 @@
 # Changelog
 
+## v3.2: (codename tbd)
+
+### Legacy Compat v1.1
+- Fixed that some legacy mods would not auto-enable properly.
+
+### [pyunrealsdk v1.5.2](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v152)
+This version has no `pyunrealsdk` changes, it simply pulled in a new version of `unrealsdk`.
+
+### [unrealsdk v1.6.1](https://github.com/bl-sdk/unrealsdk/blob/master/changelog.md#v161)
+> - Handled `UClass::Interfaces` also having a different offset between BL2 and TPS.
+
+### Willow2 Mod Menu v3.1
+- Fixed mouse input not working properly in the main menu mod list.
+
 ## v3.1: Omni-Cannon
 
 ### [pyunrealsdk v1.5.1](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v151)
