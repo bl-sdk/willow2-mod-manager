@@ -1,6 +1,7 @@
 # ruff: noqa: N802, N803, D102, D103, N999
 
 import inspect
+import re
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -263,10 +264,13 @@ Property Access:
 - The legacy sdk returned None instead of throwing an attribute error when a field didn't exist.
 - The legacy sdk had interface properties return an FScriptInterface struct, but since you only ever
   accessed the object, the new sdk just returns it directly. We need to return the struct instead.
+- In the legacy sdk, name properties did not include the number when converted to a string, which we
+  need to strip out.
 
 UObject:
 - The `ObjectFlags` field on objects used to be split into the upper and lower 32 bits (B and A
   respectively), new sdk returns a single 64 bit int. Return a proxy object instead.
+- The `Name` field is also a name property, so needs have the suffix stripped as above.
 - In the legacy sdk the __repr__ of objects was just kind of wrong, but we need to replicate it.
 
 BoundFunction:
@@ -340,6 +344,21 @@ def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
     return value
 
 
+_RE_NAME_SUFFIX = re.compile(r"^(.+)_\d+$")
+
+
+def _strip_name_property_suffix(name: str) -> str:
+    """
+    Tries to strip the numeric suffix from a name property.
+
+    Args:
+        name: The input name.
+    Returns:
+        The stripped name.
+    """
+    return match.group(1) if (match := _RE_NAME_SUFFIX.match(name)) else name
+
+
 @wraps(UObject.__getattr__)
 def _uobject_getattr(self: UObject, name: str) -> Any:
     try:
@@ -349,10 +368,13 @@ def _uobject_getattr(self: UObject, name: str) -> Any:
 
     value = self._get_field(prop)
 
-    if isinstance(prop, UInterfaceProperty):
-        return FScriptInterface(value)
-
-    return value
+    match prop:
+        case UInterfaceProperty():
+            return FScriptInterface(value)
+        case UNameProperty():
+            return _strip_name_property_suffix(value)
+        case _:
+            return value
 
 
 @dataclass
@@ -384,12 +406,16 @@ class _ObjectFlagsProxy:
         return _default_object_getattribute(self._obj, "ObjectFlags")
 
 
-# Because we want to overwrite an exiting field, we have to use getattribute over getattr
+# Because we want to overwrite exiting fields, we have to use getattribute over getattr
 @wraps(UObject.__getattribute__)
 def _uobject_getattribute(self: UObject, name: str) -> Any:
-    if name == "ObjectFlags":
-        return _ObjectFlagsProxy(self)
-    return _default_object_getattribute(self, name)
+    match name:
+        case "ObjectFlags":
+            return _ObjectFlagsProxy(self)
+        case "Name":
+            return _strip_name_property_suffix(_default_object_getattribute(self, "Name"))
+        case _:
+            return _default_object_getattribute(self, name)
 
 
 @wraps(UObject.__setattr__)
@@ -422,10 +448,13 @@ def _struct_getattr(self: WrappedStruct, name: str) -> Any:
 
     value = self._get_field(prop)
 
-    if isinstance(prop, UInterfaceProperty):
-        return FScriptInterface(value)
-
-    return value
+    match prop:
+        case UInterfaceProperty():
+            return FScriptInterface(value)
+        case UNameProperty():
+            return _strip_name_property_suffix(value)
+        case _:
+            return value
 
 
 @wraps(WrappedStruct.__setattr__)
@@ -443,14 +472,23 @@ def _struct_setattr(self: WrappedStruct, name: str, value: Any) -> None:
 def _array_getitem[T](self: WrappedArray[T], idx: int | slice) -> T | list[T]:
     value = _default_array_getitem(self, idx)
 
-    if not isinstance(self._type, UInterfaceProperty):
-        return value
+    match self._type:
+        case UInterfaceProperty():
+            if isinstance(idx, slice):
+                val_seq: Sequence[T] = value  # type: ignore
+                return [FScriptInterface(x) for x in val_seq]  # type: ignore
 
-    if isinstance(idx, slice):
-        val_seq: Sequence[T] = value  # type: ignore
-        return [FScriptInterface(x) for x in val_seq]  # type: ignore
+            return FScriptInterface(value)  # type: ignore
+        case UNameProperty():
+            if isinstance(idx, slice):
+                val_seq: Sequence[T] = value  # type: ignore
+                return [_strip_name_property_suffix(x) for x in val_seq]  # type: ignore
 
-    return FScriptInterface(value)  # type: ignore
+            return _strip_name_property_suffix(value)  # type: ignore
+
+            return _strip_name_property_suffix(value)
+        case _:
+            return value
 
 
 @wraps(WrappedArray[Any].__setitem__)
