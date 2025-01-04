@@ -55,6 +55,7 @@ from mods_base import ENGINE
 # This is mutable so mod menu can add to it
 __all__: list[str] = [
     "CallPostEdit",
+    "ConstructObject",
     "DoInjectedCallNext",
     "FArray",
     "FScriptInterface",
