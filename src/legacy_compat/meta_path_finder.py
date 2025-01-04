@@ -150,5 +150,28 @@ class LegacyCompatMetaPathFinder:
                     ),
                 )
 
+            # Imported by the init script, accept both `sdk_mods` folder in the release and the
+            # `src` folder for if developing in this repo
+            # BL2Fix does some redundant random.seed() setting. Py 3.11 removed support for setting
+            # the seed from an arbitrary type, so just completely get rid of the calls.
+            case (("src" | "sdk_mods"), "Mods.BL2Fix"):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    # Redundant, removed support for arbitrary types in py 3.11
+                    (rb"random\.seed\(datetime\.datetime\.now\(\)\)", b""),
+                )
+
+            # To help out Text Mod Loader, which does all the actual legacy compat for Arcania, get
+            # rid of this hook, easier to do here. It ends up permanently enabled otherwise.
+            case (("src" | "sdk_mods"), "Mods.Arcania"):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    (rb'@ModMenu\.Hook\("Engine\.GameInfo\.PostCommitMapChange"\)', b""),
+                )
+
             case _, _:
                 return None
