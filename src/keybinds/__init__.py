@@ -16,7 +16,7 @@ __all__: tuple[str, ...] = (
     "__version_info__",
 )
 
-__version_info__: tuple[int, int] = (1, 0)
+__version_info__: tuple[int, int] = (1, 1)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
@@ -49,16 +49,16 @@ def ui_interaction_input_key(
 ui_interaction_input_key.enable()
 
 
-@wraps(KeybindType.enable)
+@wraps(KeybindType._enable)  # pyright: ignore[reportPrivateUsage]
 def enable_keybind(self: KeybindType) -> None:
     if self not in active_keybinds:
         active_keybinds.append(self)
 
 
-@wraps(KeybindType.disable)
+@wraps(KeybindType._disable)  # pyright: ignore[reportPrivateUsage]
 def disable_keybind(self: KeybindType) -> None:
     active_keybinds.remove(self)
 
 
-KeybindType.enable = enable_keybind
-KeybindType.disable = disable_keybind
+KeybindType._enable = enable_keybind  # pyright: ignore[reportPrivateUsage]
+KeybindType._disable = disable_keybind  # pyright: ignore[reportPrivateUsage]
