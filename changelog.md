@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.3: (Upcoming)
+
+### Keybinds v1.1
+- Updated with new `mods_base` keybind interface, fixing that `is_enabled` wasn't being set.
+
+### [Mods Base v1.7](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v17)
+> - Changed the functions the keybind implementation should overwrite from `KeybindType.enable` to
+>   `KeybindType._enable` (+ same for disable). These functions don't need to set `is_enabled`.
+
 ## v3.2: Razorback
 
 ### Legacy Compat v1.1
