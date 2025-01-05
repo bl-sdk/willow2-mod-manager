@@ -230,12 +230,9 @@ class _NewMod(Mod):
 
     @property
     def auto_enable(self) -> bool:
-        # During the default save/load mod settings function, return true for both types of saving,
+        # During the default save mod settings function, return true for both types of saving,
         # to make sure that we add it to the settings file
-        if inspect.stack()[1].function in {
-            "default_load_mod_settings",
-            "default_save_mod_settings",
-        }:
+        if inspect.stack()[1].function == "default_save_mod_settings":
             return self.legacy_mod.SaveEnabledState != EnabledSaveType.NotSaved
 
         # At all other times, treat load on main menu as *not* auto enabled, so that we can manually
@@ -338,9 +335,18 @@ class _LegacyModMeta(ABCMeta):
                     if isinstance(option, Options.Value):
                         instance.ModOptionChanged(option, option.CurrentValue)  # type: ignore
 
+                # If this is a load on main menu mod, we're treating it as if auto enable is off
+                # everywhere *except* the settings file. This means the enable call won't
+                # automatically save that we're enabled, since it thinks auto enable is off.
+                if instance.SaveEnabledState == EnabledSaveType.LoadOnMainMenu:
+                    new_mod.save_settings()
+
         def on_disable() -> None:
             with legacy_compat():
                 original_disable()
+
+            if instance.SaveEnabledState == EnabledSaveType.LoadOnMainMenu:
+                new_mod.save_settings()
 
         new_mod.on_enable = on_enable
         new_mod.on_disable = on_disable

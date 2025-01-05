@@ -5,17 +5,26 @@
 ### Keybinds v1.1
 - Updated with new `mods_base` keybind interface, fixing that `is_enabled` wasn't being set.
 
+### Legacy Compat v1.2
+- Fixed that some more legacy mods would not auto-enable properly.
+- Added more fixups for previously unreported issues in Arcania, BL2Fix, and Reign of Giants.
+
 ### [Mods Base v1.7](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v17)
 > - Changed the functions the keybind implementation should overwrite from `KeybindType.enable` to
 >   `KeybindType._enable` (+ same for disable). These functions don't need to set `is_enabled`.
+
+### Willow2 Mod Menu v3.2
+- Fixed that on lower aspect ratios, trying to open the keybinds screen would instead show
+  controller bindings, making changing keybinds impossible.
 
 ## v3.2: Razorback
 
 ### Legacy Compat v1.1
 - Fixed that some legacy mods would not auto-enable properly.
-- Added a compat handler for object names - they didn't use to include the number. This previously
-  caused crash when trying to load Exodus.
-- Added a fixup to Constructor, and Constructor-based mods, to handle the new mod folder location.
+- Added a compat handler for object names - they didn't use to include the number. This fixes a
+  previously unreported crash when trying to load Exodus.
+- Added a fixup for a previously unreported issue in Constructor, and Constructor-based mods, to
+  handle the new mod folder location.
 
 ### [pyunrealsdk v1.5.2](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v152)
 This version has no `pyunrealsdk` changes, it simply pulled in a new version of `unrealsdk`.

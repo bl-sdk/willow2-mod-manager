@@ -390,6 +390,7 @@ LEGACY_MOD_MIGRATION_BLACKLIST: set[str] = {
     "TwitchLogin",
     # Misc
     "__pycache__",
+    "AsyncUtil",
     "SideMissionRandomizer",
     "RoguelandsGamemode",
     "RoguelandsMiniGamemode",
