@@ -25,6 +25,23 @@ data_provider_stack: list[DataProvider] = []
 # find object calls to get back to it
 latest_list: WeakPointer = WeakPointer()
 
+# For some reason, on lower aspect ratios, hovering over our keybinds menu shows the controller menu
+# by default, even though it gets explicitly set to keyboard. It doesn't happen in the original
+# menu however, only in ours.
+# Once we fix it once, it always stays showing keybinds, so since our fix is a bit hacky, keep track
+# of when we actually need to apply it, and only do so once.
+input_binding_clip_to_fixup: WeakPointer = WeakPointer()
+
+# If we do the keybind fix when we don't need it, there's a slight flicker, prefer to avoid it when
+# possible. However, we really don't want any false negatives, since it makes the menu unusable.
+
+# Of the official resolutions, all with an aspect ratio <= 1.5 break, and all <= 1.6 are ok (there
+# aren't any inbetween)
+# If you manually resize it gets a bit fuzzier, it's not an exact aspect ratio breakpoint:
+#  727x480  (1.514583333) breaks
+# 1614x1080 (1.494444444) is ok
+MIN_OK_INPUT_BINDING_CLIP_ASPECT_RATIO = 1.6
+
 
 def push_options(the_list: UObject, screen_name: str, options: Sequence[BaseOption]) -> None:
     """
@@ -136,6 +153,13 @@ def dataprovider_kbm_populate(
     # Without this, the description of the first entry doesn't show up until you reselect it
     obj.UpdateDescriptionText(OPTION_EVENT_ID_OFFSET, the_list)
 
+    # If we have a low enough aspect ratio, which triggers the controller rebind menu by default,
+    # flag the input binding clip as needing a fixup
+    res = owner_movie.GetViewportDimensions()
+    if (res.X / res.Y) < MIN_OK_INPUT_BINDING_CLIP_ASPECT_RATIO:
+        global input_binding_clip_to_fixup
+        input_binding_clip_to_fixup = WeakPointer(obj.ControllerMappingClip)
+
     return Block
 
 
@@ -156,6 +180,39 @@ def dataprovider_kbm_populate_keys(
 
     data_provider_stack[-1].populate_keybind_keys(obj)
     return Block
+
+
+# Called when showing the keybinds menu, we use it to fixup the low resolution controller menu bug
+@hook(
+    "WillowGame.InputBindingsClipGFxObject:Show",
+    immediately_enable=True,
+)
+def input_bindings_clip_show(
+    obj: UObject,
+    _2: WrappedStruct,
+    _3: Any,
+    _4: BoundFunction,
+) -> None:
+    if input_binding_clip_to_fixup() != obj:
+        return
+
+    # For some reason, we can't just call `SetKeybindMode` right away, it gives an empty menu.
+    # Very hacky fix is to wait a few ticks
+    tick_count = 3
+
+    @hook("WillowGame.OptionsGFxMovie:OnTick", immediately_enable=True)
+    def tick(*_: Any) -> None:
+        nonlocal tick_count
+        tick_count = tick_count - 1
+        if tick_count > 0:
+            return
+
+        tick.disable()
+
+        global input_binding_clip_to_fixup
+        if (obj := input_binding_clip_to_fixup()) is not None:
+            obj.SetKeybindMode()
+            input_binding_clip_to_fixup = WeakPointer()
 
 
 # Called when clicking something in the kb/m options menu - we use it for the same.
