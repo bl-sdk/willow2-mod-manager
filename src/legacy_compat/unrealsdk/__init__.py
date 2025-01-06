@@ -41,7 +41,6 @@ from unrealsdk.unreal import (
     UObject,
     UObjectProperty,
     UProperty,
-    UScriptStruct,
     UStrProperty,
     UStruct,
     UStructProperty,
@@ -138,8 +137,11 @@ def ConstructObject(
     Error: None = None,  # noqa: ARG001
     InstanceGraph: None = None,  # noqa: ARG001
     bAssumeTemplateIsArchetype: int = 0,  # noqa: ARG001
-) -> UObject:
-    return construct_object(Class, Outer, Name, SetFlags, Template)
+) -> UObject | None:
+    try:
+        return construct_object(Class, Outer, Name, SetFlags, Template)
+    except RuntimeError:
+        return None
 
 
 type _SDKHook = Callable[[UObject, UFunction, FStruct], bool | None]
@@ -295,28 +297,11 @@ _default_array_setitem = WrappedArray[Any].__setitem__
 _default_func_call = BoundFunction.__call__
 
 
-def _create_struct_from_tuples(struct: UScriptStruct, value: tuple[Any, ...]) -> WrappedStruct:
-    """
-    Recursively creates a wrapped struct from it's tuple equivalent.
-
-    Args:
-        struct: The struct type to create:
-        value: The tuple to create it with.
-    Returns:
-        The new struct.
-    """
-    return WrappedStruct(
-        struct,
-        *(
-            _create_struct_from_tuples(prop.Struct, inner_val)  # pyright: ignore[reportUnknownArgumentType]
-            if isinstance(prop, UStructProperty) and isinstance(inner_val, tuple)
-            else inner_val
-            for prop, inner_val in zip(struct._properties(), value, strict=False)
-        ),
-    )
-
-
-def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
+def _convert_struct_tuple_if_required(
+    prop: UProperty,
+    value: Any,
+    _ignore_array_dim: bool = False,
+) -> Any:
     """
     Convert any tuple-based structs in the given value into Wrapped Structs.
 
@@ -327,16 +312,29 @@ def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
         The possibly converted value.
     """
 
+    # If it's a fixed array of structs, need to convert each inner value
+    if not _ignore_array_dim and prop.ArrayDim > 1 and isinstance(prop, UStructProperty):
+        return tuple(
+            _convert_struct_tuple_if_required(prop, inner_val, _ignore_array_dim=True)
+            for inner_val in value  # type: ignore
+        )
+
     # If it's a struct being set as a tuple directly
     if isinstance(prop, UStructProperty) and isinstance(value, tuple):
-        return _create_struct_from_tuples(prop.Struct, value)  # pyright: ignore[reportUnknownArgumentType]
+        return WrappedStruct(
+            prop.Struct,
+            *(
+                _convert_struct_tuple_if_required(inner_prop, inner_val)
+                for inner_prop, inner_val in zip(prop.Struct._properties(), value, strict=False)  # type: ignore
+            ),
+        )
 
     # If it's an array of structs, need to convert each value
     if isinstance(prop, UArrayProperty) and isinstance(prop.Inner, UStructProperty):
         seq_value: Sequence[Any] = value
 
         return tuple(
-            _create_struct_from_tuples(prop.Inner.Struct, inner_val)  # pyright: ignore[reportUnknownArgumentType]
+            _convert_struct_tuple_if_required(prop.Inner, inner_val)
             if isinstance(inner_val, tuple)
             else inner_val
             for inner_val in seq_value
@@ -432,6 +430,9 @@ def _uobject_setattr(self: UObject, name: str, value: Any) -> None:
 
 @wraps(UObject.__repr__)
 def _uobject_repr(self: UObject) -> str:
+    if self is None or self.Class is None:  # type: ignore
+        return "(null)"
+
     current = self
     output = f"{self.Name}"
     while current := current.Outer:
@@ -614,8 +615,22 @@ def _ustructproperty_get_struct(self: UStructProperty) -> UStruct:
 
 
 @staticmethod
-def uobject_path_name(obj: UObject, /) -> str:
+def _uobject_path_name(obj: UObject, /) -> str:
     return obj._path_name()
+
+
+def _wrapped_struct_structType_getter(self: WrappedStruct) -> UStruct:
+    return self._type
+
+
+def _wrapped_struct_structType_setter(self: WrappedStruct, val: UStruct) -> None:
+    self._type = val
+
+
+_wrapped_struct_structType = property(  # noqa: N816
+    _wrapped_struct_structType_getter,
+    _wrapped_struct_structType_setter,
+)
 
 
 @contextmanager
@@ -634,8 +649,9 @@ def _unreal_method_compat_handler() -> Iterator[None]:
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
     UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
-    UObject.PathName = uobject_path_name  # type: ignore
+    UObject.PathName = _uobject_path_name  # type: ignore
     UObject.GetFullName = _uobject_repr  # type: ignore
+    WrappedStruct.structType = _wrapped_struct_structType  # type: ignore
 
     try:
         yield
@@ -656,6 +672,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         del UStructProperty.GetStruct  # type: ignore
         del UObject.PathName  # type: ignore
         del UObject.GetFullName  # type: ignore
+        del WrappedStruct.structType  # type: ignore
 
 
 compat_handlers.append(_unreal_method_compat_handler)
