@@ -620,8 +620,22 @@ def _ustructproperty_get_struct(self: UStructProperty) -> UStruct:
 
 
 @staticmethod
-def uobject_path_name(obj: UObject, /) -> str:
+def _uobject_path_name(obj: UObject, /) -> str:
     return obj._path_name()
+
+
+def _wrapped_struct_structType_getter(self: WrappedStruct) -> UStruct:
+    return self._type
+
+
+def _wrapped_struct_structType_setter(self: WrappedStruct, val: UStruct) -> None:
+    self._type = val
+
+
+_wrapped_struct_structType = property(  # noqa: N816
+    _wrapped_struct_structType_getter,
+    _wrapped_struct_structType_setter,
+)
 
 
 @contextmanager
@@ -640,8 +654,9 @@ def _unreal_method_compat_handler() -> Iterator[None]:
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
     UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
-    UObject.PathName = uobject_path_name  # type: ignore
+    UObject.PathName = _uobject_path_name  # type: ignore
     UObject.GetFullName = _uobject_repr  # type: ignore
+    WrappedStruct.structType = _wrapped_struct_structType  # type: ignore
 
     try:
         yield
@@ -662,6 +677,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         del UStructProperty.GetStruct  # type: ignore
         del UObject.PathName  # type: ignore
         del UObject.GetFullName  # type: ignore
+        del WrappedStruct.structType  # type: ignore
 
 
 compat_handlers.append(_unreal_method_compat_handler)
