@@ -41,7 +41,6 @@ from unrealsdk.unreal import (
     UObject,
     UObjectProperty,
     UProperty,
-    UScriptStruct,
     UStrProperty,
     UStruct,
     UStructProperty,
@@ -298,28 +297,11 @@ _default_array_setitem = WrappedArray[Any].__setitem__
 _default_func_call = BoundFunction.__call__
 
 
-def _create_struct_from_tuples(struct: UScriptStruct, value: tuple[Any, ...]) -> WrappedStruct:
-    """
-    Recursively creates a wrapped struct from it's tuple equivalent.
-
-    Args:
-        struct: The struct type to create:
-        value: The tuple to create it with.
-    Returns:
-        The new struct.
-    """
-    return WrappedStruct(
-        struct,
-        *(
-            _create_struct_from_tuples(prop.Struct, inner_val)  # pyright: ignore[reportUnknownArgumentType]
-            if isinstance(prop, UStructProperty) and isinstance(inner_val, tuple)
-            else inner_val
-            for prop, inner_val in zip(struct._properties(), value, strict=False)
-        ),
-    )
-
-
-def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
+def _convert_struct_tuple_if_required(
+    prop: UProperty,
+    value: Any,
+    _ignore_array_dim: bool = False,
+) -> Any:
     """
     Convert any tuple-based structs in the given value into Wrapped Structs.
 
@@ -330,16 +312,29 @@ def _convert_struct_tuple_if_required(prop: UProperty, value: Any) -> Any:
         The possibly converted value.
     """
 
+    # If it's a fixed array of structs, need to convert each inner value
+    if not _ignore_array_dim and prop.ArrayDim > 1 and isinstance(prop, UStructProperty):
+        return tuple(
+            _convert_struct_tuple_if_required(prop, inner_val, _ignore_array_dim=True)
+            for inner_val in value  # type: ignore
+        )
+
     # If it's a struct being set as a tuple directly
     if isinstance(prop, UStructProperty) and isinstance(value, tuple):
-        return _create_struct_from_tuples(prop.Struct, value)  # pyright: ignore[reportUnknownArgumentType]
+        return WrappedStruct(
+            prop.Struct,
+            *(
+                _convert_struct_tuple_if_required(inner_prop, inner_val)
+                for inner_prop, inner_val in zip(prop.Struct._properties(), value, strict=False)  # type: ignore
+            ),
+        )
 
     # If it's an array of structs, need to convert each value
     if isinstance(prop, UArrayProperty) and isinstance(prop.Inner, UStructProperty):
         seq_value: Sequence[Any] = value
 
         return tuple(
-            _create_struct_from_tuples(prop.Inner.Struct, inner_val)  # pyright: ignore[reportUnknownArgumentType]
+            _convert_struct_tuple_if_required(prop.Inner, inner_val)
             if isinstance(inner_val, tuple)
             else inner_val
             for inner_val in seq_value
