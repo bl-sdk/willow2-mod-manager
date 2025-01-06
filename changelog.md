@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.3: (Upcoming)
+## v3.3: Naught
 
 ### Keybinds v1.1
 - Updated with new `mods_base` keybind interface, fixing that `is_enabled` wasn't being set.

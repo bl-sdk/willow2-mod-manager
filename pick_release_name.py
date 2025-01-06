@@ -374,6 +374,7 @@ PREVIOUS_RELEASE_NAMES = [
     "Sheriff's Badge",
     "Omni-Cannon",
     "Razorback",
+    "Naught",
 ]
 
 
