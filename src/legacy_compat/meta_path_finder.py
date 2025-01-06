@@ -152,6 +152,7 @@ class LegacyCompatMetaPathFinder:
 
             # Imported by the init script, accept both `sdk_mods` folder in the release and the
             # `src` folder for if developing in this repo
+
             # BL2Fix does some redundant random.seed() setting. Py 3.11 removed support for setting
             # the seed from an arbitrary type, so just completely get rid of the calls.
             case (("src" | "sdk_mods"), "Mods.BL2Fix"):
@@ -159,7 +160,6 @@ class LegacyCompatMetaPathFinder:
                     fullname,
                     path,
                     target,
-                    # Redundant, removed support for arbitrary types in py 3.11
                     (rb"random\.seed\(datetime\.datetime\.now\(\)\)", b""),
                 )
 
@@ -171,6 +171,21 @@ class LegacyCompatMetaPathFinder:
                     path,
                     target,
                     (rb'@ModMenu\.Hook\("Engine\.GameInfo\.PostCommitMapChange"\)', b""),
+                )
+
+            # This is a use case the new SDK kind of broke. Reward Rreroller passed the
+            # `MissionStatusPlayerData:ObjectivesProgress` field to `ShouldGrantAlternateReward`.
+            # While they're both arrays of ints called `ObjectivesProgress`, since they're different
+            # properties they're no longer compatible. Turn it into a list to make a copy.
+            case (("src" | "sdk_mods"), "Mods.RewardReroller"):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    (
+                        rb"mission\.ShouldGrantAlternateReward\(progress\)",
+                        b"mission.ShouldGrantAlternateReward(list(progress))",
+                    ),
                 )
 
             case _, _:
