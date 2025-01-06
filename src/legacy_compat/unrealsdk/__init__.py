@@ -138,8 +138,11 @@ def ConstructObject(
     Error: None = None,  # noqa: ARG001
     InstanceGraph: None = None,  # noqa: ARG001
     bAssumeTemplateIsArchetype: int = 0,  # noqa: ARG001
-) -> UObject:
-    return construct_object(Class, Outer, Name, SetFlags, Template)
+) -> UObject | None:
+    try:
+        return construct_object(Class, Outer, Name, SetFlags, Template)
+    except RuntimeError:
+        return None
 
 
 type _SDKHook = Callable[[UObject, UFunction, FStruct], bool | None]
