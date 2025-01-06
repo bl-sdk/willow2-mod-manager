@@ -435,6 +435,9 @@ def _uobject_setattr(self: UObject, name: str, value: Any) -> None:
 
 @wraps(UObject.__repr__)
 def _uobject_repr(self: UObject) -> str:
+    if self is None or self.Class is None:  # type: ignore
+        return "(null)"
+
     current = self
     output = f"{self.Name}"
     while current := current.Outer:
