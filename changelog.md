@@ -7,9 +7,13 @@
 
 ### Legacy Compat v1.2
 - Fixed that some more legacy mods would not auto-enable properly.
-- Added more fixups for previously unreported issues in Arcania, BL2Fix, and Reign of Giants.
+- Added more fixups for previously unreported issues in Arcania, Better Damage Feedback, BL2Fix,
+  Exodus, Reign of Giants, and Reward Reroller.
 
 ### [Mods Base v1.7](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v17)
+> - The "Update Available" notification should now immediately go away upon updating, instead of
+>   waiting a day for the next check.
+>
 > - Changed the functions the keybind implementation should overwrite from `KeybindType.enable` to
 >   `KeybindType._enable` (+ same for disable). These functions don't need to set `is_enabled`.
 
