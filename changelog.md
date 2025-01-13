@@ -2,6 +2,9 @@
 
 ## v3.4 (upcoming)
 
+### Legacy Compat v1.3
+- Added more fixups for previously unreported issues in Skill Randomizer and Skill Saver.
+
 ### Networking v1.1
 - Linting fixes.
 

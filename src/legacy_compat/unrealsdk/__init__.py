@@ -610,13 +610,17 @@ def _uobject_find_objects_containing(StringLookup: str, /) -> list[UObject]:
     raise NotImplementedError
 
 
-def _ustructproperty_get_struct(self: UStructProperty) -> UStruct:
-    return self.Struct
+def _uobject_get_name(obj: UObject, /) -> str:
+    return obj.Name
 
 
 @staticmethod
 def _uobject_path_name(obj: UObject, /) -> str:
     return obj._path_name()
+
+
+def _ustructproperty_get_struct(self: UStructProperty) -> UStruct:
+    return self.Struct
 
 
 def _wrapped_struct_structType_getter(self: WrappedStruct) -> UStruct:
@@ -648,9 +652,10 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     BoundFunction.__call__ = _boundfunc_call
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
-    UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
-    UObject.PathName = _uobject_path_name  # type: ignore
     UObject.GetFullName = _uobject_repr  # type: ignore
+    UObject.GetName = _uobject_get_name  # type: ignore
+    UObject.PathName = _uobject_path_name  # type: ignore
+    UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
     WrappedStruct.structType = _wrapped_struct_structType  # type: ignore
 
     try:
@@ -669,9 +674,10 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         BoundFunction.__call__ = _default_func_call
 
         del UObject.FindObjectsContaining  # type: ignore
-        del UStructProperty.GetStruct  # type: ignore
-        del UObject.PathName  # type: ignore
         del UObject.GetFullName  # type: ignore
+        del UObject.GetName  # type: ignore
+        del UObject.PathName  # type: ignore
+        del UStructProperty.GetStruct  # type: ignore
         del WrappedStruct.structType  # type: ignore
 
 
