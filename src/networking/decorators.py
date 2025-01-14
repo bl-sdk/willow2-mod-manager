@@ -8,7 +8,7 @@ from typing import Any, Concatenate, Self
 
 from unrealsdk.unreal import UObject
 
-from . import queue
+from . import message_queue
 from .registration import add_network_callback, remove_network_callback
 from .transmission import get_host_pri
 
@@ -132,7 +132,7 @@ class broadcast:  # noqa: N801
             raise NotImplementedError
 
         def __call__(self, *args: WrappedParams.args, **kwargs: WrappedParams.kwargs) -> None:
-            queue.broadcast(self.network_identifier, self._encode_message(*args, **kwargs))
+            message_queue.broadcast(self.network_identifier, self._encode_message(*args, **kwargs))
 
     @dataclass
     class message(_EmptyEncoder, _Transmitter[[]], NetworkFunction[[], []]): ...  # noqa: N801
@@ -157,7 +157,7 @@ class host:  # noqa: N801
             raise NotImplementedError
 
         def __call__(self, *args: WrappedParams.args, **kwargs: WrappedParams.kwargs) -> None:
-            queue.transmit(
+            message_queue.transmit(
                 get_host_pri(),
                 self.network_identifier,
                 self._encode_message(*args, **kwargs),
@@ -192,7 +192,11 @@ class targeted:  # noqa: N801
             *args: WrappedParams.args,
             **kwargs: WrappedParams.kwargs,
         ) -> None:
-            queue.transmit(pri, self.network_identifier, self._encode_message(*args, **kwargs))
+            message_queue.transmit(
+                pri,
+                self.network_identifier,
+                self._encode_message(*args, **kwargs),
+            )
 
     @dataclass
     class message(_EmptyEncoder, _Transmitter[[]], NetworkFunction[[], [UObject]]): ...  # noqa: N801

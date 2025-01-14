@@ -273,16 +273,14 @@ class OptionBox:
                 return Block
 
             case (
-                "Up"
-                | "Gamepad_LeftStick_Up",
+                "Up" | "Gamepad_LeftStick_Up",
                 EInputEvent.IE_Pressed,
             ) if self.get_selected_button() == self._prev_page:
                 self._page_up()
                 return Block
 
             case (
-                "Down"
-                | "Gamepad_LeftStick_Down",
+                "Down" | "Gamepad_LeftStick_Down",
                 EInputEvent.IE_Pressed,
             ) if self.get_selected_button() == self._next_page:
                 self._page_down()

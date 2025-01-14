@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.4 (upcoming)
+
+### Networking v1.1
+- Linting fixes.
+
+### UI Utils v1.1
+- Linting fixes.
+
 ## v3.3: Naught
 
 ### Keybinds v1.1
