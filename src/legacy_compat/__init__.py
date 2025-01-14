@@ -82,7 +82,7 @@ def add_compat_module(name: str, module: ModuleType) -> None:  # pyright: ignore
 
 
 # Kill switch. May have to update this at some point if we decide to keep this around longer.
-if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4"}:
+if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6"}:
     from unrealsdk import logging
 
     logging.warning("Legacy SDK Compatibility has been disabled")
