@@ -1,11 +1,11 @@
 # This file is primary for the mod db, the entry for the mod manager points at it
 # It is also used by the release script to get the version number
-# It *is* ok to edit the version in here before release,, the mod db checks the version on the
+# It *is* ok to edit the version in here before release, the mod db checks the version on the
 # actual releases instead
 
 [project]
 name = "willow_mod_manager"
-version = "3.3"
+version = "3.4"
 authors = [{ name = "bl-sdk" }]
 
 [tool.sdkmod]

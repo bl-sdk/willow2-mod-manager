@@ -2,7 +2,7 @@
 from mods_base.mod_list import base_mod
 
 from . import (
-    queue,  # noqa: F401  # pyright: ignore[reportUnusedImport]
+    message_queue,  # noqa: F401  # pyright: ignore[reportUnusedImport]
     transmission,  # noqa: F401  # pyright: ignore[reportUnusedImport]
 )
 from .decorators import NetworkFunction, broadcast, host, targeted
@@ -20,7 +20,7 @@ __all__: tuple[str, ...] = (
     "targeted",
 )
 
-__version_info__: tuple[int, int] = (1, 0)
+__version_info__: tuple[int, int] = (1, 1)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
