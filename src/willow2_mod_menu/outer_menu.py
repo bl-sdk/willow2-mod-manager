@@ -257,11 +257,91 @@ def marketplace_offering_changed(
     except (ValueError, KeyError):
         return Block
 
+    favourite_tooltip = (
+        "" if mod == base_mod else ("[Q] Unfavourite" if is_favourite(mod) else "[Q] Favourite")
+    )
+    enable_tooltip = "[Space] Disable" if mod.is_enabled else "[Space] Enable"
+
     obj.SetTooltips(
-        "[Enter] Select",
-        "" if mod == base_mod else ("[Q] Unfavourite" if is_favourite(mod) else "[Q] Favourite"),
+        f"[Enter] Details\n{favourite_tooltip}",
+        enable_tooltip,
     )
     return Block
+
+
+# Quick set of helpers for working with our DLC menu keybinds.
+
+
+def get_selected_mod(movie: UObject) -> Mod | None:
+    """
+    Gets the mod the user currently has selected.
+
+    Args:
+        movie: The current MarketplaceGFxMovie.
+    Returns:
+        The selected mod object, or None.
+    """
+    return (
+        None
+        if (item := movie.GetSelectedObject()) is None
+        else drawn_mod_list[int(item.GetString(movie.Prop_offeringId))]
+    )
+
+
+def handle_toggle_favourite(movie: UObject) -> None:
+    """
+    Handles the user hitting the key to toggle favourite.
+
+    Args:
+        movie: The current MarketplaceGFxMovie.
+    """
+    if (mod := get_selected_mod(movie)) is not None:
+        toggle_favourite(mod)
+        movie.RefreshDLC()
+
+
+def handle_toggle_mod(movie: UObject) -> None:
+    """
+    Handles the user hitting the key to toggle a mod.
+
+    Args:
+        movie: The current MarketplaceGFxMovie.
+    """
+    if (mod := get_selected_mod(movie)) is None or mod.enabling_locked:
+        return
+
+    old_enabled = mod.is_enabled
+    (mod.disable if old_enabled else mod.enable)()
+
+    # Extra safety layer in case the mod still decided to reject the toggle, no need to refresh if
+    # we haven't changed state
+    if old_enabled != mod.is_enabled:
+        movie.RefreshDLC()
+
+
+def handle_show_mod_details(movie: UObject) -> None:
+    """
+    Handles the user hitting the key to show mod details.
+
+    Args:
+        movie: The current MarketplaceGFxMovie.
+    """
+    if (mod := get_selected_mod(movie)) is None:
+        return
+
+    pc = movie.WPCOwner
+    frontend = pc.GetFrontendMovie()
+    frontend.HideMarketplaceMovie()
+
+    options = pc.GFxUIManager.PlayMovie(frontend.MyFrontendDefinition.OptionsMovieDef)
+    options.PreviousMenuHeader = MODS_MENU_NAME
+
+    the_list = options.TheList
+    the_list.DataProviderStack.clear()
+    push_mod_options(the_list, mod)
+
+    frontend.OptionsMovie = options
+    frontend_options_hide_reopen_mod_menu.enable()
 
 
 # Called on any key input in the DLC menu. We basically entirely overwrite it to add our own logic.
@@ -290,31 +370,15 @@ def marketplace_input_key(
                 return Block, True
 
             case "Q", EInputEvent.IE_Released:
-                item = obj.GetSelectedObject()
-                if item is not None:
-                    mod = drawn_mod_list[int(item.GetString(obj.Prop_offeringId))]
-                    toggle_favourite(mod)
-                    obj.RefreshDLC()
+                handle_toggle_favourite(obj)
                 return Block, True
+
+            case "SpaceBar", EInputEvent.IE_Released:
+                handle_toggle_mod(obj)
+                return Block, True
+
             case "Enter", EInputEvent.IE_Released:
-                item = obj.GetSelectedObject()
-                if item is None:
-                    return Block, True
-                mod = drawn_mod_list[int(item.GetString(obj.Prop_offeringId))]
-
-                pc = obj.WPCOwner
-                frontend = pc.GetFrontendMovie()
-                frontend.HideMarketplaceMovie()
-
-                options = pc.GFxUIManager.PlayMovie(frontend.MyFrontendDefinition.OptionsMovieDef)
-                options.PreviousMenuHeader = MODS_MENU_NAME
-
-                the_list = options.TheList
-                the_list.DataProviderStack.clear()
-                push_mod_options(the_list, mod)
-
-                frontend.OptionsMovie = options
-                frontend_options_hide_reopen_mod_menu.enable()
+                handle_show_mod_details(obj)
                 return Block, True
 
             case _, _:

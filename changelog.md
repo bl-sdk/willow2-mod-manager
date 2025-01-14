@@ -12,6 +12,10 @@
 ### UI Utils v1.1
 - Linting fixes.
 
+### Willow2 Mod Menu v3.3
+- Allowed quick enabling/disabling a mod from the main menu using space, like in the legacy mod
+  menu. While in game you'll still need to check under each mod individually.
+
 ## v3.3: Naught
 
 ### Keybinds v1.1
