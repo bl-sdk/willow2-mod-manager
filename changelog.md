@@ -6,11 +6,39 @@
 - Added more fixups for previously unreported issues in Skill Randomizer and Skill Saver.
 - Slightly extended the list of allowed versions before the kill switch activates.
 
+### [Mods Base v1.8](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v18)
+> - Fixed that nested and grouped options' children would not get their `.mod` attribute set.
+
 ### Networking v1.1
 - Linting fixes.
 
+### [pyunrealsdk v1.6.0](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v160)
+> - `WrappedStruct` now supports being copied via the `copy` module.
+>
+> - Fixed that `WrappedArray.index` would not check the last item in the array. It also now accepts
+>   start/stop indexes beyond the array bounds, like `list.index` does.
+>
+> - Hook return values and array access now have the same semantics as normal property accesses. In
+>   practice this means:
+>
+>   - Getting an enum property will convert it to a python `IntFlag` enum (rather than an int).
+>   - Setting an array property will accept any sequence (rather than just wrapped arrays).
+>   
+>   All other property types had the same semantics already, so this is backwards compatible.
+>
+> - Added a `_get_address` method to `WrappedArray`, `WrappedMulticastDelegate`, and `WrappedStruct`.
+
 ### UI Utils v1.1
 - Linting fixes.
+
+### [unrealsdk v1.7.0](https://github.com/bl-sdk/unrealsdk/blob/master/changelog.md#v170)
+> - `unrealsdk::unreal::cast` now copies the const-ness of its input object to its callbacks.
+> 
+> - Reworked `PropertyProxy` to be based on `UnrealPointer` (and reworked it too). This fixes some
+>   issues with ownership and possible use after frees.
+>   
+>   *This breaks binary compatibility*, though existing code should work pretty much as is after a
+>   recompile.
 
 ### Willow2 Mod Menu v3.3
 - Allowed quick enabling/disabling a mod from the main menu using space, like in the legacy mod
