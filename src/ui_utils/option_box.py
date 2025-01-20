@@ -242,14 +242,16 @@ class OptionBox:
         elif button == self._prev_page:
             self._page_up()
         elif self.on_select is not None:
-            self.on_select(self, button)
+            self._hide_page()
             self._pages.clear()
+            self.on_select(self, button)
 
     def _paging_on_cancel(self, _: Page) -> None:
         """Cancel handler for the paging system."""
+        self._hide_page()
+        self._pages.clear()
         if self.on_cancel is not None:
             self.on_cancel(self)
-        self._pages.clear()
 
     def _paging_on_input(
         self,
