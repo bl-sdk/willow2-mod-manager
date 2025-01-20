@@ -29,7 +29,8 @@
 > - Added a `_get_address` method to `WrappedArray`, `WrappedMulticastDelegate`, and `WrappedStruct`.
 
 ### UI Utils v1.1
-- Linting fixes.
+- Fixed some oddities that occurred if you re-showed an `OptionBox` during it's `on_select`
+  callback.
 
 ### [unrealsdk v1.7.0](https://github.com/bl-sdk/unrealsdk/blob/master/changelog.md#v170)
 > - `unrealsdk::unreal::cast` now copies the const-ness of its input object to its callbacks.
