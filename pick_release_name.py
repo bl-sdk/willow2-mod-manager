@@ -375,6 +375,7 @@ PREVIOUS_RELEASE_NAMES = [
     "Omni-Cannon",
     "Razorback",
     "Naught",
+    "Luck Cannon",
 ]
 
 

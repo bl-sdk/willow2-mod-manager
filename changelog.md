@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.4 (upcoming)
+## v3.4: Luck Cannon
 
 ### Legacy Compat v1.3
 - Added more fixups for previously unreported issues in Skill Randomizer and Skill Saver.
