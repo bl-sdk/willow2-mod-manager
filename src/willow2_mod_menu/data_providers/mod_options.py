@@ -107,6 +107,7 @@ class ModOptionsDataProvider(OptionsDataProvider):
         data_provider: UObject,
         options: Sequence[BaseOption],
         group_stack: list[GroupedOption | NestedOption],
+        nest_idx: int = 0,
     ) -> None:
         """
         Adds a list of keybinds to the current menu.
@@ -115,14 +116,15 @@ class ModOptionsDataProvider(OptionsDataProvider):
             data_provider: The WillowScrollingListDataProviderOptionsBase to add to.
             options: The list of options containing the keybinds to add.
             group_stack: The stack of currently open grouped options. Should start out empty.
+            nest_idx: Incrementing counter for each nested list.
         """
-        nest_idx = len(group_stack)
+        nest_depth = len(group_stack)
 
         for options_idx, option in enumerate(options):
             if option.is_hidden:
                 continue
 
-            tag_this_idx = f"{nest_idx}:{options_idx}"
+            tag_this_idx = f"{nest_depth}:{nest_idx}:{options_idx}"
 
             match option:
                 case KeybindOption():
@@ -144,10 +146,12 @@ class ModOptionsDataProvider(OptionsDataProvider):
                         caption = " - ".join(g.display_name for g in group_stack)
                         data_provider.AddKeyBindEntry(tag, DUMMY_ACTION, caption)
 
+                    nest_idx += 1
                     self.add_keybinds_list(
                         data_provider,
                         option.children,
                         group_stack,
+                        nest_idx,
                     )
 
                     group_stack.pop()
