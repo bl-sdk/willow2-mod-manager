@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.5 (Upcoming)
+
+### Willow2 Mod Menu v3.4
+- Fixed that some keybinds would not be displayed properly if there were two separate grouped/nested
+  options at the same level.
+
 ## v3.4: Luck Cannon
 
 ### Legacy Compat v1.3
