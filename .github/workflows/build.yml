@@ -18,7 +18,7 @@ env:
 
 jobs:
   build-windows:
-    runs-on: windows-2019
+    runs-on: windows-latest
 
     strategy:
       fail-fast: false
@@ -168,7 +168,7 @@ jobs:
 # ==============================================================================
 
   clang-tidy:
-    runs-on: windows-2019
+    runs-on: windows-latest
 
     strategy:
       fail-fast: false
@@ -224,7 +224,7 @@ jobs:
         fixesFile: clang-tidy-fixes.yml
 
   clang-format:
-    runs-on: windows-2019
+    runs-on: windows-latest
 
     steps:
     - name: Setup Clang
