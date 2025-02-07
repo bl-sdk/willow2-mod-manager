@@ -652,6 +652,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     BoundFunction.__call__ = _boundfunc_call
 
     UObject.FindObjectsContaining = _uobject_find_objects_containing  # type: ignore
+    UObject.GetAddress = UObject._get_address  # type: ignore
     UObject.GetFullName = _uobject_repr  # type: ignore
     UObject.GetName = _uobject_get_name  # type: ignore
     UObject.PathName = _uobject_path_name  # type: ignore
@@ -674,6 +675,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         BoundFunction.__call__ = _default_func_call
 
         del UObject.FindObjectsContaining  # type: ignore
+        del UObject.GetAddress  # type: ignore
         del UObject.GetFullName  # type: ignore
         del UObject.GetName  # type: ignore
         del UObject.PathName  # type: ignore
