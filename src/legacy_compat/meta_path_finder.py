@@ -188,18 +188,29 @@ class LegacyCompatMetaPathFinder:
                     ),
                 )
 
-            # Loot randomizer called these functions with a bad arg type in two places. This is
-            # essentially undefined behaviour, so now gives an exception. Luckily, in this case the
-            # functions actually validated their arg, so this just became a no-op.
-            # Remove the two bad calls.
-
-            # Here's the downside of using a single folder name, this case just looks weird.
-            case ("Mod", "Mods.LootRandomizer.Mod.missions"):
+            # Loot randomizer needs a few fixes
+            case (
+                # Here's the downside of using a single folder name, these cases just look weird.
+                ("Mod", "Mods.LootRandomizer.Mod.missions")
+                # Newer versions split the files
+                | ("Mod", "Mods.LootRandomizer.Mod.bl2.locations")
+            ):
                 return spec_with_replacements(
                     fullname,
                     path,
                     target,
-                    (rb"get_missiontracker\(\)\.(Unr|R)egisterMissionDirector\(giver\)", b""),
+                    # It called these functions with a bad arg type in two places. This is
+                    # essentially undefined behaviour, so now gives an exception. Luckily, in this
+                    # case the functions actually validated their arg, so this just became a no-op.
+                    # Remove the two bad calls.
+                    (rb"get_missiontracker\(\)\.(Unr|R)egisterMissionDirector\(giver\)", b"pass"),
+                    # There's some code to hide Face McShooty's body on re-accepting the quest. I
+                    # think this broke due to the removal of CallPostEdit. Swapping it to use the
+                    # setter functions makes it work again.
+                    (
+                        rb"pawn.bHidden = True([\r\n]+ +)pawn.CollisionType = 1",
+                        rb"pawn.SetHidden(True)\1pawn.SetCollisionType(1)",
+                    ),
                 )
 
             case _, _:
