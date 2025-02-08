@@ -188,5 +188,19 @@ class LegacyCompatMetaPathFinder:
                     ),
                 )
 
+            # Loot randomizer called these functions with a bad arg type in two places. This is
+            # essentially undefined behaviour, so now gives an exception. Luckily, in this case the
+            # functions actually validated their arg, so this just became a no-op.
+            # Remove the two bad calls.
+
+            # Here's the downside of using a single folder name, this case just looks weird.
+            case ("Mod", "Mods.LootRandomizer.Mod.missions"):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    (rb"get_missiontracker\(\)\.(Unr|R)egisterMissionDirector\(giver\)", b""),
+                )
+
             case _, _:
                 return None

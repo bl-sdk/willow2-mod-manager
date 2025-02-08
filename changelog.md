@@ -3,7 +3,7 @@
 ## v3.5 (Upcoming)
 
 ### Legacy Compat v1.4
-- Added more fixups for previously unreported issues in Reign of Giants.
+- Added more fixups for previously unreported issues in Loot Randomizer and Reign of Giants.
 
 ### Willow2 Mod Menu v3.4
 - Fixed that some keybinds would not be displayed properly if there were two separate grouped/nested
