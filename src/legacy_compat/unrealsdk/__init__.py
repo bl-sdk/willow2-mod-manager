@@ -615,7 +615,9 @@ def _uobject_get_name(obj: UObject, /) -> str:
 
 
 @staticmethod
-def _uobject_path_name(obj: UObject, /) -> str:
+def _uobject_path_name(obj: UObject | None, /) -> str:
+    if obj is None:
+        return "None"
     return obj._path_name()
 
 
