@@ -98,7 +98,7 @@ class LegacyCompatMetaPathFinder:
         raise RuntimeError
 
     @classmethod
-    def find_spec(  # noqa: D102
+    def find_spec(  # noqa: D102, C901
         cls,
         fullname: str,
         path: Sequence[str] | None = None,
@@ -210,6 +210,37 @@ class LegacyCompatMetaPathFinder:
                     (
                         rb"pawn.bHidden = True([\r\n]+ +)pawn.CollisionType = 1",
                         rb"pawn.SetHidden(True)\1pawn.SetCollisionType(1)",
+                    ),
+                )
+
+            case ("Mod", "Mods.LootRandomizer.Mod.locations"):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    # This one's a break just due to upgrading python. Hints were trying to be a
+                    # string enum before StrEnum was introduced, stringifying them now returns the
+                    # name, not the value.
+                    (
+                        rb"hint_text = self\.item\.hint\.formatter\(self\.item\.hint\)",
+                        b"hint_text = self.item.hint.formatter(self.item.hint.value)",
+                    ),
+                )
+
+            case ("Mod", "Mods.LootRandomizer.Mod.hints"):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    # This is a bit of a weird one. Best we can tell, in legacy sdk if you didn't
+                    # specify a struct field, it just left it alone, so this kept whatever the old
+                    # grades data was.
+                    # In new sdk setting an entire struct zero-inits missing fields instead - so add
+                    # back in what we actually want it to be set to.
+                    (
+                        rb"inventory_template.Manufacturers = \(\(manufacturer\),\)",
+                        b"inventory_template.Manufacturers = [(manufacturer[0], "
+                        b"[((1, None), (1, 100), (0.5, None, None, 1), (1, None, None, 1))])]",
                     ),
                 )
 
