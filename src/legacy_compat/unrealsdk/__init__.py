@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache, wraps
-from typing import Any
+from typing import Any, overload
 
 from unrealsdk import (
     __version_info__,
@@ -346,15 +346,23 @@ def _convert_struct_tuple_if_required(
 _RE_NAME_SUFFIX = re.compile(r"^(.+)_\d+$")
 
 
-def _strip_name_property_suffix(name: str) -> str:
+@overload
+def _strip_name_property_suffix(name: str) -> str: ...
+@overload
+def _strip_name_property_suffix(name: tuple[str, ...]) -> tuple[str, ...]: ...
+
+
+def _strip_name_property_suffix(name: str | tuple[str, ...]) -> str | tuple[str, ...]:
     """
     Tries to strip the numeric suffix from a name property.
 
     Args:
-        name: The input name.
+        name: The input name(s).
     Returns:
-        The stripped name.
+        The stripped name(s).
     """
+    if isinstance(name, tuple):
+        return tuple(_strip_name_property_suffix(x) for x in name)
     return match.group(1) if (match := _RE_NAME_SUFFIX.match(name)) else name
 
 
@@ -371,7 +379,7 @@ def _uobject_getattr(self: UObject, name: str) -> Any:
         case UInterfaceProperty():
             return FScriptInterface(value)
         case UNameProperty():
-            return _strip_name_property_suffix(value)
+            return _strip_name_property_suffix(value)  # type: ignore
         case _:
             return value
 
@@ -412,7 +420,7 @@ def _uobject_getattribute(self: UObject, name: str) -> Any:
         case "ObjectFlags":
             return _ObjectFlagsProxy(self)
         case "Name":
-            return _strip_name_property_suffix(_default_object_getattribute(self, "Name"))
+            return _strip_name_property_suffix(_default_object_getattribute(self, "Name"))  # type: ignore
         case _:
             return _default_object_getattribute(self, name)
 
@@ -454,7 +462,7 @@ def _struct_getattr(self: WrappedStruct, name: str) -> Any:
         case UInterfaceProperty():
             return FScriptInterface(value)
         case UNameProperty():
-            return _strip_name_property_suffix(value)
+            return _strip_name_property_suffix(value)  # type: ignore
         case _:
             return value
 
@@ -487,8 +495,6 @@ def _array_getitem[T](self: WrappedArray[T], idx: int | slice) -> T | list[T]:
                 return [_strip_name_property_suffix(x) for x in val_seq]  # type: ignore
 
             return _strip_name_property_suffix(value)  # type: ignore
-
-            return _strip_name_property_suffix(value)
         case _:
             return value
 
