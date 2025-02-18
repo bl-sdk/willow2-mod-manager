@@ -188,7 +188,7 @@ class LegacyCompatMetaPathFinder:
                     ),
                 )
 
-            # Loot randomizer needs a few fixes
+            # Loot randomizer needs quite a few fixes
             case (
                 # Here's the downside of using a single folder name, these cases just look weird.
                 ("Mod", "Mods.LootRandomizer.Mod.missions")
@@ -211,6 +211,18 @@ class LegacyCompatMetaPathFinder:
                         rb"pawn.bHidden = True([\r\n]+ +)pawn.CollisionType = 1",
                         rb"pawn.SetHidden(True)\1pawn.SetCollisionType(1)",
                     ),
+                    # This one seems to be another post edit issue. Work around it with a console
+                    # command instead. Matching any number at the end for testing.
+                    (
+                        rb"raise Exception\(\"Could not locate switch for Michael Mamaril\"\)"
+                        rb"([\r\n]+ +)switch\.LinkCount = (\d+)",
+                        b'raise Exception("Could not locate switch for Michael Mamaril")\\1'
+                        b"import unrealsdk; unrealsdk.DoInjectedCallNext(); "
+                        b"GetEngine().GamePlayers[0].Actor.ConsoleCommand("
+                        b'f"set {switch.PathName(switch)} LinkCount \\2")',
+                    ),
+                    # I was just told this one never did anything, idk what the bug is
+                    (rb"sequence\.CustomEnableCondition\.bComplete = True", b""),
                 )
 
             case ("Mod", "Mods.LootRandomizer.Mod.locations"):
