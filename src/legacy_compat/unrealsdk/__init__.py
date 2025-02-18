@@ -614,6 +614,14 @@ def _uobject_get_name(obj: UObject, /) -> str:
     return obj.Name
 
 
+def _uobject_get_object_name(obj: UObject, /) -> str:
+    current = obj
+    output = f"{obj.Name}"
+    while current := current.Outer:
+        output = f"{current.Name}.{output}"
+    return output
+
+
 @staticmethod
 def _uobject_path_name(obj: UObject | None, /) -> str:
     if obj is None:
@@ -657,6 +665,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     UObject.GetAddress = UObject._get_address  # type: ignore
     UObject.GetFullName = _uobject_repr  # type: ignore
     UObject.GetName = _uobject_get_name  # type: ignore
+    UObject.GetObjectName = _uobject_get_object_name  # type: ignore
     UObject.PathName = _uobject_path_name  # type: ignore
     UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
     WrappedStruct.structType = _wrapped_struct_structType  # type: ignore
@@ -680,6 +689,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         del UObject.GetAddress  # type: ignore
         del UObject.GetFullName  # type: ignore
         del UObject.GetName  # type: ignore
+        del UObject.GetObjectName  # type: ignore
         del UObject.PathName  # type: ignore
         del UStructProperty.GetStruct  # type: ignore
         del WrappedStruct.structType  # type: ignore
