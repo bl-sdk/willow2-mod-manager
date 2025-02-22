@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache, wraps
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from unrealsdk import (
     __version_info__,
@@ -33,6 +33,7 @@ from unrealsdk.unreal import (
     UClassProperty,
     UComponentProperty,
     UDelegateProperty,
+    UEnumProperty,
     UFloatProperty,
     UFunction,
     UInterfaceProperty,
@@ -50,6 +51,9 @@ from unrealsdk.unreal import (
 
 from legacy_compat import compat_handlers, legacy_compat
 from mods_base import ENGINE
+
+if TYPE_CHECKING:
+    from enum import IntFlag
 
 # This is mutable so mod menu can add to it
 __all__: list[str] = [
@@ -236,7 +240,11 @@ def LogAllCalls(should_log: bool, /) -> None:
 
 
 def CallPostEdit(_: bool, /) -> None:
-    # Never really useful and no way to replicate
+    # We use the context manager to replicate this being on all the time. DOn't really have a good
+    # way to turn it off.
+    # As of writing this, the only mod left which called this is Commander - where it turned out to
+    # be superfluous. There do seem to have been some actual uses, in BL2Eternal and Sliding,
+    # however they've been ported to new sdk already.
     pass
 
 
@@ -269,6 +277,8 @@ Property Access:
   accessed the object, the new sdk just returns it directly. We need to return the struct instead.
 - In the legacy sdk, name properties did not include the number when converted to a string, which we
   need to strip out.
+- In the legacy sdk, all enum properties returned a raw int, but now they return an IntFlag, which
+  behave slightly differently - e.g. they support an __iter__.
 
 UObject:
 - The `ObjectFlags` field on objects used to be split into the upper and lower 32 bits (B and A
@@ -343,7 +353,8 @@ def _convert_struct_tuple_if_required(
     return value
 
 
-_RE_NAME_SUFFIX = re.compile(r"^(.+)_\d+$")
+# Make sure not to allow leading zeros
+_RE_NAME_SUFFIX = re.compile(r"^(.+)_[1-9]\d*$")
 
 
 @overload
@@ -380,6 +391,8 @@ def _uobject_getattr(self: UObject, name: str) -> Any:
             return FScriptInterface(value)
         case UNameProperty():
             return _strip_name_property_suffix(value)  # type: ignore
+        case UByteProperty() | UEnumProperty() if prop.Enum is not None:
+            return value.value  # type: ignore
         case _:
             return value
 
@@ -463,6 +476,8 @@ def _struct_getattr(self: WrappedStruct, name: str) -> Any:
             return FScriptInterface(value)
         case UNameProperty():
             return _strip_name_property_suffix(value)  # type: ignore
+        case UByteProperty() | UEnumProperty() if prop.Enum is not None:
+            return value.value  # type: ignore
         case _:
             return value
 
@@ -495,6 +510,12 @@ def _array_getitem[T](self: WrappedArray[T], idx: int | slice) -> T | list[T]:
                 return [_strip_name_property_suffix(x) for x in val_seq]  # type: ignore
 
             return _strip_name_property_suffix(value)  # type: ignore
+        case UByteProperty() | UEnumProperty() if self._type.Enum is not None:
+            if isinstance(idx, slice):
+                val_seq: Sequence[IntFlag] = value  # type: ignore
+                return [x.value for x in val_seq]  # type: ignore
+
+            return value.value  # type: ignore
         case _:
             return value
 
