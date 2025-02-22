@@ -240,7 +240,11 @@ def LogAllCalls(should_log: bool, /) -> None:
 
 
 def CallPostEdit(_: bool, /) -> None:
-    # Never really useful and no way to replicate
+    # We use the context manager to replicate this being on all the time. DOn't really have a good
+    # way to turn it off.
+    # As of writing this, the only mod left which called this is Commander - where it turned out to
+    # be superfluous. There do seem to have been some actual uses, in BL2Eternal and Sliding,
+    # however they've been ported to new sdk already.
     pass
 
 

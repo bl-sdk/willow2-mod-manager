@@ -96,6 +96,7 @@ else:
     from functools import wraps
 
     from unrealsdk.hooks import prevent_hooking_direct_calls
+    from unrealsdk.unreal import notify_changes
 
     from mods_base import MODS_DIR
 
@@ -107,6 +108,7 @@ else:
 
     ENABLED = True  # pyright: ignore[reportConstantRedefinition]
     compat_handlers.append(prevent_hooking_direct_calls)
+    compat_handlers.append(notify_changes)
 
     """
     There are two parts to legacy SDK compatibility.
