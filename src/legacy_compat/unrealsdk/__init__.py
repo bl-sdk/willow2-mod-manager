@@ -349,7 +349,8 @@ def _convert_struct_tuple_if_required(
     return value
 
 
-_RE_NAME_SUFFIX = re.compile(r"^(.+)_\d+$")
+# Make sure not to allow leading zeros
+_RE_NAME_SUFFIX = re.compile(r"^(.+)_[1-9]\d*$")
 
 
 @overload
