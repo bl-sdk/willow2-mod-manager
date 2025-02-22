@@ -98,7 +98,7 @@ class LegacyCompatMetaPathFinder:
         raise RuntimeError
 
     @classmethod
-    def find_spec(  # noqa: D102, C901
+    def find_spec(  # noqa: D102
         cls,
         fullname: str,
         path: Sequence[str] | None = None,
@@ -194,6 +194,7 @@ class LegacyCompatMetaPathFinder:
                 ("Mod", "Mods.LootRandomizer.Mod.missions")
                 # Newer versions split the files
                 | ("Mod", "Mods.LootRandomizer.Mod.bl2.locations")
+                | ("Mod", "Mods.LootRandomizer.Mod.tps.locations")
             ):
                 return spec_with_replacements(
                     fullname,
@@ -204,42 +205,23 @@ class LegacyCompatMetaPathFinder:
                     # case the functions actually validated their arg, so this just became a no-op.
                     # Remove the two bad calls.
                     (rb"get_missiontracker\(\)\.(Unr|R)egisterMissionDirector\(giver\)", b"pass"),
-                    # There's some code to hide Face McShooty's body on re-accepting the quest. I
-                    # think this broke due to the removal of CallPostEdit. Swapping it to use the
-                    # setter functions makes it work again.
-                    (
-                        rb"pawn.bHidden = True([\r\n]+ +)pawn.CollisionType = 1",
-                        rb"pawn.SetHidden(True)\1pawn.SetCollisionType(1)",
-                    ),
-                    # This one seems to be another post edit issue. Work around it with a console
-                    # command instead. Matching any number at the end for testing.
-                    (
-                        rb"raise Exception\(\"Could not locate switch for Michael Mamaril\"\)"
-                        rb"([\r\n]+ +)switch\.LinkCount = (\d+)",
-                        b'raise Exception("Could not locate switch for Michael Mamaril")\\1'
-                        b"import unrealsdk; unrealsdk.DoInjectedCallNext(); "
-                        b"GetEngine().GamePlayers[0].Actor.ConsoleCommand("
-                        b'f"set {switch.PathName(switch)} LinkCount \\2")',
-                    ),
                     # I was just told this one never did anything, idk what the bug is
                     (rb"sequence\.CustomEnableCondition\.bComplete = True", b""),
-                )
-
-            case ("Mod", "Mods.LootRandomizer.Mod.locations"):
-                return spec_with_replacements(
-                    fullname,
-                    path,
-                    target,
-                    # This one's a break just due to upgrading python. Hints were trying to be a
-                    # string enum before StrEnum was introduced, stringifying them now returns the
-                    # name, not the value.
+                    # This one's the same as reward reroller, need to manually convert to a list
                     (
-                        rb"hint_text = self\.item\.hint\.formatter\(self\.item\.hint\)",
-                        b"hint_text = self.item.hint.formatter(self.item.hint.value)",
+                        rb"caller\.FastTravelClip\.SendLocationData\(([\r\n]+ +)"
+                        rb"travels,([\r\n]+ +)"
+                        rb"caller\.LocationStationStrings,",
+                        rb"caller.FastTravelClip.SendLocationData(\1travels,\2list(caller.LocationStationStrings),",
                     ),
                 )
 
-            case ("Mod", "Mods.LootRandomizer.Mod.hints"):
+            case (
+                "Mod",
+                "Mods.LootRandomizer.Mod.hints"
+                | "Mods.LootRandomizer.Mod.bl2"
+                | "Mods.LootRandomizer.Mod.tps",
+            ):
                 return spec_with_replacements(
                     fullname,
                     path,
@@ -254,6 +236,10 @@ class LegacyCompatMetaPathFinder:
                         b"inventory_template.Manufacturers = [(manufacturer[0], "
                         b"[((1, None), (1, 100), (0.5, None, None, 1), (1, None, None, 1))])]",
                     ),
+                    # This one's a break just due to upgrading python. Hints were trying to be a
+                    # string enum before StrEnum was introduced, so stringifying them now returns
+                    # the name, not the value. Make it a real StrEnum instead.
+                    (rb"class Hint\(str, enum\.Enum\):", b"class Hint(enum.StrEnum):"),
                 )
 
             case _, _:
