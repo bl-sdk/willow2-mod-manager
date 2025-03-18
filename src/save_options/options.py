@@ -64,7 +64,9 @@ def trigger_save() -> None:
         # Need to prevent our hook on EndLoadGame to avoid reloading previous save option values
         with prevent_hooking_direct_calls():
             player_save_game = save_manager.EndLoadGame(
-                pc.GetMyControllerId(), make_struct("LoadInfo"), 0,
+                pc.GetMyControllerId(),
+                make_struct("LoadInfo"),
+                0,
             )[0]
         save_manager.SaveGame(
             pc.GetMyControllerId(),
@@ -85,7 +87,12 @@ class SaveOptionMeta(type(ValueOption)):
     """
 
     def __init__(
-        cls, name: str, bases: tuple[type, ...], namespace: dict[str, Any], /, **kwargs: Any,  # noqa: ARG002
+        cls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, Any],
+        /,
+        **kwargs: Any,  # noqa: ARG002
     ) -> None:
         super().__init__(name, bases, namespace)
 

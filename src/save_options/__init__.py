@@ -1,4 +1,3 @@
-
 import save_options.hooks  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from mods_base.mod_list import base_mod
 from save_options.options import (
@@ -35,10 +34,9 @@ but provide some additional functionality:
   options, with a message showing that a player needs to be loaded.
 - Values from the options will be saved to and loaded from the character save files. If the option
   is also registered in the mod as a regular option (i.e., in Mod.options), the options will also
-  save to the mod's settings
-file. These values will be loaded for any character that has not had any values saved yet. If you
-don't want a save option to be stored in the mod settings file, make sure it is not added to
-Mod.options.
+  save to the mod's settings file. These values will be loaded for any character that has not had
+  any values saved yet. If you don't want a save option to be stored in the mod settings file, make
+  sure it is not added to Mod.options.
 
 Once the SaveOptions are registered, they are used in two places:
 1. A hook on WillowSaveGameManager:SaveGame, where the values from the save options are read and
@@ -47,6 +45,9 @@ Once the SaveOptions are registered, they are used in two places:
    (e.g., get data from the WPC that you would like saved).
 2. A hook on WillowSaveGameManager:EndLoadGame, where the data previously written to the save file
    is parsed and applied to the registered save options.
+
+An optional on_load can be defined that runs immediately after regular save data is applied to the
+character upon loading into the game.
 
 Additionally, there is a trigger that saves the game whenever we leave the options menu and ANY
 save option has changed. This keeps the save file up to date if a value is changed on the mod

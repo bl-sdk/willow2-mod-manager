@@ -34,7 +34,7 @@ def _treat_as_save_option(obj: Any) -> bool:
     return False
 
 
-def register_save_options(  # noqa: D417
+def register_save_options(  # noqa: C901, D417
     mod: Mod,
     *,
     save_options: Sequence[BaseOption] | None = None,
@@ -74,25 +74,24 @@ def register_save_options(  # noqa: D417
     registered_mods[mod_identifier] = mod
 
     new_save_options: list[BaseOption] = []
-    # Grab any save options in mod.options. If a save option is in a nested or grouped option,
-    # we are going to register the parent iff all children are save options. Otherwise we'll log
-    # an error.
-    if isinstance(mod, Mod): # type: ignore
-        new_save_options.extend([option for option in mod.options if _treat_as_save_option(option)])
-
-    # If save_options not given, module search for any other save options defined
-    if save_options is None:
-        new_save_options.extend(
-            [value for _, value in inspect.getmembers(module) if _treat_as_save_option(value)],
-        )
-    else:
+    # Use save_options if provided, otherwise do a module search.
+    if save_options is not None:
         for option in save_options:
             if _treat_as_save_option(option):
                 new_save_options.append(option)
             else:
                 logging.error(f"Cannot register {option} as a SaveOption")
+    else:
+        for _, value in inspect.getmembers(module):
+            if _treat_as_save_option(value):
+                if isinstance(value, GroupedOption | NestedOption):
+                    logging.dev_warning(
+                        f"{module.__name__}: {type(value).__name__} instances must be explicitly"
+                        f" specified in the options list!",
+                    )
+                else:
+                    new_save_options.append(value)
 
-    # If the same save_option is gathered twice above, this will deduplicate
     registered_save_options[mod_identifier] = {
         save_opt.identifier: save_opt for save_opt in new_save_options
     }
