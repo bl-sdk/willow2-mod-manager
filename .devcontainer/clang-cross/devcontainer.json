@@ -1,0 +1,7 @@
+{
+	"name": "clang-cross",
+	"build": {
+		"dockerfile": "../Dockerfile",
+		"target": "clang-cross"
+	}
+}
