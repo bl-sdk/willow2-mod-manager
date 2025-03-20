@@ -12,6 +12,10 @@
 
 - Added support for the "Host Only" coop support value.
 
+- Now prints a (dev) warning when trying to use a SliderOption with non-integer values, or with a
+  step that doesn't evenly divide it's values. Neither of these cases are properly supported by the
+  engine, both may have weird, unexpected, behaviour.
+
 ## v3.4: Luck Cannon
 
 ### Legacy Compat v1.3
