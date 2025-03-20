@@ -10,6 +10,8 @@
 - Fixed that some keybinds would not be displayed properly if there were two separate grouped/nested
   options at the same level.
 
+- Added support for the "Host Only" coop support value.
+
 ## v3.4: Luck Cannon
 
 ### Legacy Compat v1.3
