@@ -15,6 +15,7 @@ from mods_base import (
     get_pc,
     hook,
 )
+from mods_base.options import DropdownOption, KeybindOption
 
 any_option_changed: bool = False
 
@@ -26,7 +27,7 @@ def can_save() -> bool:
         return False
     cached_save = pc.GetCachedSaveGame()
     # SaveGameId of -1 is used when a new game is selected but user exits before starting the game
-    return not (not cached_save or cached_save.SaveGameId == -1)
+    return cached_save and cached_save.SaveGameId != -1
 
 
 def trigger_save() -> None:
@@ -63,11 +64,11 @@ def trigger_save() -> None:
         setattr(save_manager, "__OnLoadComplete__Delegate", None)
         # Need to prevent our hook on EndLoadGame to avoid reloading previous save option values
         with prevent_hooking_direct_calls():
-            player_save_game = save_manager.EndLoadGame(
+            player_save_game, _ = save_manager.EndLoadGame(
                 pc.GetMyControllerId(),
                 make_struct("LoadInfo"),
                 0,
-            )[0]
+            )
         save_manager.SaveGame(
             pc.GetMyControllerId(),
             player_save_game,
@@ -174,12 +175,10 @@ class HiddenSaveOption[J: JSON](SaveOption, HiddenOption[J]):
     """
 
     def save(self) -> None:
-        """
-        Base HiddenOption has a method to save mod settings.
+        """Triggers a save of current save option values to the character save file."""
 
-        We're overriding to re-save the player save game and save our options on the character save
-        file.
-        """
+        # Base HiddenOption has a method to save mod settings. We're overriding to re-save the
+        # player save game and save our options on the character save file.
         trigger_save()
 
 
@@ -218,13 +217,60 @@ class SpinnerSaveOption(SaveOption, SpinnerOption):
     Typically implemented as a spinner. Value is stored on a per save basis when using this
     instead of the mod's settings file.
 
-    Also see DropDownSaveOption, which may be more suitable for larger numbers of choices.
-
     Args:
         identifier: The option's identifier.
         value: The option's value.
         choices: A list of choices for the value.
         wrap_enabled: If True, allows moving from the last choice back to the first, or vice versa.
+    Keyword Args:
+        display_name: The option name to use for display. Defaults to copying the identifier.
+        description: A short description about the option.
+        description_title: The title of the description. Defaults to copying the display name.
+        is_hidden: If true, the option will not be shown in the options menu.
+        on_change: If not None, a callback to run before updating the value. Passed a reference to
+                   the option object and the new value. May be set using decorator syntax.
+    Extra Attributes:
+        mod: The mod this option stores it's settings in, or None if not (yet) associated with one.
+        default_value: What the value was originally when registered. Does not update on change.
+    """
+
+
+@dataclass
+class DropdownSaveOption(SaveOption, DropdownOption):
+    """
+    A save option selecting one of a set of strings.
+
+    In Willow this behaves just like SpinnerOption.
+
+    Args:
+        identifier: The option's identifier.
+        value: The option's value.
+        choices: A list of choices for the value.
+    Keyword Args:
+        display_name: The option name to use for display. Defaults to copying the identifier.
+        description: A short description about the option.
+        description_title: The title of the description. Defaults to copying the display name.
+        is_hidden: If true, the option will not be shown in the options menu.
+        on_change: If not None, a callback to run before updating the value. Passed a reference to
+                   the option object and the new value. May be set using decorator syntax.
+    Extra Attributes:
+        mod: The mod this option stores it's settings in, or None if not (yet) associated with one.
+        default_value: What the value was originally when registered. Does not update on change.
+    """
+
+
+@dataclass
+class KeybindSaveOption(SaveOption, KeybindOption):
+    """
+    A save option selecting a keybinding.
+
+    Note this class only deals with displaying a key and letting the user rebind it, use `Keybind`
+    to handle press callbacks.
+
+    Args:
+        identifier: The option's identifier.
+        value: The option's value.
+        is_rebindable: True if the key may be rebound.
     Keyword Args:
         display_name: The option name to use for display. Defaults to copying the identifier.
         description: A short description about the option.

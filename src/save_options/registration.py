@@ -22,15 +22,34 @@ registered_mods: dict[str, Mod] = {}
 
 
 def _treat_as_save_option(obj: Any) -> bool:
+    """
+    Determines whether an object should be treated as a save option.
+
+    - If the object is an instance of SaveOption, returns True.
+    - If the object is a GroupedOption or NestedOption, recursively checks all children:
+        - If all children are considered SaveOptions, returns True.
+        - If only some children are SaveOptions (partial mix), logs an error indicating that the
+          option contains a mix of regular BaseOption and SaveOption children, and that SaveOption
+          instances will be ignored.
+    - Otherwise, returns False.
+
+    Args:
+        obj: The object to evaluate.
+
+    Returns:
+        bool: True if the object or its children should be treated as SaveOption, False otherwise.
+    """
+
     if isinstance(obj, SaveOption):
         return True
     if isinstance(obj, GroupedOption | NestedOption):
         if all(_treat_as_save_option(child) for child in obj.children):
             return True
-        logging.error(
-            f"Option {obj.identifier} has both regular BaseOption and SaveOption"
-            f"defined as children. SaveOption instances will be ignored"  # noqa: COM812
-        )
+        if any(_treat_as_save_option(child) for child in obj.children):
+            logging.dev_warning(
+                f"Option {obj.identifier} has both regular BaseOption and SaveOption"
+                f" defined as children. SaveOption instances will be ignored.",
+            )
     return False
 
 
@@ -41,24 +60,32 @@ def register_save_options(  # noqa: C901, D417
     on_save: Callable[[], None] | None = None,
     on_load: Callable[[], None] | None = None,
     mod_identifier: str | None = None,
-) -> None:
+) -> Mod:
     """
-    Registers save options - values stored on the save options are saved to the character save file.
+    Registers save options and save/load callbacks.
 
     Positional arg:
         mod: The Mod instance.
 
     Keyword Args:
-        save_options: A sequence of SaveOption instances to register. If None, variables in the
-                      calling module's scope are searched, and any SaveOption found is appended.
-        on_save: A callback to run any time the game is saved. Intended use is to update any
-                 SaveOption values before they are written to the save file. If None, we search the
-                calling module's scope for "on_save".
-        on_load: A callback to run right after the player's save data is applied to the player upon
-                 entering the game. Intended use is to apply any custom save option values to the
-                 player. If None, we search the calling module's scope for "on_load".
-        mod_identifier: A string to identify the mod in the save file. If None, module.__name__ is
-                        used.
+        save_options: A sequence of SaveOption instances to register.
+        on_save: A callback to run any time the game is saved. Intended usage is to update
+                 SaveOption values before they are written to the save file.
+        on_load: A callback to run immediately after player's save data is applied to the player
+                 upon entering the game. Intended use is to apply loaded SaveOption values to the
+                 player.
+        mod_identifier: A string to identify the mod in the save file.
+
+    The above keyword args are gathered in two ways, in order of priority:
+    - Args directly to this function
+    - Variables in the calling module's scope
+
+    Arg            | Module Scope
+    ---------------|---------------------
+    save_options   | SaveOption instances
+    on_save        | on_save
+    on_load        | on_load
+    mod_identifier | module.__name__
     """
 
     # Get calling module and identifier
@@ -80,17 +107,16 @@ def register_save_options(  # noqa: C901, D417
             if _treat_as_save_option(option):
                 new_save_options.append(option)
             else:
-                logging.error(f"Cannot register {option} as a SaveOption")
+                logging.dev_warning(f"Cannot register {option} as a SaveOption")
     else:
         for _, value in inspect.getmembers(module):
-            if _treat_as_save_option(value):
-                if isinstance(value, GroupedOption | NestedOption):
-                    logging.dev_warning(
-                        f"{module.__name__}: {type(value).__name__} instances must be explicitly"
-                        f" specified in the options list!",
-                    )
-                else:
-                    new_save_options.append(value)
+            if isinstance(value, GroupedOption | NestedOption):
+                logging.dev_warning(
+                    f"{module.__name__}: {type(value).__name__} instances must be explicitly"
+                    f" specified in the options list!",
+                )
+            elif _treat_as_save_option(value):
+                new_save_options.append(value)
 
     registered_save_options[mod_identifier] = {
         save_opt.identifier: save_opt for save_opt in new_save_options
@@ -109,3 +135,5 @@ def register_save_options(  # noqa: C901, D417
             load_callbacks[mod_identifier] = module.on_load
     else:
         load_callbacks[mod_identifier] = on_load
+
+    return mod

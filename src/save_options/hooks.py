@@ -24,9 +24,23 @@ _PACKAGE_ID: int = 99
 def _extract_save_data(
     lockout_list: list[WrappedStruct],
 ) -> tuple[dict[str, dict[str, JSON]], list[WrappedStruct]]:
-    # Grab the json string from UnloadableDlcLockoutList based on the package id, then load to
-    # Python object. Returns empty dict if no data found. Returns the remaining lockout_list
-    # as the second element of a tuple so as not to overwrite unrelated data."""
+    """
+    Extracts custom save data from an UnloadableDlcLockoutList.
+
+    This function searches through the list for an entry matching the global `_PACKAGE_ID`.
+    If found, it attempts to parse the `LockoutDefName` field as a JSON string into a dictionary.
+    Invalid or malformed JSON will result in an empty dictionary and an error being logged.
+    Any entries not matching the `_PACKAGE_ID` are preserved and returned as the second element
+    of the tuple to avoid overwriting unrelated data.
+
+    Args:
+        lockout_list: List of LockoutData structs from the character save file.
+
+    Returns:
+        A tuple with two elements:
+        - A dictionary of extracted save data (empty if none found or invalid)
+        - A list of LockoutData structs for any entries not associated with our custom saves.
+    """
 
     matching_lockout_data = next(
         (lockout_data for lockout_data in lockout_list if lockout_data.DlcPackageId == _PACKAGE_ID),
@@ -46,13 +60,14 @@ def _extract_save_data(
             extracted_save_data = json.loads(matching_lockout_data.LockoutDefName)
         except JSONDecodeError:
             # Invalid data, just clear the contents
+            logging.error("Error extracting custom save data from save file, invalid JSON found.")
             extracted_save_data = {}
         # Pylance saying this instance check unnecessary, but json.loads can return valid non-dict
         # objects.
-        if not isinstance(extracted_save_data, dict):  # type: ignore
+        if not isinstance(extracted_save_data, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
             logging.error(
                 f"Could not load dict object from custom save string:"
-                f"{matching_lockout_data.LockoutDefName}"  # noqa: COM812
+                f" {matching_lockout_data.LockoutDefName}",
             )
             extracted_save_data = {}
     return extracted_save_data, lockout_list_other
@@ -69,14 +84,9 @@ def save_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> N
     enabled_mods = [mod_id for mod_id, mod in registered_mods.items() if mod.is_enabled]
 
     if get_pc().GetWillowPlayerPawn():
-        callbacks_to_process = {
-            mod_id: callback
-            for mod_id, callback in save_callbacks.items()
-            if mod_id in enabled_mods
-        }
-
-        for callback in callbacks_to_process.values():
-            callback()
+        for mod_id, callback in save_callbacks.items():
+            if mod_id in enabled_mods:
+                callback()
 
     # For saving, we'll overwrite existing mod data for enabled mods. Any disabled/uninstalled mods
     # will have their data left alone.
@@ -86,15 +96,16 @@ def save_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> N
             mod_save_data = {
                 identifier: option_json
                 for identifier, save_option in mod_data.items()
-                if (option_json := save_option._to_json()) is not ...  # type: ignore
+                if (option_json := save_option._to_json()) is not ...  # pyright: ignore[reportPrivateUsage]
             }
             try:
-                json.dumps(mod_save_data)
+                # Only calling this to validate the types, so one mod failing doesn't break
+                # everything below.
+                _ = json.dumps(mod_save_data)
                 json_save_data[mod_id] = mod_save_data
             except TypeError:
-                logging.error(
-                    f"Could not save data for {mod_id}. Data is not json encodable:{mod_save_data}"  # noqa: COM812
-                )
+                logging.error(f"Could not write save-specific data for {mod_id}.")
+                logging.dev_warning(f"Data is not json encodable: {mod_save_data}")
 
     str_save_data = json.dumps(json_save_data)
     custom_lockout = make_struct(
@@ -114,11 +125,12 @@ def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -
     # We hook this to send data back to any registered mod save options. This gets called when
     # loading character in main menu also. No callback here because the timing of when this is
     # called doesn't make much sense to do anything with it. See hook on LoadPlayerSaveGame.
-    if ret:
-        extracted_save_data, _ = _extract_save_data(ret.UnloadableDlcLockoutList)
-    else:
-        return
 
+    # This function returns the new save game object, so use a post hook and grab it from `ret`
+    save_game = ret
+    if not save_game:
+        return
+    extracted_save_data, _ = _extract_save_data(save_game.UnloadableDlcLockoutList)
     if not extracted_save_data:
         return
 
@@ -126,7 +138,7 @@ def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -
         mod_save_options: ModSaveOptions = registered_save_options[mod_id]
         for identifier, extracted_value in extracted_mod_data.items():
             if save_option := mod_save_options.get(identifier):
-                save_option._from_json(extracted_value)  # type: ignore
+                save_option._from_json(extracted_value)  # pyright: ignore[reportPrivateUsage]
 
     # Resetting change tracking var here too. Obviously a load sets a bunch of options, but we don't
     # want to count that as a real change that needs to be saved.
@@ -144,12 +156,10 @@ def load_player_save_game(*_: Any) -> None:  # noqa: D103
     # the player can be done here. At this point, save options have already been populated with
     # data from the save file through the EndLoadGame hook.
     enabled_mods = [mod_id for mod_id, mod in registered_mods.items() if mod.is_enabled]
-    callbacks_to_process = {
-        mod_id: callback for mod_id, callback in load_callbacks.items() if mod_id in enabled_mods
-    }
 
-    for callback in callbacks_to_process.values():
-        callback()
+    for mod_id, callback in load_callbacks.items():
+        if mod_id in enabled_mods:
+            callback()
 
 
 @hook("WillowGame.FrontendGFxMovie:HideOptionsMovie", immediately_enable=True)
