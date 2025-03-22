@@ -469,6 +469,17 @@ def migrate_legacy_mods_folder() -> bool:
 
     migrated_any = False
     for entry in LEGACY_MOD_FOLDER.iterdir():
+        if entry.is_file() and entry.suffix.lower() == ".sdkmod":
+            new_mod_file = NEW_MOD_FOLDER / entry.name
+            if new_mod_file.exists():
+                logging.warning(
+                    f"Not migrating '{entry.name}' since a file with the same name already exists.",
+                )
+                continue
+
+            shutil.copy(entry, new_mod_file)
+            continue
+
         if (
             not entry.is_dir()
             or entry.name in LEGACY_MOD_MIGRATION_BLACKLIST

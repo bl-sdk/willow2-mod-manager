@@ -1,6 +1,8 @@
 # Changelog
 
 ## v3.5 (Upcoming)
+- `.sdkmod`s are now migrated from the legacy mod folder, in case someone tried installing them
+  before upgrading.
 
 ### Legacy Compat v1.4
 - Added more fixups for previously unreported issues in Gear Randomizer, Loot Randomizer, Player
