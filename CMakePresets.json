@@ -30,6 +30,9 @@
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
       },
+      "environment": {
+        "MSVC_WINE_ENV_SCRIPT": "/win-sdk/bin/x86/msvcenv.sh"
+      },
       "toolchainFile": "libs/pyunrealsdk/common_cmake/clang-cross-x86.cmake"
     },
     {

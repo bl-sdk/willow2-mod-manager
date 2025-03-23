@@ -1,0 +1,7 @@
+{
+	"name": "llvm-mingw",
+	"build": {
+		"dockerfile": "../Dockerfile",
+		"target": "llvm-mingw"
+	}
+}

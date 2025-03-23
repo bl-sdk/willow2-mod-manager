@@ -1,6 +1,6 @@
 {
   "template": "git@github.com:bl-sdk/common_dotfiles.git",
-  "commit": "d03eee713ad436d20033d0598eb88f1529c56ca8",
+  "commit": "cee5c9dbf5b95f57bb636e5138171aa6a4964cf1",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -15,7 +15,8 @@
       "__project_slug": "willow_mod_manager",
       "include_cpp": true,
       "include_py": true,
-      "_template": "git@github.com:bl-sdk/common_dotfiles.git"
+      "_template": "git@github.com:bl-sdk/common_dotfiles.git",
+      "_commit": "cee5c9dbf5b95f57bb636e5138171aa6a4964cf1"
     }
   },
   "directory": null

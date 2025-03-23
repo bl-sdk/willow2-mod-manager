@@ -182,6 +182,24 @@ class OptionsDataProvider(DataProvider):
                     )
 
                 case SliderOption():
+                    if not option.is_integer or any(
+                        round(x) != x
+                        for x in (option.value, option.min_value, option.max_value, option.step)
+                    ):
+                        logging.dev_warning(
+                            f"'{option.identifier}' is a non-integer slider, which willow2-mod-menu"
+                            " does not support due to engine limitations",
+                        )
+                    if any(
+                        (x % option.step) != 0
+                        for x in (option.value, option.min_value, option.max_value)
+                    ):
+                        logging.dev_warning(
+                            f"'{option.identifier}' uses a slider step which does not evenly divide"
+                            " its values, which have have unexpected behaviour in willow2-mod-menu,"
+                            " due to engine limitations",
+                        )
+
                     the_list.AddSliderListItem(
                         event_id,
                         option_name,

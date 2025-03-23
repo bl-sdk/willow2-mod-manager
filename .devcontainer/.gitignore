@@ -1,0 +1,6 @@
+# Ignore any custom folders outside of our predefined ones, to let you create your own
+# One use might be using your own container mapping the install path onto your actual game folder
+*/
+!clang-cross
+!llvm-mingw
+!mingw

@@ -1,6 +1,8 @@
 # Changelog
 
 ## v3.5 (Upcoming)
+- `.sdkmod`s are now migrated from the legacy mod folder, in case someone tried installing them
+  before upgrading.
 
 ### Legacy Compat v1.4
 - Added more fixups for previously unreported issues in Gear Randomizer, Loot Randomizer, Player
@@ -9,6 +11,12 @@
 ### Willow2 Mod Menu v3.4
 - Fixed that some keybinds would not be displayed properly if there were two separate grouped/nested
   options at the same level.
+
+- Added support for the "Host Only" coop support value.
+
+- Now prints a (dev) warning when trying to use a SliderOption with non-integer values, or with a
+  step that doesn't evenly divide it's values. Neither of these cases are properly supported by the
+  engine, both may have weird, unexpected, behaviour.
 
 ## v3.4: Luck Cannon
 

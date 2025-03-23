@@ -31,6 +31,8 @@ def get_mod_description(mod: Mod, include_author_version: bool) -> str:
             header += "<font size='14' color='#a1e4ef'>Coop Support: Requires All Players</font>"
         case CoopSupport.ClientSide:
             header += "<font size='14' color='#a1e4ef'>Coop Support: Client Side</font>"
+        case CoopSupport.HostOnly:
+            header += "<font size='14' color='#a1e4ef'>Coop Support: Host Only</font>"
     blocks.append(header)
 
     if Game.get_current() not in mod.supported_games:

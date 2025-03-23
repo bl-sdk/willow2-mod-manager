@@ -1,0 +1,7 @@
+{
+	"name": "mingw",
+	"build": {
+		"dockerfile": "../Dockerfile",
+		"target": "mingw"
+	}
+}

@@ -51,4 +51,6 @@ CheckOptions:
     readability-identifier-naming.NamespaceCase:        lower_case
     readability-identifier-naming.ParameterCase:        lower_case
     readability-identifier-naming.VariableCase:         lower_case
+
+    readability-identifier-length.IgnoredVariableNames: _
 ---
