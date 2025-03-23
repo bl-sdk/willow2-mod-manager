@@ -1,6 +1,6 @@
 {
   "template": "git@github.com:bl-sdk/common_dotfiles.git",
-  "commit": "3d7189e61172cb95877261df8313ae595fe6c02d",
+  "commit": "cee5c9dbf5b95f57bb636e5138171aa6a4964cf1",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -16,7 +16,7 @@
       "include_cpp": true,
       "include_py": true,
       "_template": "git@github.com:bl-sdk/common_dotfiles.git",
-      "_commit": "3d7189e61172cb95877261df8313ae595fe6c02d"
+      "_commit": "cee5c9dbf5b95f57bb636e5138171aa6a4964cf1"
     }
   },
   "directory": null

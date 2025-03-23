@@ -54,14 +54,12 @@ jobs:
         submodules: recursive
 
     - name: Configure build
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: |
         pip install requests
 
         cmake . --preset ${{ matrix.preset }} -G Ninja
 
     - name: Build
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: cmake --build out/build/${{ matrix.preset }} --target install
 
     - name: Prepare Release Zip (dev ci)
@@ -82,87 +80,50 @@ jobs:
         path: "*.zip"
 
   build-ubuntu:
-    # Require at least 24 for the mingw build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
-        preset:
-        - clang-cross-release
-        - llvm-mingw-release
-        - mingw-release
+        toolchain:
+          - preset: clang-cross-release
+            container: clang-cross
+          - preset: llvm-mingw-release
+            container: llvm-mingw
+          - preset: mingw-release
+            container: mingw
 
     steps:
-    - name: Setup CMake and Ninja
-      uses: lukka/get-cmake@latest
-
-    - name: Setup apt packages
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: msitools python3-requests
-        version: ${{ runner.os }}-apt
-
-    - name: Setup LLVM MinGW
-      if: startswith(matrix.preset, 'llvm-mingw')
-      run: |
-        wget -nv ${{ env.LLVM_MINGW_DOWNLOAD }}
-        tar -xf ${{ env.LLVM_MINGW_VERSION }}.tar.xz -C ~/
-        echo $(readlink -f ~/${{ env.LLVM_MINGW_VERSION }}/bin) >> $GITHUB_PATH
-
-    - name: Setup MinGW
-      if: startswith(matrix.preset, 'mingw')
-      uses: egor-tensin/setup-mingw@v2
-      with:
-        platform: ${{ fromJSON('["x86", "x64"]')[contains(matrix.preset, 'x64')] }}
-
-    - name: Setup Clang
-      if: startswith(matrix.preset, 'clang-cross')
-      uses: egor-tensin/setup-clang@v1
-
-    - name: Restore win sdk cache
-      if: startswith(matrix.preset, 'clang-cross')
-      uses: actions/cache@v4
-      id: cache-win-sdk
-      with:
-        path: ~/win-sdk
-        key: ${{ runner.os }}-win-sdk
-
-    - name: Setup win sdk
-      if: startswith(matrix.preset, 'clang-cross') && steps.cache-win-sdk.outputs.cache-hit != 'true'
-      run: |
-        git clone https://github.com/mstorsjo/msvc-wine.git
-        msvc-wine/vsdownload.py --accept-license --dest ~/win-sdk Microsoft.VisualStudio.Workload.VCTools
-        msvc-wine/install.sh ~/win-sdk
-        rm -r msvc-wine
-
     - name: Checkout repository and submodules
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Configure CMake
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
-      # The extra msvc wine arg won't do anything if we're not cross compiling
-      run: >
-        cmake .
-        --preset ${{ matrix.preset }}
-        -G Ninja
-        -DMSVC_WINE_ENV_SCRIPT=$(readlink -f ~)/win-sdk/bin/${{ fromJSON('["x86", "x64"]')[contains(matrix.preset, 'x64')] }}/msvcenv.sh
-
     - name: Build
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
-      run: cmake --build out/build/${{ matrix.preset }} --target install
+      uses: devcontainers/ci@v0.3
+      with:
+        cacheFrom: ghcr.io/bl-sdk/${{ matrix.toolchain.container }}:latest
+        configFile: .devcontainer/${{ matrix.toolchain.container }}/devcontainer.json
+        push: never
+        # The git watcher cmake thinks something's unsafe? Doesn't happen to me locally.
+        # Only run the prepare release script if doing a dev ci build
+        runCmd: |
+          git config --global --add safe.directory `pwd`
+          git config --global --add safe.directory `pwd`/libs/pluginloader
+          git config --global --add safe.directory `pwd`/libs/pyunrealsdk
+          git config --global --add safe.directory `pwd`/libs/pyunrealsdk/libs/unrealsdk
 
-    - name: Prepare Release Zip (dev ci)
-      if: inputs.new-release-tag == ''
-      run: python prepare_release.py ${{ matrix.preset }} --skip-install
+          cmake . --preset ${{ matrix.toolchain.preset }} -G Ninja
+          cmake --build out/build/${{ matrix.toolchain.preset }}  --target install
+
+          [ ${{ inputs.new-release-tag == '' && 1 || 0 }} -ne 0 ] && \
+            python prepare_release.py ${{ matrix.toolchain.preset }} --skip-install
 
     - name: Upload Artifact
       if: inputs.new-release-tag == ''
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.preset }}
+        name: ${{ matrix.toolchain.preset }}
         path: "*.zip"
 
 # ==============================================================================
@@ -200,7 +161,6 @@ jobs:
         submodules: recursive
 
     - name: Configure CMake
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: cmake . --preset ${{ matrix.preset }} -DCMAKE_DISABLE_PRECOMPILE_HEADERS=On
 
     - name: Remove `.modmap`s from compile commands
@@ -211,7 +171,6 @@ jobs:
           -Path "out\build\${{ matrix.preset }}\compile_commands.json"
 
     - name: Run clang-tidy
-      working-directory: ${{ env.GITHUB_WORKSPACE }}
       run: |
         python (Get-Command run-clang-tidy).Source                              `
           -p "out\build\${{ matrix.preset }}"                                   `
@@ -228,7 +187,6 @@ jobs:
 
     steps:
     - name: Setup Clang
-      if: startswith(matrix.preset, 'clang')
       uses: egor-tensin/setup-clang@v1
 
     - name: Checkout repository
