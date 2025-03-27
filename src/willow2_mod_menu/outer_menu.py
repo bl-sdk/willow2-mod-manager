@@ -352,7 +352,8 @@ def marketplace_input_key(
     _3: Any,
     _4: BoundFunction,
 ) -> tuple[type[Block], bool] | None:
-    key: str = DLC_MENU_CONTROLLER_TO_KB_KEY_MAP.get(args.ukey, args.ukey)
+    key: str = args.ukey
+    key = DLC_MENU_CONTROLLER_TO_KB_KEY_MAP.get(key, key)
 
     try:
         event: EInputEvent = args.uevent
