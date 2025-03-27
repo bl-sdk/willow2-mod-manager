@@ -61,7 +61,10 @@ class ReorderBox(OptionBox):
 
     _: KW_ONLY
     tooltip: str = field(default=create_tooltip_string())
-    buttons: MutableSequence[OptionBoxButton] = field(default_factory=list, repr=False)  # pyright: ignore[reportIncompatibleVariableOverride]
+    buttons: MutableSequence[OptionBoxButton] = field(  # pyright: ignore[reportIncompatibleVariableOverride]
+        default_factory=list[OptionBoxButton],
+        repr=False,
+    )
 
     on_move: Callable[[Self, OptionBoxButton], None] | None = None
 
