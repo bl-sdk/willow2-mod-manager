@@ -20,6 +20,7 @@ CONSOLE_MENU = THIS_FOLDER / "src" / "console_mod_menu"
 KEYBINDS = THIS_FOLDER / "src" / "keybinds"
 LEGACY_COMPAT = THIS_FOLDER / "src" / "legacy_compat"
 NETWORKING = THIS_FOLDER / "src" / "networking"
+SAVE_OPTIONS = THIS_FOLDER / "src" / "save_options"
 STANDARD_MENU = THIS_FOLDER / "src" / "willow2_mod_menu"
 UI_UTILS = THIS_FOLDER / "src" / "ui_utils"
 
@@ -30,6 +31,7 @@ ALL_MOD_FOLDERS = (
     KEYBINDS,
     LEGACY_COMPAT,
     NETWORKING,
+    SAVE_OPTIONS,
     STANDARD_MENU,
     UI_UTILS,
 )
