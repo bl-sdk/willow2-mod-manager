@@ -376,6 +376,7 @@ PREVIOUS_RELEASE_NAMES = [
     "Razorback",
     "Naught",
     "Luck Cannon",
+    "Slagga",
 ]
 
 
@@ -450,4 +451,4 @@ if __name__ == "__main__":
     excludes = [] if args.ignore_previous_releases else PREVIOUS_RELEASE_NAMES
     excludes += args.exclude
 
-    print(pick_release_name(commit_hash, excludes))
+    print(pick_release_name(commit_hash, excludes))  # noqa: T201
