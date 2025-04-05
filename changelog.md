@@ -60,6 +60,11 @@
 
 > - Made the error message when assigning incompatible array types more clear.    
 >   See also https://github.com/bl-sdk/unrealsdk/issues/60 .
+>
+> - Fixed checking the setting `exe_override` rather than the full `unrealsdk.exe_override`, like
+>   how it was documented / originally intended.
+>
+>   [3010f486](https://github.com/bl-sdk/unrealsdk/commit/3010f486)
 
 ### Willow2 Mod Menu v3.4
 - Fixed that some keybinds would not be displayed properly if there were two separate grouped/nested
