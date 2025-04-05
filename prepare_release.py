@@ -285,6 +285,18 @@ def _zip_dlls(zip_file: ZipFile, install_dir: Path) -> None:
 
         zip_file.write(file, dest)
 
+    # We're adding a '._pth' file which is equivalent to the default. For most people, this doesn't
+    # do anything. However, if someone has a global `PYTHONPATH`/`PYTHONHOME` env var, without this
+    # file the interpreter would try use them instead.
+    py_stem = next(install_dir.glob("python*.zip")).stem
+    zip_file.writestr(
+        str(ZIP_PLUGINS_FOLDER / (py_stem + "._pth")),
+        (
+            f"{py_stem}.zip\n"  # dummy comment to force multiline
+            "DLLs\n"
+        ),
+    )
+
 
 def zip_release(
     output: Path,
