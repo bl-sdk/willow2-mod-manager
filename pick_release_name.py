@@ -377,6 +377,7 @@ PREVIOUS_RELEASE_NAMES = [
     "Naught",
     "Luck Cannon",
     "Slagga",
+    "Easy Mode",
 ]
 
 
