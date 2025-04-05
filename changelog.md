@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.6 (Upcoming)
+
+### Legacy Compat v1.4
+- Fixed handling of _0 names, which caused crashes in most constructor-based mods.
+
 ## v3.5: Slagga
 - Upgraded the Microsoft Visual C++ version the SDK is built with. This may cause some people to
   crash immediately on launch, to fix this install the latest
