@@ -345,7 +345,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if check_git_is_dirty():
-        print("WARNING: git repo is dirty")
+        print("WARNING: git repo is dirty")  # noqa: T201
 
     install_dir = INSTALL_DIR_BASE / str(args.preset)
 
@@ -356,6 +356,6 @@ if __name__ == "__main__":
     assert install_dir.exists() and install_dir.is_dir(), "install dir doesn't exist"
 
     name = f"willow2-sdk-{args.preset}.zip"
-    print(f"Zipping {name} ...")
+    print(f"Zipping {name} ...")  # noqa: T201
 
     zip_release(Path(name), ALL_MOD_FOLDERS, "debug" in args.preset, install_dir)

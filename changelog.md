@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.5 (Upcoming)
+## v3.5: Slagga
 - Upgraded the Microsoft Visual C++ version the SDK is built with. This may cause some people to
   crash immediately on launch, to fix this install the latest
   [Microsoft Visual C++ Redistrubutable](https://aka.ms/vs/17/release/vc_redist.x86.exe).
