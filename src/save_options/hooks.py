@@ -2,9 +2,9 @@ import json
 from json import JSONDecodeError
 from typing import Any
 
-from unrealsdk import logging, make_struct
+from unrealsdk import logging
 from unrealsdk.hooks import Type
-from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
+from unrealsdk.unreal import BoundFunction, UObject, WrappedArray, WrappedStruct
 
 import save_options.options
 from mods_base import JSON, get_pc, hook
@@ -22,24 +22,20 @@ _PACKAGE_ID: int = 99
 
 
 def _extract_save_data(
-    lockout_list: list[WrappedStruct],
-) -> tuple[dict[str, dict[str, JSON]], list[WrappedStruct]]:
+    lockout_list: WrappedArray[WrappedStruct],
+) -> dict[str, dict[str, JSON]]:
     """
     Extracts custom save data from an UnloadableDlcLockoutList.
 
     This function searches through the list for an entry matching the global `_PACKAGE_ID`.
     If found, it attempts to parse the `LockoutDefName` field as a JSON string into a dictionary.
     Invalid or malformed JSON will result in an empty dictionary and an error being logged.
-    Any entries not matching the `_PACKAGE_ID` are preserved and returned as the second element
-    of the tuple to avoid overwriting unrelated data.
+    All entries matching the `_PACKAGE_ID` are removed in place.
 
     Args:
         lockout_list: List of LockoutData structs from the character save file.
-
     Returns:
-        A tuple with two elements:
-        - A dictionary of extracted save data (empty if none found or invalid)
-        - A list of LockoutData structs for any entries not associated with our custom saves.
+        A dictionary of extracted save data (empty if not found or invalid).
     """
 
     matching_lockout_data = next(
@@ -47,12 +43,7 @@ def _extract_save_data(
         None,
     )
     if not matching_lockout_data:
-        return {}, lockout_list
-
-    # Preserve other package Ids on the off chance someone else uses this.
-    lockout_list_other = [
-        lockout_data for lockout_data in lockout_list if lockout_data.DlcPackageId != _PACKAGE_ID
-    ]
+        return {}
 
     extracted_save_data: dict[str, dict[str, JSON]] = {}
     if matching_lockout_data.LockoutDefName:
@@ -70,7 +61,18 @@ def _extract_save_data(
                 f" {matching_lockout_data.LockoutDefName}",
             )
             extracted_save_data = {}
-    return extracted_save_data, lockout_list_other
+
+    # Remove all our entries from the list
+    # This is done in a bit of a weird, unpythonic way, to be extra safe with regards to the
+    # structs. Structs are reference types, so removing one shifts all other references.
+    i = 0
+    while i < len(lockout_list):
+        if lockout_list[i].DlcPackageId == _PACKAGE_ID:
+            del lockout_list[i]
+            continue
+        i += 1
+
+    return extracted_save_data
 
 
 @hook("WillowGame.WillowSaveGameManager:SaveGame", immediately_enable=True)
@@ -90,7 +92,8 @@ def save_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> N
 
     # For saving, we'll overwrite existing mod data for enabled mods. Any disabled/uninstalled mods
     # will have their data left alone.
-    json_save_data, lockout_list = _extract_save_data(args.SaveGame.UnloadableDlcLockoutList)
+    lockout_list = args.SaveGame.UnloadableDlcLockoutList
+    json_save_data = _extract_save_data(lockout_list)
     for mod_id, mod_data in registered_save_options.items():
         if mod_id in enabled_mods:
             mod_save_data = {
@@ -108,13 +111,10 @@ def save_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> N
                 logging.dev_warning(f"Data is not json encodable: {mod_save_data}")
 
     str_save_data = json.dumps(json_save_data)
-    custom_lockout = make_struct(
-        "UnloadableDlcLockoutData",
+    lockout_list.emplace_struct(
         LockoutDefName=str_save_data,
         DlcPackageId=_PACKAGE_ID,
     )
-    lockout_list.append(custom_lockout)
-    args.SaveGame.UnloadableDlcLockoutList = lockout_list
 
     # Reset our var tracking whether any options have changed since last save.
     save_options.options.any_option_changed = False
@@ -130,7 +130,7 @@ def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -
     save_game = ret
     if not save_game:
         return
-    extracted_save_data, _ = _extract_save_data(save_game.UnloadableDlcLockoutList)
+    extracted_save_data = _extract_save_data(save_game.UnloadableDlcLockoutList)
     if not extracted_save_data:
         return
 
