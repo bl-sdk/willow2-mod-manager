@@ -1,6 +1,6 @@
 # Changelog
 
-## v3.6 (Upcoming)
+## v3.6: Easy Mode
 Fixed that `save_options.sdkmod` wasn't actually being included in the release zip. Whoops.
 
 ### Legacy Compat v1.5
