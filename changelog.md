@@ -1,6 +1,7 @@
 # Changelog
 
 ## v3.6 (Upcoming)
+Fixed that `save_options.sdkmod` wasn't actually being included in the release zip. Whoops.
 
 ### Legacy Compat v1.5
 - Fixed handling of _0 names, which caused crashes in most constructor-based mods.
