@@ -14,7 +14,7 @@ __all__: tuple[str, ...] = (
     "legacy_compat",
 )
 
-__version_info__: tuple[int, int] = (1, 4)
+__version_info__: tuple[int, int] = (1, 5)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
@@ -82,7 +82,17 @@ def add_compat_module(name: str, module: ModuleType) -> None:  # pyright: ignore
 
 
 # Kill switch. May have to update this at some point if we decide to keep this around longer.
-if base_mod.version.partition(" ")[0] not in {"3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6"}:
+if base_mod.version.partition(" ")[0] not in {
+    "3.0",
+    "3.1",
+    "3.2",
+    "3.3",
+    "3.4",
+    "3.5",
+    "3.6",
+    "3.7",
+    "3.8",
+}:
     from unrealsdk import logging
 
     logging.warning("Legacy SDK Compatibility has been disabled")

@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.6 (Upcoming)
+
+### Legacy Compat v1.5
+- Fixed handling of _0 names, which caused crashes in most constructor-based mods.
+
+### Save Options v1.1
+- Addressed a warning about assigning an array to itself, caused during handling save options. This
+  had no runtime impact.
+
 ## v3.5: Slagga
 - Upgraded the Microsoft Visual C++ version the SDK is built with. This may cause some people to
   crash immediately on launch, to fix this install the latest
