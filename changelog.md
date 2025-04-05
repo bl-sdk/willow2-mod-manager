@@ -2,7 +2,7 @@
 
 ## v3.6 (Upcoming)
 
-### Legacy Compat v1.4
+### Legacy Compat v1.5
 - Fixed handling of _0 names, which caused crashes in most constructor-based mods.
 
 ## v3.5: Slagga
