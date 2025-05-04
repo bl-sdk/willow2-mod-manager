@@ -1,5 +1,9 @@
 # Changelog
 
+### Save Options v1.2
+- Fixed issue where loading a character with no save option data inherited option values from
+  previous character.
+
 ## v3.6: Easy Mode
 Fixed that `save_options.sdkmod` wasn't actually being included in the release zip. Whoops.
 

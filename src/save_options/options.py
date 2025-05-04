@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from unrealsdk import make_struct
 from unrealsdk.hooks import Type, prevent_hooking_direct_calls
@@ -26,12 +26,15 @@ def set_option_to_default(save_option: BaseOption) -> None:
 
     For GroupedOption and NestedOption, recursively sets all children to their default values.
     """
-    if isinstance(save_option, ValueOption):
-        val_opt: ValueOption[Any] = save_option
-        val_opt.value = val_opt.default_value
-    elif isinstance(save_option, GroupedOption | NestedOption):
-        for child in save_option.children:
-            set_option_to_default(child)
+    match save_option:
+        case ValueOption():
+            val_opt = cast(ValueOption[Any], save_option)
+            val_opt.value = val_opt.default_value
+        case GroupedOption() | NestedOption():
+            for child in save_option.children:
+                set_option_to_default(child)
+        case _:
+            pass
 
 
 def can_save() -> bool:
