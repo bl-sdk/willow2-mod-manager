@@ -15,9 +15,23 @@ from mods_base import (
     get_pc,
     hook,
 )
-from mods_base.options import DropdownOption, KeybindOption
+from mods_base.options import BaseOption, DropdownOption, GroupedOption, KeybindOption, NestedOption
 
 any_option_changed: bool = False
+
+
+def set_option_to_default(save_option: BaseOption) -> None:
+    """
+    Sets an option's value to its default.
+
+    For GroupedOption and NestedOption, recursively sets all children to their default values.
+    """
+    if isinstance(save_option, ValueOption):
+        val_opt: ValueOption[Any] = save_option
+        val_opt.value = val_opt.default_value
+    elif isinstance(save_option, GroupedOption | NestedOption):
+        for child in save_option.children:
+            set_option_to_default(child)
 
 
 def can_save() -> bool:
