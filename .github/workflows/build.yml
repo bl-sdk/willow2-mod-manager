@@ -12,10 +12,6 @@ on:
         type: string
         required: false
 
-env:
-  LLVM_MINGW_VERSION: llvm-mingw-20240619-msvcrt-ubuntu-20.04-x86_64
-  LLVM_MINGW_DOWNLOAD: https://github.com/mstorsjo/llvm-mingw/releases/download/20240619/llvm-mingw-20240619-msvcrt-ubuntu-20.04-x86_64.tar.xz
-
 jobs:
   build-windows:
     runs-on: windows-latest

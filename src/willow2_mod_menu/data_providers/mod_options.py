@@ -42,7 +42,10 @@ class ModOptionsDataProvider(OptionsDataProvider):
     _: KW_ONLY
     mod: Mod
 
-    drawn_keybinds: dict[int, KeybindOption] = field(default_factory=dict, repr=False)
+    drawn_keybinds: dict[int, KeybindOption] = field(
+        default_factory=dict[int, KeybindOption],
+        repr=False,
+    )
 
     def __post_init__(self) -> None:
         self.options = tuple(self.gen_options_list())

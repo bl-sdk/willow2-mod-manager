@@ -11,7 +11,7 @@ from . import DataProvider
 
 @dataclass
 class ModListDataProvider(DataProvider):
-    drawn_mod_list: list[Mod] = field(default_factory=list, repr=False)
+    drawn_mod_list: list[Mod] = field(default_factory=list[Mod], repr=False)
 
     def populate(self, data_provider: UObject, the_list: UObject) -> None:  # noqa: D102
         del data_provider

@@ -1,8 +1,25 @@
 # Changelog
 
+## v3.7 (Upcoming)
+
+### [Console Mod Menu v1.6](https://github.com/bl-sdk/console_mod_menu/blob/master/Readme.md#v16)
+> - Linting fixes.
+
+### Legacy Compat v1.6
+- Linting fixups.
+
+### [Mods Base v1.10](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v19)
+> - Linting fixups.
+
 ### Save Options v1.2
 - Fixed issue where loading a character with no save option data inherited option values from
   previous character.
+
+### UI Utils v1.3
+- Linting fixes.
+
+### Willow2 Mod Menu v3.5
+- Linting fixups.
 
 ## v3.6: Easy Mode
 Fixed that `save_options.sdkmod` wasn't actually being included in the release zip. Whoops.

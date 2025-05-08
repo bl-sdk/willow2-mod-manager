@@ -48,7 +48,7 @@ class ModInfo:
     module: str
     legacy: bool
     location: Path
-    duplicates: list[ModInfo] = field(default_factory=list)
+    duplicates: list[ModInfo] = field(default_factory=list["ModInfo"])
 
 
 def init_debugpy() -> None:
