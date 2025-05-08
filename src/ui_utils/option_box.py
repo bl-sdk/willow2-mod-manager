@@ -88,7 +88,7 @@ class OptionBox:
 
     _gfx_object: WeakPointer = field(init=False, repr=False, default=WeakPointer())
 
-    _pages: list[Page] = field(init=False, repr=False, default_factory=list)
+    _pages: list[Page] = field(init=False, repr=False, default_factory=list["Page"])
     _current_page_idx: int = field(init=False, repr=False, default=0)
 
     # While we don't display previous page, defining one for use in subclasses

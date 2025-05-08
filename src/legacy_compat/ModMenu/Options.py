@@ -471,7 +471,7 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
                         on_change=on_change,
                     )
                 case Hidden():
-                    hidden_option: Hidden[Any] = option
+                    hidden_option: Hidden[Any] = option  # pyright: ignore[reportUnknownVariableType]
                     converted_option = HiddenOption(
                         hidden_option.Caption,
                         hidden_option.CurrentValue,

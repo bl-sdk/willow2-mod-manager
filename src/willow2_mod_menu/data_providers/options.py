@@ -23,7 +23,7 @@ from . import OPTION_EVENT_ID_OFFSET, DataProvider
 @dataclass
 class OptionsDataProvider(DataProvider):
     options: Sequence[BaseOption]
-    drawn_options: list[BaseOption] = field(default_factory=list, repr=False)
+    drawn_options: list[BaseOption] = field(default_factory=list[BaseOption], repr=False)
 
     @staticmethod
     def create_option_description(option: BaseOption) -> str:
