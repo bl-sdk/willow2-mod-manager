@@ -8,7 +8,7 @@ from unrealsdk.unreal import BoundFunction, UObject, WrappedArray, WrappedStruct
 
 import save_options.options
 from mods_base import JSON, get_pc, hook
-from save_options.options import trigger_save
+from save_options.options import set_option_to_default, trigger_save
 from save_options.registration import (
     ModSaveOptions,
     load_callbacks,
@@ -125,6 +125,13 @@ def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -
     # We hook this to send data back to any registered mod save options. This gets called when
     # loading character in main menu also. No callback here because the timing of when this is
     # called doesn't make much sense to do anything with it. See hook on LoadPlayerSaveGame.
+
+    # Often we'll load a save from a character with no save data. We'll set all save options
+    # to default first to cover for any missing data.
+
+    for mod_save_options in registered_save_options.values():
+        for save_option in mod_save_options.values():
+            set_option_to_default(save_option)
 
     # This function returns the new save game object, so use a post hook and grab it from `ret`
     save_game = ret
