@@ -150,8 +150,10 @@ class _NewMod(Mod):
 
     # Unlike options, binds can have an external persistent state, so we need to keep our list of
     # binds around to reuse them when possible
-    _last_seen_legacy_binds: list[KeybindManager.Keybind] = field(default_factory=list)
-    _cached_keybinds: list[KeybindType] = field(default_factory=list)
+    _last_seen_legacy_binds: list[KeybindManager.Keybind] = field(
+        default_factory=list[KeybindManager.Keybind],
+    )
+    _cached_keybinds: list[KeybindType] = field(default_factory=list[KeybindType])
 
     @property
     def keybinds(self) -> Sequence[KeybindType]:
