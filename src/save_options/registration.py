@@ -1,9 +1,9 @@
 import contextlib
 import inspect
+import warnings
 from collections.abc import Callable, Sequence
+from pathlib import Path
 from typing import Any
-
-from unrealsdk import logging
 
 from mods_base import BaseOption, GroupedOption, Mod, NestedOption
 from save_options.options import SaveOption
@@ -19,6 +19,8 @@ LoadCallback = Callable[[], None]
 load_callbacks: dict[str, LoadCallback] = {}
 
 registered_mods: dict[str, Mod] = {}
+
+_WARNING_SKIPS: tuple[str] = (str(Path(__file__).parent),)
 
 
 def _treat_as_save_option(obj: Any) -> bool:
@@ -46,9 +48,11 @@ def _treat_as_save_option(obj: Any) -> bool:
         if all(_treat_as_save_option(child) for child in obj.children):
             return True
         if any(_treat_as_save_option(child) for child in obj.children):
-            logging.dev_warning(
+            warnings.warn(
                 f"Option {obj.identifier} has both regular BaseOption and SaveOption"
                 f" defined as children. SaveOption instances will be ignored.",
+                stacklevel=2,
+                skip_file_prefixes=_WARNING_SKIPS,
             )
     return False
 
@@ -107,13 +111,19 @@ def register_save_options(  # noqa: C901, D417
             if _treat_as_save_option(option):
                 new_save_options.append(option)
             else:
-                logging.dev_warning(f"Cannot register {option} as a SaveOption")
+                warnings.warn(
+                    f"Cannot register {option} as a SaveOption",
+                    stacklevel=2,
+                    skip_file_prefixes=_WARNING_SKIPS,
+                )
     else:
         for _, value in inspect.getmembers(module):
             if isinstance(value, GroupedOption | NestedOption):
-                logging.dev_warning(
-                    f"{module.__name__}: {type(value).__name__} instances must be explicitly"
-                    f" specified in the options list!",
+                warnings.warn(
+                    f"{type(value).__name__} instances must be explicitly specified in the options"
+                    f" list!",
+                    stacklevel=2,
+                    skip_file_prefixes=_WARNING_SKIPS,
                 )
             elif _treat_as_save_option(value):
                 new_save_options.append(value)
