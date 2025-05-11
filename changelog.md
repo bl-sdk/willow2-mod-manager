@@ -9,11 +9,12 @@
 - Linting fixups.
 
 ### [Mods Base v1.10](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v19)
-> - Linting fixups.
+> - Moved a few warnings to go through Python's system, so they get attributed to the right place.
 
 ### Save Options v1.2
 - Fixed issue where loading a character with no save option data inherited option values from
   previous character.
+- Moved a few warnings to go through Python's system, so they get attributed to the right place.
 
 ### UI Utils v1.3
 - Linting fixes.
