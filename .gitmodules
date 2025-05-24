@@ -10,3 +10,6 @@
 [submodule "src/console_mod_menu"]
 	path = src/console_mod_menu
 	url = ../../bl-sdk/console_mod_menu.git
+[submodule "src/keybinds"]
+	path = src/keybinds
+	url = ../../bl-sdk/willow_keybinds
