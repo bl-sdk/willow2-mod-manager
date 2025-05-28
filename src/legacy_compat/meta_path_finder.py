@@ -7,6 +7,8 @@ from importlib.util import spec_from_file_location
 from pathlib import Path
 from types import ModuleType
 
+import unrealsdk
+
 # While just messing with `Mod.__path__` is enough for most most mods, there are a few we need to do
 # more advanced import hooking on.
 
@@ -37,7 +39,7 @@ def spec_from_string(fullname: str, source: bytes) -> ModuleSpec | None:
     )
 
 
-# Inheriting straight from SourceFileLoade causes some other machinery to expect bytecode?
+# Inheriting straight from SourceFileLoader causes some other machinery to expect bytecode?
 class ReplacementSourceLoader(FileLoader, SourceLoader):  # type: ignore
     type Pattern = tuple[bytes | re.Pattern[bytes], bytes | Callable[[re.Match[bytes]], bytes]]
 
@@ -98,7 +100,7 @@ class LegacyCompatMetaPathFinder:
         raise RuntimeError
 
     @classmethod
-    def find_spec(  # noqa: D102
+    def find_spec(  # noqa: D102, C901
         cls,
         fullname: str,
         path: Sequence[str] | None = None,
@@ -240,6 +242,28 @@ class LegacyCompatMetaPathFinder:
                     # string enum before StrEnum was introduced, so stringifying them now returns
                     # the name, not the value. Make it a real StrEnum instead.
                     (rb"class Hint\(str, enum\.Enum\):", b"class Hint(enum.StrEnum):"),
+                )
+
+            # Reign of Giants is naughty, and deliberately writes an object to a property with a
+            # different type - so any attempt of doing that in new sdk rightfully throws a type
+            # error. We need to launder it in now.
+            # As an extra complication, it turns out if we fix, on older versions of unrealsdk we
+            # run into a crash - so only apply this replacement if we're running a newer version
+            case (
+                ("src" | "sdk_mods"),
+                "Mods.ReignOfGiants",
+            ) if unrealsdk.__version_info__ >= (2, 0, 0):
+                return spec_with_replacements(
+                    fullname,
+                    path,
+                    target,
+                    (
+                        rb"(\S+\.DebugPawnMarkerInst) = (.+?)([\r\n])",
+                        rb"_o = \2; _c = _o.Class;"
+                        rb'_o.Class = new_unrealsdk.find_class("MaterialInstanceConstant");'
+                        rb"\1 = _o;"
+                        rb"_o.Class = _c\3",
+                    ),
                 )
 
             case _, _:

@@ -7,6 +7,7 @@
 
 ### Legacy Compat v1.6
 - Linting fixups.
+- Added fixups for Reign of Giants (for real this time).
 
 ### [Mods Base v1.10](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v19)
 > - Moved a few warnings to go through Python's system, so they get attributed to the right place.
