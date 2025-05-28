@@ -1,14 +1,14 @@
-# This file is part of the BL2/TPS/AoDK Willow Mod Manager.
-# <https://github.com/bl-sdk/willow-mod-manager>
+# This file is part of the BL2/TPS/AoDK Willow2 Mod Manager.
+# <https://github.com/bl-sdk/willow2-mod-manager>
 #
-# The Willow Mod Manager is free software: you can redistribute it and/or modify it under the terms
+# The Willow2 Mod Manager is free software: you can redistribute it and/or modify it under the terms
 # of the GNU Lesser General Public License Version 3 as published by the Free Software Foundation.
 #
-# The Willow Mod Manager is distributed in the hope that it will be useful, but WITHOUT ANY
+# The Willow2 Mod Manager is distributed in the hope that it will be useful, but WITHOUT ANY
 # WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 # PURPOSE. See the GNU Lesser General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License along with the Willow Mod
+# You should have received a copy of the GNU General Public License along with the Willow2 Mod
 # Manager. If not, see <https://www.gnu.org/licenses/>.
 
 from __future__ import annotations

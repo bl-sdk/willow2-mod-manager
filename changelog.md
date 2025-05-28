@@ -7,9 +7,20 @@
 
 ### Legacy Compat v1.6
 - Linting fixups.
+- Added fixups for Reign of Giants (for real this time).
 
 ### [Mods Base v1.10](https://github.com/bl-sdk/mods_base/blob/master/Readme.md#v19)
 > - Moved a few warnings to go through Python's system, so they get attributed to the right place.
+>
+> - Added more fixups for Reign of Giants (for real this time).
+
+### [pyunrealsdk v1.8.0](https://github.com/bl-sdk/pyunrealsdk/blob/master/changelog.md#v180)
+> - Trying to overwrite the return value of a void function will now return a more appropriate
+>   error.
+> 
+> - Upgraded to support unrealsdk v2 - native modules can expect some breakage. The most notable
+>   effect this has on Python code is a number of formerly read-only fields on core unreal types
+>   have become read-write.
 
 ### Save Options v1.2
 - Fixed issue where loading a character with no save option data inherited option values from
@@ -18,6 +29,31 @@
 
 ### UI Utils v1.3
 - Linting fixes.
+
+### [unrealsdk v2.0.0](https://github.com/bl-sdk/unrealsdk/blob/master/changelog.md#v200)
+> - Now supports Borderlands 1. Big thanks to Ry for doing basically all the reverse engineering.
+> 
+> - Major refactor of the core unreal types, to cleanly allow them to change layouts at runtime. All
+>   core fields have changed from members to zero-arg methods, which return a reference to the
+>   member. A few classes (e.g. `UProperty` subclasses) previous had existing methods to deal with
+>   the same problem, these have all been moved to the new system.
+>   
+>   Clang is able to detect this change, and gives a nice error recommending inserting brackets at
+>   the right spot.
+>   
+> - Removed the `UNREALSDK_UE_VERSION` and `UNREALSDK_ARCH` CMake variables, in favour a new merged
+>   `UNREALSDK_FLAVOUR` variable.
+> 
+> - Removed the (optional) dependency on libfmt, `std::format` support is now required.
+> 
+> - Console commands registered using `unrealsdk::commands::NEXT_LINE` now (try to) only fire on
+>   direct user input, and ignore commands send via automated means.
+> 
+> - Fixed that assigning an entire array, rather than getting the array and setting it's elements,
+>   would likely cause memory corruption. This was most common when using an array of large structs,
+>   and when assigning to one which was previously empty.
+> 
+> - Made `unrealsdk::memory::get_exe_range` public.
 
 ### Willow2 Mod Menu v3.5
 - Linting fixups.

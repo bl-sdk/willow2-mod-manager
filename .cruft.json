@@ -11,8 +11,8 @@
       "_extensions": [
         "cookiecutter.extensions.SlugifyExtension"
       ],
-      "project_name": "willow-mod-manager",
-      "__project_slug": "willow_mod_manager",
+      "project_name": "willow2-mod-manager",
+      "__project_slug": "willow2_mod_manager",
       "include_cpp": true,
       "include_py": true,
       "_template": "git@github.com:bl-sdk/common_dotfiles.git",

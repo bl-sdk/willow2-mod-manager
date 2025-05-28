@@ -1,9 +1,8 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(willow_mod_manager)
+project(willow2_mod_manager)
 
-set(UNREALSDK_ARCH x86)
-set(UNREALSDK_UE_VERSION UE3)
+set(UNREALSDK_FLAVOUR WILLOW)
 set(EXPLICIT_PYTHON_ARCH win32)
 set(EXPLICIT_PYTHON_VERSION 3.13.1)
 

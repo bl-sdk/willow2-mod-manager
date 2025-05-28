@@ -9,7 +9,7 @@ def show_hud_message(title: str, msg: str, duration: float = 2.5) -> None:
     """
     Displays a short, non-blocking message in the main in game hud.
 
-    Uses the same message style as those for coop players joining/leaving or shift going down.
+    Uses the same message style as those for respawning.
 
     Note this should not be used for critical messages, it may silently fail at any point, and
     messages may be dropped if multiple are shown too close to each other.

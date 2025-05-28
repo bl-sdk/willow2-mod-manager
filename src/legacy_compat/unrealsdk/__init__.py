@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from functools import cache, wraps
 from typing import TYPE_CHECKING, Any, overload
 
+import unrealsdk as new_unrealsdk
 from unrealsdk import (
     __version_info__,
     construct_object,
@@ -80,6 +81,7 @@ __all__: list[str] = [
     "UObject",
     "UPackage",
     "UStruct",
+    "new_unrealsdk",
 ]
 
 FStruct = WrappedStruct
