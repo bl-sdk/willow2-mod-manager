@@ -94,6 +94,7 @@ def show_second_wind_notification(
         if interaction.Interaction == "SecondWind":
             sound_backup = interaction.AkEvent
             sw_interaction = interaction
+            break
 
     if ui_sound is not Ellipsis and sw_interaction:
         sw_interaction.AkEvent = ui_sound
