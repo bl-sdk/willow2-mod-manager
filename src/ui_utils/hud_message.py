@@ -1,5 +1,3 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
 from types import EllipsisType
 from typing import TYPE_CHECKING
 
@@ -23,7 +21,6 @@ else:
 
 __all__: tuple[str, ...] = (
     "ERewardPopup",
-    "display_button_prompt",
     "hide_button_prompt",
     "show_button_prompt",
     "show_discovery_message",
@@ -179,21 +176,3 @@ def hide_button_prompt() -> None:
     if (hud_movie := get_pc().GetHUDMovie()) is None:
         return
     hud_movie.ToggleContextualPrompt("", False)
-
-
-@contextmanager
-def display_button_prompt(reason: str, button: str) -> Iterator[None]:
-    """
-    Context manager to display and hide a contextual prompt.
-
-    This will display the prompt when entering the context and hide it when exiting.
-
-    Args:
-        reason: The text to display in the prompt.
-        button: The button string to display in the prompt.
-    """
-    show_button_prompt(reason, button)
-    try:
-        yield
-    finally:
-        hide_button_prompt()

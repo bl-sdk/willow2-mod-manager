@@ -1,11 +1,6 @@
-from collections.abc import Iterator
-from contextlib import contextmanager
-
 from mods_base import get_pc
 
 __all__: tuple[str, ...] = (
-    "display_blocking_message",
-    "display_message",
     "hide_blocking_message",
     "hide_message",
     "show_blocking_message",
@@ -43,25 +38,6 @@ def hide_blocking_message() -> None:
     msg_movie.HideBlocking()
 
 
-@contextmanager
-def display_blocking_message(msg: str, reason: str | None = None) -> Iterator[None]:
-    """
-    Context manager to display and hide a blocking message.
-
-    This will display the message when entering the context and hide it when exiting.
-
-    Args:
-        msg: The message to display.
-        reason: An optional reason for the blocking message, which will be displayed as a subtitle.
-                If None, the default text will show.
-    """
-    show_blocking_message(msg, reason)
-    try:
-        yield
-    finally:
-        hide_blocking_message()
-
-
 def show_message(msg: str) -> None:
     """
     Displays a message on the left side of the screen.
@@ -83,20 +59,3 @@ def hide_message() -> None:
         return
 
     msg_movie.Hide()
-
-
-@contextmanager
-def display_message(msg: str) -> Iterator[None]:
-    """
-    Context manager to display and hide a message.
-
-    This will display the message when entering the context and hide it when exiting.
-
-    Args:
-        msg: The message to display.
-    """
-    show_message(msg)
-    try:
-        yield
-    finally:
-        hide_message()
