@@ -28,7 +28,15 @@
 - Moved a few warnings to go through Python's system, so they get attributed to the right place.
 
 ### UI Utils v1.3
-- Linting fixes.
+- Added several new helper functions:
+  - `show_blocking_message`, `hide_blocking_message`
+  - `show_button_prompt`, `hide_button_prompt`
+  - `show_coop_message`, `hide_coop_message`
+  - `show_discovery_message`
+  - `show_reward_popup`
+  - `show_second_wind_notification`
+  
+  [See examples here](https://bl-sdk.github.io/developing/ui_utils/willow2/).
 
 ### [unrealsdk v2.0.0](https://github.com/bl-sdk/unrealsdk/blob/master/changelog.md#v200)
 > - Now supports Borderlands 1. Big thanks to Ry for doing basically all the reverse engineering.

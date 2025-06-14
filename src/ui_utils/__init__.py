@@ -13,9 +13,9 @@ from .hud_message import (
 )
 from .online_message import (
     hide_blocking_message,
-    hide_message,
+    hide_coop_message,
     show_blocking_message,
-    show_message,
+    show_coop_message,
 )
 from .option_box import OptionBox, OptionBoxButton
 from .reorder_box import ReorderBox
@@ -35,13 +35,13 @@ __all__: tuple[str, ...] = (
     "clipboard_paste",
     "hide_blocking_message",
     "hide_button_prompt",
-    "hide_message",
+    "hide_coop_message",
     "show_blocking_message",
     "show_button_prompt",
     "show_chat_message",
+    "show_coop_message",
     "show_discovery_message",
     "show_hud_message",
-    "show_message",
     "show_reward_popup",
     "show_second_wind_notification",
 )
