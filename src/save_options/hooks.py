@@ -120,21 +120,19 @@ def save_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> N
     save_options.options.any_option_changed = False
 
 
-@hook("WillowGame.WillowSaveGameManager:EndLoadGame", Type.POST, immediately_enable=True)
-def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -> None:  # noqa: D103
+@hook("WillowGame.WillowPlayerController:FinishSaveGameLoad", immediately_enable=True)
+def end_load_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> None:  # noqa: D103
     # We hook this to send data back to any registered mod save options. This gets called when
     # loading character in main menu also. No callback here because the timing of when this is
     # called doesn't make much sense to do anything with it. See hook on LoadPlayerSaveGame.
 
     # Often we'll load a save from a character with no save data. We'll set all save options
     # to default first to cover for any missing data.
-
     for mod_save_options in registered_save_options.values():
         for save_option in mod_save_options.values():
             set_option_to_default(save_option)
 
-    # This function returns the new save game object, so use a post hook and grab it from `ret`
-    save_game = ret
+    save_game = args.SaveGame
     if not save_game:
         return
     extracted_save_data = _extract_save_data(save_game.UnloadableDlcLockoutList)
