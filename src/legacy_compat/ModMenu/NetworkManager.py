@@ -1,4 +1,4 @@
-# ruff: noqa: N802, N803, N806, D102, D103, N999
+# ruff: noqa: N802, N803, N806, D103, N999
 
 from __future__ import annotations
 

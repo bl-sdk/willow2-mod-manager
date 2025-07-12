@@ -1,5 +1,3 @@
-# ruff: noqa: N802, N803, D102, D103, N999
-
 from collections.abc import Iterator
 from contextlib import contextmanager
 from types import ModuleType

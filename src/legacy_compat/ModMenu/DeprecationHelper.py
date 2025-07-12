@@ -1,4 +1,4 @@
-# ruff: noqa: N802, N803, D102, D103, N999
+# ruff: noqa: N802, D103, N999
 
 import functools
 import warnings
