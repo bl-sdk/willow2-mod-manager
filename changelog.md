@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.8: 
+
+### Save Options v1.3
+- Fixed issue with newly created characters inheriting options from previously loaded character.
+
 ## v3.7: Meteor Shower
 
 ### [Console Mod Menu v1.6](https://github.com/bl-sdk/console_mod_menu/blob/master/Readme.md#v16)
