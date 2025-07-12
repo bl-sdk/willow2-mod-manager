@@ -54,7 +54,7 @@ class ModInfo:
 def init_debugpy() -> None:
     """Tries to import and setup debugpy. Does nothing if unable to."""
     try:
-        import debugpy  # pyright: ignore[reportMissingImports]  # noqa: T100
+        import debugpy  # pyright: ignore[reportMissingImports]  # noqa: PLC0415, T100
 
         debugpy.listen(  # pyright: ignore[reportUnknownMemberType]  # noqa: T100
             ("localhost", 5678),
@@ -72,13 +72,13 @@ def init_debugpy() -> None:
             )
 
         # Make WrappedArrays resolve the same as lists
-        from _pydevd_bundle.pydevd_resolver import (  # pyright: ignore[reportMissingImports]
+        from _pydevd_bundle.pydevd_resolver import (  # pyright: ignore[reportMissingImports]  # noqa: PLC0415
             tupleResolver,  # pyright: ignore[reportUnknownVariableType]
         )
-        from _pydevd_bundle.pydevd_xml import (  # pyright: ignore[reportMissingImports]
+        from _pydevd_bundle.pydevd_xml import (  # pyright: ignore[reportMissingImports]  # noqa: PLC0415
             _TYPE_RESOLVE_HANDLER,  # pyright: ignore[reportUnknownVariableType]
         )
-        from unrealsdk.unreal import WrappedArray
+        from unrealsdk.unreal import WrappedArray  # noqa: PLC0415
 
         if not _TYPE_RESOLVE_HANDLER._initialized:  # pyright: ignore[reportUnknownMemberType]
             _TYPE_RESOLVE_HANDLER._initialize()  # pyright: ignore[reportUnknownMemberType]

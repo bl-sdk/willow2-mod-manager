@@ -1,4 +1,4 @@
-# ruff: noqa: N802, N803, D102, D103, N999
+# ruff: noqa: N802, N803, D102, N999
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
@@ -372,11 +372,11 @@ def _apply_hardcoded_option_fixups[J: JSON](  # noqa: C901 - will always need co
         def custom_command_callback(_: ButtonOption) -> None:
             with legacy_compat():
                 try:
-                    from Mods.Commander import Configurator  # type: ignore
+                    from Mods.Commander import Configurator  # type: ignore  # noqa: PLC0415
 
                     Configurator.CustomConfigurator()  # type: ignore
                 except ImportError:
-                    import webbrowser
+                    import webbrowser  # noqa: PLC0415
 
                     webbrowser.open(
                         "https://github.com/mopioid/Borderlands-Commander/wiki/Custom-Commands",
