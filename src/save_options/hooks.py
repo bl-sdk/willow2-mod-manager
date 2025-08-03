@@ -120,19 +120,24 @@ def save_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> N
     save_options.options.any_option_changed = False
 
 
-@hook("WillowGame.WillowPlayerController:FinishSaveGameLoad", immediately_enable=True)
-def end_load_game(_1: UObject, args: WrappedStruct, _3: Any, _4: BoundFunction) -> None:  # noqa: D103
-    # We hook this to send data back to any registered mod save options. This gets called when
-    # loading character in main menu also. No callback here because the timing of when this is
-    # called doesn't make much sense to do anything with it. See hook on LoadPlayerSaveGame.
-
-    # Often we'll load a save from a character with no save data. We'll set all save options
-    # to default first to cover for any missing data.
+@hook("WillowGame.WillowPlayerController:LoadGame", immediately_enable=True)
+def load_game(*_: Any) -> None:  # noqa: D103
+    # We hook this to set all options to default whenever a new character is loaded. This covers
+    # both new characters and existing. Characters with existing save options will have their
+    # options set in the EndLoadGame hook.
     for mod_save_options in registered_save_options.values():
         for save_option in mod_save_options.values():
             set_option_to_default(save_option)
 
-    save_game = args.SaveGame
+
+@hook("WillowGame.WillowSaveGameManager:EndLoadGame", Type.POST, immediately_enable=True)
+def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -> None:  # noqa: D103
+    # We hook this to send data back to any registered mod save options. This gets called when
+    # loading character in main menu also. No callback here because the timing of when this is
+    # called doesn't make much sense to do anything with it. See hook on LoadPlayerSaveGame.
+
+    # This function returns the new save game object, so use a post hook and grab it from `ret`
+    save_game = ret
     if not save_game:
         return
     extracted_save_data = _extract_save_data(save_game.UnloadableDlcLockoutList)
