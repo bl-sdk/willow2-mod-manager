@@ -147,7 +147,10 @@ def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -
         return
 
     for mod_id, extracted_mod_data in extracted_save_data.items():
-        mod_save_options: ModSaveOptions = registered_save_options[mod_id]
+        mod_save_options: ModSaveOptions | None = registered_save_options.get(mod_id, None)
+        if mod_save_options is None:
+            logging.warning(f"Save data found for unregistered mod '{mod_id}', skipping.")
+            continue
         for identifier, extracted_value in extracted_mod_data.items():
             if save_option := mod_save_options.get(identifier):
                 save_option._from_json(extracted_value)  # pyright: ignore[reportPrivateUsage]
