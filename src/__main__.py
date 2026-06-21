@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import importlib
 import json
+import os
 import re
 import shutil
 import sys
@@ -24,7 +25,10 @@ import warnings
 import zipfile
 from dataclasses import dataclass, field
 from functools import cache, wraps
+from io import StringIO
 from pathlib import Path
+from threading import Thread
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, TextIO
 
 # Note we try to import as few third party modules as possible before the console is ready, in case
@@ -34,7 +38,7 @@ import unrealsdk
 from unrealsdk import logging
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Callable, Collection, Sequence
 
 # If true, displays the full traceback when a mod fails to import, rather than the shortened one
 FULL_TRACEBACKS: bool = False
@@ -56,10 +60,14 @@ def init_debugpy() -> None:
     try:
         import debugpy  # pyright: ignore[reportMissingImports]  # noqa: PLC0415, T100
 
+        # Suppress a warning about using frozen modules
+        os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
+
         debugpy.listen(  # pyright: ignore[reportUnknownMemberType]  # noqa: T100
             ("localhost", 5678),
             in_process_debug_adapter=True,
         )
+        logging.info("Started debugpy server")
 
         if WAIT_FOR_CLIENT:
             debugpy.wait_for_client()  # pyright: ignore[reportUnknownMemberType]  # noqa: T100
@@ -86,7 +94,95 @@ def init_debugpy() -> None:
             (WrappedArray, tupleResolver),
         )
 
-    except (ImportError, AttributeError):
+    except ImportError, AttributeError:
+        pass
+
+
+def init_ipykernel() -> None:
+    """Tries to import and setup an ipython kernel. Does nothing if unable to."""
+    try:
+        import ipykernel.embed  # pyright: ignore[reportMissingImports]  # noqa: PLC0415
+        from ipykernel.kernelapp import (  # pyright: ignore[reportMissingImports]  # noqa: PLC0415
+            IPKernelApp,  # pyright: ignore[reportUnknownVariableType]
+        )
+
+        # Initializing ipykernel doesn't seem to work on the main thread, something in getting the
+        # calling module's frame goes wrong - so use a child thread. I think we'd need one anyway,
+        # since I think it'd enter a blocking loop afterwards.
+        # During init it tries to install a custom signal handler to ignore SIGINT, which can only
+        # be done from the main thread. We don't particularly care about this, so patch it out just
+        # to avoid the error message
+        IPKernelApp.init_signal = lambda _: None  # type: ignore
+
+        # Both pyunrealsdk and ipkernel try to redirect stdout/err. Patch it to redirect to both.
+        unreal_stdout, unreal_stderr = sys.stdout, sys.stderr
+        original_init_io = IPKernelApp.init_io  # type: ignore
+
+        @wraps(original_init_io)  # type: ignore
+        def init_io(self: IPKernelApp) -> None:  # type: ignore
+            original_init_io(self)
+
+            def make_double_wrapper[**P, R](
+                unreal: Callable[P, R],
+                ipykernel: Callable[P, R],
+            ) -> Callable[P, R]:
+                @wraps(ipykernel)
+                def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+                    unreal(*args, **kwargs)
+                    return ipykernel(*args, **kwargs)
+
+                return wrapper
+
+            sys.stdout.write = make_double_wrapper(unreal_stdout.write, sys.stdout.write)
+            sys.stdout.flush = make_double_wrapper(unreal_stdout.flush, sys.stdout.flush)
+            sys.stderr.write = make_double_wrapper(unreal_stderr.write, sys.stderr.write)
+            sys.stderr.flush = make_double_wrapper(unreal_stderr.flush, sys.stderr.flush)
+
+        IPKernelApp.init_io = init_io  # type: ignore
+
+        # The connection info goes down an awkward path and never makes it to console, even with the
+        # redirect. Patch it in.
+        original_log_connection_info = IPKernelApp.log_connection_info  # type: ignore
+
+        @wraps(original_log_connection_info)  # type: ignore
+        def log_connection_info(self: IPKernelApp) -> None:  # type: ignore
+            logging.info("Started ipykernel server")
+
+            original_info = self.log.info  # type: ignore
+            original_stdout = sys.__stdout__
+
+            lines: list[str] = []
+            self.log.info = lines.append  # type: ignore
+            sys.__stdout__ = StringIO()
+
+            original_log_connection_info(self)
+
+            sys.__stdout__ = original_stdout
+            self.log.info = original_info  # type: ignore
+
+            for line in lines:
+                logging.info(line)
+
+        IPKernelApp.log_connection_info = log_connection_info  # type: ignore
+
+        # Suppress a couple warnings it throws
+        warnings.filterwarnings(action="ignore", category=Warning, module="ipykernel")
+
+        # Create a module and namespace for the code to run in: by default the kernel will attach
+        # to the caller, which leads to the `%reset` magic deleting a fair bit of the SDK...
+        fake_module = ModuleType("<ipykernel>")
+
+        # Finally, actually start the kernel
+        Thread(
+            target=ipykernel.embed.embed_kernel,  # type: ignore
+            name="ipykernel",
+            daemon=True,
+            kwargs={
+                "module": fake_module,
+                "user_ns": fake_module.__dict__,
+            },
+        ).start()
+    except ImportError:
         pass
 
 
@@ -99,12 +195,12 @@ def get_all_mod_folders() -> Sequence[Path]:
     """
 
     extra_folders = []
-    with contextlib.suppress(json.JSONDecodeError, TypeError):
+    with contextlib.suppress(TypeError):
         extra_folders = [
             Path(x) for x in unrealsdk.config.get("mod_manager", {}).get("extra_folders", [])
         ]
 
-    return [Path(__file__).parent, *extra_folders]
+    return [Path(__file__).resolve().parent, *extra_folders]
 
 
 @cache
@@ -171,7 +267,7 @@ def is_mod_folder_legacy_mod(folder: Path) -> bool:
 
 
 # Catch when someone downloaded a mod a few times and ended up with a "MyMod (3).sdkmod"
-RE_NUMBERED_DUPLICATE = re.compile(r"^(.+?) \(\d+\)\.sdkmod$", flags=re.I)
+RE_NUMBERED_DUPLICATE = re.compile(r"^(.+?) ?\(\d+\)\.sdkmod$", flags=re.I)
 
 
 @cache
@@ -434,7 +530,7 @@ def migrate_mod_settings_file(
             data = json.load(old)
             if not isinstance(data, dict):  # pyright: ignore[reportUnnecessaryIsInstance]
                 raise ValueError
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError, ValueError:
             logging.warning(
                 f"The settings file for legacy mod '{mod_name}' appears to be invalid. Not"
                 f" migrating it to prevent losing data.",
@@ -520,12 +616,14 @@ def migrate_legacy_mods_folder() -> bool:
 mod_folders = get_all_mod_folders()
 for folder in mod_folders:
     sys.path.append(str(folder.resolve()))
+# Also add any extra, non-mod `sys.path` entries
+sys.path.extend(unrealsdk.config.get("mod_manager", {}).get("extra_sys_path", []))
 
+# We want to start debugpy as soon as possible, in case you're debugging something early in init
 init_debugpy()
 
 while not logging.is_console_ready():
     pass
-
 
 # Now that the console's ready, hook up the warnings system, and show some other warnings users may
 # be interested in
@@ -535,6 +633,10 @@ check_proton_bugs()
 for folder in mod_folders:
     if not folder.exists() or not folder.is_dir():
         logging.dev_warning(f"Extra mod folder does not exist: {folder}")
+
+# Now we can kick off ipykernel. This must be after console's ready, since you need to be able to
+# read out the connection info.
+init_ipykernel()
 
 # Find all mods once to add any `.sdkmod`s to `sys.path`
 mods_to_import = find_mods_to_import(mod_folders)
