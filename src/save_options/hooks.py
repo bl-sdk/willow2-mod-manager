@@ -1,10 +1,9 @@
 import json
 from json import JSONDecodeError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from unrealsdk import logging
 from unrealsdk.hooks import Type
-from unrealsdk.unreal import BoundFunction, UObject, WrappedArray, WrappedStruct
 
 import save_options.options
 from mods_base import JSON, get_pc, hook
@@ -16,6 +15,9 @@ from save_options.registration import (
     registered_save_options,
     save_callbacks,
 )
+
+if TYPE_CHECKING:
+    from unrealsdk.unreal import BoundFunction, UObject, WrappedArray, WrappedStruct
 
 # Value doesn't matter, just needs to be consistent and higher than any real DLC package ID
 _PACKAGE_ID: int = 99

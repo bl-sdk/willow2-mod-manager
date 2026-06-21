@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 import unrealsdk
 from unrealsdk.hooks import Block, Type, prevent_hooking_direct_calls
-from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 from mods_base import EInputEvent, Mod, get_ordered_mod_list, hook
 from mods_base.mod_list import base_mod
@@ -16,6 +15,7 @@ from .options_menu import push_mod_list, push_mod_options
 if TYPE_CHECKING:
     from enum import auto
 
+    from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
     from unrealsdk.unreal._uenum import UnrealEnum  # pyright: ignore[reportMissingModuleSource]
 
     class ENetMode(UnrealEnum):
@@ -254,7 +254,7 @@ def marketplace_offering_changed(
 
     try:
         mod = drawn_mod_list[int(data.GetString(obj.Prop_offeringId))]
-    except (ValueError, KeyError):
+    except ValueError, KeyError:
         return Block
 
     favourite_tooltip = (
@@ -360,7 +360,7 @@ def marketplace_input_key(
 
         match key, event:
             # Page up/down are actually bugged on Gearbox's end: they look for both a released event
-            # and a pressed or repeat, which is a contradition that can never be true.
+            # and a pressed or repeat, which is a contradiction that can never be true.
             # Since there can be quite a few mods and we want to be able to scroll through them
             # quick, we're fixing Gearbox's bug here
             case "PageUp", (EInputEvent.IE_Pressed | EInputEvent.IE_Repeat):

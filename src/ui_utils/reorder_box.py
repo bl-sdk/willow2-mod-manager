@@ -1,13 +1,15 @@
 import warnings
-from collections.abc import Callable, MutableSequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from unrealsdk.hooks import Block
 
 from mods_base import EInputEvent
 
 from .option_box import OptionBox, OptionBoxButton, Page
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, MutableSequence
 
 
 @dataclass

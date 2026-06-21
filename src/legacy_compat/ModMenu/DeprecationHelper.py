@@ -2,8 +2,10 @@
 
 import functools
 import warnings
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 __all__: tuple[str, ...] = (
     "Deprecated",

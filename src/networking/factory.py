@@ -1,11 +1,14 @@
 import inspect
 import warnings
 from functools import wraps
-from types import ModuleType
-
-from mods_base import Mod
+from typing import TYPE_CHECKING
 
 from .decorators import NetworkFunction
+
+if TYPE_CHECKING:
+    from types import ModuleType
+
+    from mods_base import Mod
 
 MOD_NETWORK_FUNCTIONS_ATTR = "network_functions"
 

@@ -237,8 +237,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
+    - name: Checkout repository and submodules
       uses: actions/checkout@v4
+      with:
+        submodules: recursive
 
     - name: Run Ruff Linting
       uses: chartboost/ruff-action@v1

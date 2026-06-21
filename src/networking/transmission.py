@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 import unrealsdk
 from unrealsdk import logging
 from unrealsdk.hooks import Block
-from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
 
 from mods_base import ENGINE, get_pc, hook
 
@@ -13,6 +12,7 @@ from .registration import handle_received_message
 if TYPE_CHECKING:
     from enum import auto
 
+    from unrealsdk.unreal import BoundFunction, UObject, WrappedStruct
     from unrealsdk.unreal._uenum import UnrealEnum  # pyright: ignore[reportMissingModuleSource]
 
     class ENetMode(UnrealEnum):

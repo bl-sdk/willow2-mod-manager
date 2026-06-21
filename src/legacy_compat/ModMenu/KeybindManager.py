@@ -9,11 +9,12 @@ from typing import TYPE_CHECKING, ClassVar
 
 from legacy_compat import legacy_compat
 from mods_base import EInputEvent, KeybindType
-from mods_base.keybinds import KeybindCallback_Event, KeybindCallback_NoArgs
 
 from .DeprecationHelper import Deprecated, PrintWarning
 
 if TYPE_CHECKING:
+    from mods_base.keybinds import KeybindCallback_Event, KeybindCallback_NoArgs
+
     from .ModObjects import SDKMod
 
 __all__: tuple[str, ...] = (
@@ -77,8 +78,8 @@ class Keybind:
 
 def convert_new_style_callbacks(
     bind: Keybind,
-    mod: "SDKMod | None" = None,
-) -> tuple[KeybindCallback_Event | KeybindCallback_NoArgs | None, EInputEvent | None]:
+    mod: SDKMod | None = None,
+) -> tuple[KeybindCallback_Event | KeybindCallback_NoArgs, EInputEvent | None]:
     """
     Converts a legacy keybind to a new-style callback and event filter.
 
@@ -123,12 +124,12 @@ def convert_new_style_callbacks(
 
             return game_input_event, None
     else:
-        return None, EInputEvent.IE_Pressed
+        raise RuntimeError("Unable to convert legacy style keybind callback")
 
 
 def convert_to_new_style_keybind(
     bind: Keybind | list[str],
-    mod: "SDKMod | None" = None,
+    mod: SDKMod | None = None,
 ) -> KeybindType:
     """
     Converts a legacy keybind, of either type, to a new-style keybind.

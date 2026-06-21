@@ -1,4 +1,3 @@
-from types import EllipsisType
 from typing import TYPE_CHECKING
 
 import unrealsdk
@@ -8,6 +7,7 @@ from mods_base import get_pc
 
 if TYPE_CHECKING:
     from enum import IntEnum
+    from types import EllipsisType
 
     class ERewardPopup(IntEnum):
         ERP_BadassToken = 0

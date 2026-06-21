@@ -1,7 +1,6 @@
 # ruff: noqa: N802, N803, D102, N999
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
 from dataclasses import KW_ONLY, dataclass
 from reprlib import recursive_repr
 from typing import TYPE_CHECKING, Any
@@ -22,6 +21,8 @@ from mods_base import (
 from .DeprecationHelper import NameChangeMsg, PrintWarning
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from ModObjects import SDKMod
 
 __all__: tuple[str, ...] = (
@@ -283,7 +284,7 @@ class _NestedProxy(NestedOption):
     _: KW_ONLY
     legacy_option: Nested
     # Since we're using a custom type anyway, add a callback needed by some of the option fixups
-    on_enter: Callable[["_NestedProxy"], None] | None = None
+    on_enter: Callable[[_NestedProxy], None] | None = None
 
     @property
     def children(self) -> Sequence[BaseOption]:  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -302,7 +303,7 @@ class _NestedProxy(NestedOption):
 
 def _apply_hardcoded_option_fixups[J: JSON](  # noqa: C901 - will always need complex mod specific code
     option: Base,
-    mod: "SDKMod | None",
+    mod: SDKMod | None,
     on_change: Callable[[ValueOption[J], Any], None],
 ) -> BaseOption | None:
     """
@@ -394,7 +395,7 @@ def _apply_hardcoded_option_fixups[J: JSON](  # noqa: C901 - will always need co
 
 def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way to make this simpler
     legacy_options: Sequence[Base],
-    mod: "SDKMod | None" = None,
+    mod: SDKMod | None = None,
 ) -> list[BaseOption]:
     """
     Converts a list of legacy option to new-style options.
@@ -448,7 +449,7 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
                         option.Choices[0],
                         description=option.Description,
                         is_hidden=option.IsHidden,
-                        on_change=on_change,
+                        on_change_anytime=on_change,
                     )
                 case Spinner():
                     converted_option = SpinnerOption(
@@ -457,7 +458,7 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
                         list(option.Choices),
                         description=option.Description,
                         is_hidden=option.IsHidden,
-                        on_change=on_change,
+                        on_change_anytime=on_change,
                     )
                 case Slider():
                     converted_option = SliderOption(
@@ -468,7 +469,7 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
                         option.Increment,
                         description=option.Description,
                         is_hidden=option.IsHidden,
-                        on_change=on_change,
+                        on_change_anytime=on_change,
                     )
                 case Hidden():
                     hidden_option: Hidden[Any] = option  # pyright: ignore[reportUnknownVariableType]
@@ -476,7 +477,7 @@ def convert_option_list_to_new_style_options(  # noqa: C901 - isn't a great way 
                         hidden_option.Caption,
                         hidden_option.CurrentValue,
                         description=hidden_option.Description,
-                        on_change=on_change,
+                        on_change_anytime=on_change,
                     )
                 case _:
                     raise TypeError(f"Unable to convert legacy option of type {type(option)}")

@@ -13,6 +13,8 @@ extend-ignore-re = [
     "\\[[0-9a-fA-F]+?\\]\\(https://github.com/.+?/.+?/(commit|tree)/.+?\\)",
     # Ignore this specific hook string, which gearbox typo'd
     "\"WillowGame\\.WillowScrollingList\\.OnClikEvent\"",
+    # Ignore this specific regex, which thinks we typo'd "egister"
+    "\\(Unr\\|R\\)egisterMissionDirector"
 ]
 
 [default.extend-identifiers]
