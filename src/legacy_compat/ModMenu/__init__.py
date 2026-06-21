@@ -1,6 +1,6 @@
-from collections.abc import Iterator
 from contextlib import contextmanager
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 from legacy_compat import compat_handlers
 from legacy_compat import unrealsdk as old_unrealsdk
@@ -22,6 +22,9 @@ from .SettingsManager import (
     SaveAllModSettings,
     SaveModSettings,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 __all__: tuple[str, ...] = (
     "AnyHook",
@@ -83,7 +86,7 @@ Options.Spinner.StartingChoice = property(  # type: ignore
 
 
 @contextmanager
-def _game_get_current_compat_handler() -> Iterator[None]:
+def _game_get_current_compat_handler() -> Generator[None]:
     Game.GetCurrent = Game.get_current  # type: ignore
     try:
         yield

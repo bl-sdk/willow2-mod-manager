@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from unrealsdk.unreal import UObject
+if TYPE_CHECKING:
+    from unrealsdk.unreal import UObject
 
 # Copying these from the real menus
 BACK_EVENT_ID = -1

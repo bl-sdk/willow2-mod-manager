@@ -1,17 +1,17 @@
 import warnings
-from collections.abc import Callable
 from dataclasses import KW_ONLY, dataclass, field
 from typing import TYPE_CHECKING, Any, Self
 
 import unrealsdk
-from unrealsdk.hooks import Block
 from unrealsdk.unreal import BoundFunction, UObject, WeakPointer, WrappedStruct
 
 from mods_base import EInputEvent, bind_all_hooks, get_pc, hook
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from enum import auto
 
+    from unrealsdk.hooks import Block
     from unrealsdk.unreal._uenum import UnrealEnum  # pyright: ignore[reportMissingModuleSource]
 
     class EBackButtonScreen(UnrealEnum):

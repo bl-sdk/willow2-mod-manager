@@ -41,10 +41,10 @@ RUN <<EOF
             python3-requests    \
             wget                \
             xz-utils
-    wget -nv https://github.com/mstorsjo/llvm-mingw/releases/download/20250114/llvm-mingw-20250114-msvcrt-ubuntu-20.04-x86_64.tar.xz
-    tar -xf llvm-mingw-20250114-msvcrt-ubuntu-20.04-x86_64.tar.xz
-    rm llvm-mingw-20250114-msvcrt-ubuntu-20.04-x86_64.tar.xz
-    mv llvm-mingw-20250114-msvcrt-ubuntu-20.04-x86_64 /llvm-mingw
+    wget -nv https://github.com/mstorsjo/llvm-mingw/releases/download/20260224/llvm-mingw-20260224-msvcrt-ubuntu-22.04-x86_64.tar.xz
+    tar -xf llvm-mingw-20260224-msvcrt-ubuntu-22.04-x86_64.tar.xz
+    rm llvm-mingw-20260224-msvcrt-ubuntu-22.04-x86_64.tar.xz
+    mv llvm-mingw-20260224-msvcrt-ubuntu-22.04-x86_64 /llvm-mingw
 EOF
 ENV PATH="/llvm-mingw/bin:$PATH"
 

@@ -2,11 +2,11 @@
 
 import inspect
 import re
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import cache, wraps
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 import unrealsdk as new_unrealsdk
 from unrealsdk import (
@@ -27,27 +27,27 @@ from unrealsdk.hooks import (
 )
 from unrealsdk.unreal import (
     BoundFunction,
-    UArrayProperty,
-    UBoolProperty,
-    UByteProperty,
     UClass,
-    UClassProperty,
-    UComponentProperty,
-    UDelegateProperty,
-    UEnumProperty,
-    UFloatProperty,
     UFunction,
-    UInterfaceProperty,
-    UIntProperty,
-    UNameProperty,
     UObject,
-    UObjectProperty,
-    UProperty,
-    UStrProperty,
     UStruct,
-    UStructProperty,
     WrappedArray,
     WrappedStruct,
+    ZArrayProperty,
+    ZBoolProperty,
+    ZByteProperty,
+    ZClassProperty,
+    ZComponentProperty,
+    ZDelegateProperty,
+    ZEnumProperty,
+    ZFloatProperty,
+    ZInterfaceProperty,
+    ZIntProperty,
+    ZNameProperty,
+    ZObjectProperty,
+    ZProperty,
+    ZStrProperty,
+    ZStructProperty,
 )
 
 from legacy_compat import compat_handlers, legacy_compat
@@ -259,7 +259,7 @@ def KeepAlive(obj: UObject, /) -> None:
     with legacy_compat():
         # Don't think this loop is strictly necessary - the parent objects should stay loaded since
         # they're referenced via Outer - but it's replicating the old code
-        iter_obj: UObject | None = obj
+        iter_obj = cast(UObject | None, obj)
         while iter_obj is not None:
             iter_obj.ObjectFlags.A |= 0x4000  # type: ignore
             iter_obj = iter_obj.Outer
@@ -310,7 +310,7 @@ _default_func_call = BoundFunction.__call__
 
 
 def _convert_struct_tuple_if_required(
-    prop: UProperty,
+    prop: ZProperty,
     value: Any,
     _ignore_array_dim: bool = False,
 ) -> Any:
@@ -325,14 +325,14 @@ def _convert_struct_tuple_if_required(
     """
 
     # If it's a fixed array of structs, need to convert each inner value
-    if not _ignore_array_dim and prop.ArrayDim > 1 and isinstance(prop, UStructProperty):
+    if not _ignore_array_dim and prop.ArrayDim > 1 and isinstance(prop, ZStructProperty):
         return tuple(
             _convert_struct_tuple_if_required(prop, inner_val, _ignore_array_dim=True)
             for inner_val in value  # type: ignore
         )
 
     # If it's a struct being set as a tuple directly
-    if isinstance(prop, UStructProperty) and isinstance(value, tuple):
+    if isinstance(prop, ZStructProperty) and isinstance(value, tuple):
         return WrappedStruct(
             prop.Struct,
             *(
@@ -342,7 +342,7 @@ def _convert_struct_tuple_if_required(
         )
 
     # If it's an array of structs, need to convert each value
-    if isinstance(prop, UArrayProperty) and isinstance(prop.Inner, UStructProperty):
+    if isinstance(prop, ZArrayProperty) and isinstance(prop.Inner, ZStructProperty):
         seq_value: Sequence[Any] = value
 
         return tuple(
@@ -389,11 +389,11 @@ def _uobject_getattr(self: UObject, name: str) -> Any:
     value = self._get_field(prop)
 
     match prop:
-        case UInterfaceProperty():
+        case ZInterfaceProperty():
             return FScriptInterface(value)
-        case UNameProperty():
+        case ZNameProperty():
             return _strip_name_property_suffix(value)  # type: ignore
-        case UByteProperty() | UEnumProperty() if prop.Enum is not None:
+        case ZByteProperty() | ZEnumProperty() if prop.Enum is not None:
             return value.value  # type: ignore
         case _:
             return value
@@ -474,11 +474,11 @@ def _struct_getattr(self: WrappedStruct, name: str) -> Any:
     value = self._get_field(prop)
 
     match prop:
-        case UInterfaceProperty():
+        case ZInterfaceProperty():
             return FScriptInterface(value)
-        case UNameProperty():
+        case ZNameProperty():
             return _strip_name_property_suffix(value)  # type: ignore
-        case UByteProperty() | UEnumProperty() if prop.Enum is not None:
+        case ZByteProperty() | ZEnumProperty() if prop.Enum is not None:
             return value.value  # type: ignore
         case _:
             return value
@@ -500,19 +500,19 @@ def _array_getitem[T](self: WrappedArray[T], idx: int | slice) -> T | list[T]:
     value = _default_array_getitem(self, idx)
 
     match self._type:
-        case UInterfaceProperty():
+        case ZInterfaceProperty():
             if isinstance(idx, slice):
                 val_seq: Sequence[T] = value  # type: ignore
                 return [FScriptInterface(x) for x in val_seq]  # type: ignore
 
             return FScriptInterface(value)  # type: ignore
-        case UNameProperty():
+        case ZNameProperty():
             if isinstance(idx, slice):
                 val_seq: Sequence[T] = value  # type: ignore
                 return [_strip_name_property_suffix(x) for x in val_seq]  # type: ignore
 
             return _strip_name_property_suffix(value)  # type: ignore
-        case UByteProperty() | UEnumProperty() if self._type.Enum is not None:
+        case ZByteProperty() | ZEnumProperty() if self._type.Enum is not None:
             if isinstance(idx, slice):
                 val_seq: Sequence[IntFlag] = value  # type: ignore
                 return [x.value for x in val_seq]  # type: ignore
@@ -541,7 +541,7 @@ def _array_setitem[T](self: WrappedArray[T], idx: int | slice, value: T | Sequen
         )
 
 
-def _get_default_value_for_prop(prop: UProperty) -> Any:
+def _get_default_value_for_prop(prop: ZProperty) -> Any:
     """
     Gets the default value to use for a required property if it wasn't given.
 
@@ -551,23 +551,23 @@ def _get_default_value_for_prop(prop: UProperty) -> Any:
         The default value.
     """
     match prop:
-        case UArrayProperty():
+        case ZArrayProperty():
             return ()
-        case UBoolProperty():
+        case ZBoolProperty():
             return False
-        case UByteProperty() | UFloatProperty() | UIntProperty():
+        case ZByteProperty() | ZFloatProperty() | ZIntProperty():
             return 0
         case (
-            UClassProperty()
-            | UComponentProperty()
-            | UDelegateProperty()
-            | UInterfaceProperty()
-            | UObjectProperty()
+            ZClassProperty()
+            | ZComponentProperty()
+            | ZDelegateProperty()
+            | ZInterfaceProperty()
+            | ZObjectProperty()
         ):
             return None
-        case UNameProperty() | UStrProperty():
+        case ZNameProperty() | ZStrProperty():
             return ""
-        case UStructProperty():
+        case ZStructProperty():
             return WrappedStruct(prop.Struct)
         case _:
             raise RuntimeError(
@@ -581,7 +581,7 @@ def _boundfunc_call(self: BoundFunction, *args: Any, **kwargs: Any) -> Any:
     # If we have no out params and no struct properties, can fall back to the default
     if not any(
         (prop.PropertyFlags & 0x100) != 0  # UProperty::PROP_FLAG_OUT
-        or isinstance(prop, UStructProperty)
+        or isinstance(prop, ZStructProperty)
         for prop in self.func._properties()
     ):
         return _default_func_call(self, *args, **kwargs)
@@ -658,7 +658,7 @@ def _uobject_path_name(obj: UObject | None, /) -> str:
     return obj._path_name()
 
 
-def _ustructproperty_get_struct(self: UStructProperty) -> UStruct:
+def _ustructproperty_get_struct(self: ZStructProperty) -> UStruct:
     return self.Struct
 
 
@@ -677,7 +677,7 @@ _wrapped_struct_structType = property(  # noqa: N816
 
 
 @contextmanager
-def _unreal_method_compat_handler() -> Iterator[None]:
+def _unreal_method_compat_handler() -> Generator[None]:
     UObject.__getattr__ = _uobject_getattr
     UObject.__getattribute__ = _uobject_getattribute
     UObject.__setattr__ = _uobject_setattr
@@ -696,7 +696,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
     UObject.GetName = _uobject_get_name  # type: ignore
     UObject.GetObjectName = _uobject_get_object_name  # type: ignore
     UObject.PathName = _uobject_path_name  # type: ignore
-    UStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
+    ZStructProperty.GetStruct = _ustructproperty_get_struct  # type: ignore
     WrappedStruct.structType = _wrapped_struct_structType  # type: ignore
 
     try:
@@ -720,7 +720,7 @@ def _unreal_method_compat_handler() -> Iterator[None]:
         del UObject.GetName  # type: ignore
         del UObject.GetObjectName  # type: ignore
         del UObject.PathName  # type: ignore
-        del UStructProperty.GetStruct  # type: ignore
+        del ZStructProperty.GetStruct  # type: ignore
         del WrappedStruct.structType  # type: ignore
 
 

@@ -5,7 +5,7 @@
 
 [project]
 name = "willow2_mod_manager"
-version = "3.7"
+version = "3.8"
 authors = [{ name = "bl-sdk" }]
 
 [tool.sdkmod]

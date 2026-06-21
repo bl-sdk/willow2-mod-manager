@@ -30,47 +30,33 @@ jobs:
 
     - name: Add MSVC to PATH
       if: startswith(matrix.preset, 'msvc')
-      uses: TheMrMilchmann/setup-msvc-dev@v3
+      uses: TheMrMilchmann/setup-msvc-dev@v4
       with:
         arch: x86
 
     - name: Setup CMake and Ninja
       uses: lukka/get-cmake@latest
 
-    # We only actually need this python version to run the download script, we're not going to link
-    # against it, so don't need to specify arch
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
-        python-version: ">=3.11"
+        python-version: ">=3.13"
 
     - name: Checkout repository and submodules
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
-    - name: Configure build
-      run: |
-        pip install requests
-
-        cmake . --preset ${{ matrix.preset }} -G Ninja
-
     - name: Build
-      run: cmake --build out/build/${{ matrix.preset }} --target install
+      run: python ./prepare_release.py ${{ matrix.preset }} --configure
 
-    - name: Prepare Release Zip (dev ci)
-      if: inputs.new-release-tag == ''
-      run: python prepare_release.py ${{ matrix.preset }} --skip-install
-
-    - name: Prepare Release Zip (draft full)
+    - name: Rename Release Zip (draft full release)
       if: inputs.new-release-tag != '' && startswith(matrix.preset, 'msvc')
-      run: |
-        python prepare_release.py ${{ matrix.preset }} --skip-install
-        mv willow2-sdk-${{ matrix.preset }}.zip willow2-sdk.zip
+      run: mv willow2-sdk-${{ matrix.preset }}.zip willow2-sdk.zip
 
     - name: Upload Artifact
       if: inputs.new-release-tag == '' || startswith(matrix.preset, 'msvc')
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ matrix.preset }}
         path: "*.zip"
@@ -91,12 +77,12 @@ jobs:
 
     steps:
     - name: Checkout repository and submodules
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
     - name: Login to GitHub Container Registry
-      uses: docker/login-action@v2
+      uses: docker/login-action@v4
       with:
         registry: ghcr.io
         username: ${{ github.repository_owner }}
@@ -118,16 +104,11 @@ jobs:
 
           set -e
 
-          cmake . --preset ${{ matrix.toolchain.preset }} -G Ninja
-          cmake --build out/build/${{ matrix.toolchain.preset }}  --target install
-
-          if [ ${{ inputs.new-release-tag == '' && 1 || 0 }} -ne 0 ]; then
-            python prepare_release.py ${{ matrix.toolchain.preset }} --skip-install
-          fi
+          python prepare_release.py ${{ matrix.toolchain.preset }} --configure
 
     - name: Upload Artifact
       if: inputs.new-release-tag == ''
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ matrix.toolchain.preset }}
         path: "*.zip"
@@ -151,18 +132,17 @@ jobs:
     - name: Setup CMake and Ninja
       uses: lukka/get-cmake@latest
 
-    # Need newer python to run the python lib downloader script
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
-        python-version: ">=3.10"
+        python-version: ">=3.13"
 
-    # Needed pyyaml for clang tidy to enable `-export-fixes` and requests for the python lib downloader
+    # Needed pyyaml for clang tidy to enable `-export-fixes`
     - name: Install pip packages
-      run: pip install pyyaml requests
+      run: pip install pyyaml
 
     - name: Checkout repository and submodules
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
@@ -196,7 +176,7 @@ jobs:
       uses: egor-tensin/setup-clang@v1
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Run clang-format
       run: |
@@ -214,7 +194,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Check spelling
       uses: crate-ci/typos@master
@@ -224,12 +204,12 @@ jobs:
 
     steps:
     - name: Checkout repository and submodules
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         submodules: recursive
 
     - name: Run pyright
-      uses: jakebailey/pyright-action@v2
+      uses: jakebailey/pyright-action@v3
       with:
         working-directory: ./src
 
@@ -238,18 +218,44 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
 
     - name: Run Ruff Linting
-      uses: chartboost/ruff-action@v1
+      uses: astral-sh/ruff-action@v4.0.0
       with:
-        src: ./src
+        src: src
 
     - name: Run Ruff Formatting
-      uses: chartboost/ruff-action@v1
+      uses: astral-sh/ruff-action@v4.0.0
       with:
-        src: ./src
-        args: format --check
+        args: format --check --diff
+        src: src
+
+  stubs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository and submodules
+      uses: actions/checkout@v6
+      with:
+        submodules: recursive
+
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ">=3.13"
+
+    - name: Install pip packages
+      run: pip install -r libs/pyunrealsdk/stubgen/requirements.txt
+
+    - name: Generate stubs
+      working-directory: libs/pyunrealsdk/
+      run: python -m stubgen WILLOW ../../expected_stubs
+
+    - name: Make sure stubs are up to date
+      run: diff -r -s stubs expected_stubs
 
 # ==============================================================================
 
@@ -274,7 +280,7 @@ jobs:
 
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
 
     - name: Upload releases
       uses: andelf/nightly-release@main
@@ -310,7 +316,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Download artifacts
       uses: actions/download-artifact@v4

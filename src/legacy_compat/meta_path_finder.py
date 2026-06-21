@@ -1,12 +1,15 @@
 import inspect
-from collections.abc import Sequence
 from importlib.abc import FileLoader, SourceLoader
 from importlib.machinery import ModuleSpec, PathFinder, SourceFileLoader
 from importlib.util import spec_from_file_location
 from pathlib import Path
-from types import ModuleType
+from typing import TYPE_CHECKING
 
 from .source_replacements import ALL_SOURCE_REPLACEMENTS, SourceReplacement
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from types import ModuleType
 
 # While just messing with `Mod.__path__` is enough for most most mods, there are a few we need to do
 # more advanced import hooking on.

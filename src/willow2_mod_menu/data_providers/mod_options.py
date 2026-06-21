@@ -1,7 +1,5 @@
-from collections.abc import Callable, Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
-
-from unrealsdk.unreal import UObject, WrappedStruct
+from typing import TYPE_CHECKING
 
 from mods_base import (
     BaseOption,
@@ -22,6 +20,11 @@ from . import (
     RESET_KEYBINDS_EVENT_ID,
 )
 from .options import OptionsDataProvider
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator, Sequence
+
+    from unrealsdk.unreal import UObject, WrappedStruct
 
 try:
     from ui_utils import TrainingBox
@@ -77,7 +80,7 @@ class ModOptionsDataProvider(OptionsDataProvider):
             yield BoolOption(
                 "Enabled",
                 self.mod.is_enabled,
-                on_change=lambda _, now_enabled: (
+                on_change_anytime=lambda _, now_enabled: (
                     self.mod.enable() if now_enabled else self.mod.disable()
                 ),
             )
@@ -232,7 +235,7 @@ class ModOptionsDataProvider(OptionsDataProvider):
         try:
             key_entry = data_provider.KeyBinds[idx]
             option = self.drawn_keybinds[idx]
-        except (IndexError, KeyError):
+        except IndexError, KeyError:
             return
 
         option.value = None if key == option.value else key

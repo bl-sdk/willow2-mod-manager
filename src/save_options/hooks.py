@@ -1,10 +1,9 @@
 import json
 from json import JSONDecodeError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from unrealsdk import logging
 from unrealsdk.hooks import Type
-from unrealsdk.unreal import BoundFunction, UObject, WrappedArray, WrappedStruct
 
 import save_options.options
 from mods_base import JSON, get_pc, hook
@@ -16,6 +15,9 @@ from save_options.registration import (
     registered_save_options,
     save_callbacks,
 )
+
+if TYPE_CHECKING:
+    from unrealsdk.unreal import BoundFunction, UObject, WrappedArray, WrappedStruct
 
 # Value doesn't matter, just needs to be consistent and higher than any real DLC package ID
 _PACKAGE_ID: int = 99
@@ -145,7 +147,10 @@ def end_load_game(_1: UObject, _2: WrappedStruct, ret: Any, _4: BoundFunction) -
         return
 
     for mod_id, extracted_mod_data in extracted_save_data.items():
-        mod_save_options: ModSaveOptions = registered_save_options[mod_id]
+        mod_save_options: ModSaveOptions | None = registered_save_options.get(mod_id, None)
+        if mod_save_options is None:
+            logging.warning(f"Save data found for unregistered mod '{mod_id}', skipping.")
+            continue
         for identifier, extracted_value in extracted_mod_data.items():
             if save_option := mod_save_options.get(identifier):
                 save_option._from_json(extracted_value)  # pyright: ignore[reportPrivateUsage]

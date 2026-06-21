@@ -1,12 +1,13 @@
 from collections import deque
 from dataclasses import dataclass
-from typing import Any
-
-from unrealsdk.unreal import UObject
+from typing import TYPE_CHECKING, Any
 
 from mods_base import ENGINE, hook
 
 from . import transmission
+
+if TYPE_CHECKING:
+    from unrealsdk.unreal import UObject
 
 # The engine imposes some sort of bandwidth cap on messages between players. This file implements a
 # message queue, and only transmits a handful of messages per tick, to try avoid running into it.

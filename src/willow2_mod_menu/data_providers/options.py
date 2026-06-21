@@ -1,8 +1,7 @@
-from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from unrealsdk import logging
-from unrealsdk.unreal import UObject
 
 from mods_base import (
     BaseOption,
@@ -18,6 +17,11 @@ from mods_base import (
 from willow2_mod_menu.options_menu import push_options
 
 from . import OPTION_EVENT_ID_OFFSET, DataProvider
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from unrealsdk.unreal import UObject
 
 
 @dataclass

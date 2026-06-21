@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
-
-from unrealsdk.unreal import UObject
+from typing import TYPE_CHECKING
 
 from mods_base import Mod, get_ordered_mod_list
 from willow2_mod_menu.favourites import is_favourite
 from willow2_mod_menu.options_menu import push_mod_options
 
 from . import DataProvider
+
+if TYPE_CHECKING:
+    from unrealsdk.unreal import UObject
 
 
 @dataclass

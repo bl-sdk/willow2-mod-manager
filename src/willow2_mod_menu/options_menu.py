@@ -1,6 +1,5 @@
 # ruff: noqa: D103
-from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import unrealsdk
 from unrealsdk.hooks import Block
@@ -17,6 +16,9 @@ from .data_providers import (
     RESET_KEYBINDS_EVENT_ID,
     DataProvider,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 data_provider_stack: list[DataProvider] = []
 

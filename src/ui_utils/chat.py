@@ -1,9 +1,12 @@
 from datetime import datetime
-from types import EllipsisType
+from typing import TYPE_CHECKING
 
 import unrealsdk
 
 from mods_base import get_pc
+
+if TYPE_CHECKING:
+    from types import EllipsisType
 
 
 def show_chat_message(

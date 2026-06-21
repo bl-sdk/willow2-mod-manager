@@ -1,9 +1,12 @@
 import warnings
-from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager
 from types import ModuleType
+from typing import TYPE_CHECKING
 
 from mods_base.mod_list import base_mod
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 __all__: tuple[str, ...] = (
     "ENABLED",
@@ -14,7 +17,7 @@ __all__: tuple[str, ...] = (
     "legacy_compat",
 )
 
-__version_info__: tuple[int, int] = (1, 6)
+__version_info__: tuple[int, int] = (1, 7)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
@@ -23,7 +26,7 @@ compat_handlers: list[Callable[[], AbstractContextManager[None]]] = []
 
 
 @contextmanager
-def legacy_compat() -> Iterator[None]:
+def legacy_compat() -> Generator[None]:
     """Context manager which enables legacy SDK compatibility while active."""
     if not ENABLED:
         warnings.warn(
@@ -92,6 +95,7 @@ if base_mod.version.partition(" ")[0] not in {
     "3.6",
     "3.7",
     "3.8",
+    "3.9",
 }:
     from unrealsdk import logging
 
@@ -101,7 +105,6 @@ else:
     import ctypes
     import sys
     import warnings
-    from collections.abc import Iterator
     from contextlib import contextmanager
     from functools import wraps
 
@@ -171,7 +174,7 @@ else:
     }
 
     @contextmanager
-    def import_compat_handler() -> Iterator[None]:
+    def import_compat_handler() -> Generator[None]:
         """Context manager to add the import compatibility."""
         # Backup any current modules with the same name as a legacy one
         overwritten_modules = {

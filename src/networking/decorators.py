@@ -1,16 +1,18 @@
 import inspect
 import json
 from abc import ABC, abstractmethod
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import update_wrapper
-from typing import Any, Concatenate, Self
+from typing import TYPE_CHECKING, Any, Concatenate, Self
 
 from unrealsdk.unreal import UObject
 
 from . import message_queue
 from .registration import add_network_callback, remove_network_callback
 from .transmission import get_host_pri
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass

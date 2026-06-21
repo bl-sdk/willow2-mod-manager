@@ -57,7 +57,7 @@ def LoadModSettings(mod: SDKMod) -> None:
         try:
             with mod.new_mod_obj.settings_file.open() as file:
                 settings = json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError, json.JSONDecodeError:
             return
 
         if settings.get("enabled", False):
