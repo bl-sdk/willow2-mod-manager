@@ -17,7 +17,7 @@ __all__: tuple[str, ...] = (
     "legacy_compat",
 )
 
-__version_info__: tuple[int, int] = (1, 6)
+__version_info__: tuple[int, int] = (1, 7)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 
@@ -95,6 +95,7 @@ if base_mod.version.partition(" ")[0] not in {
     "3.6",
     "3.7",
     "3.8",
+    "3.9",
 }:
     from unrealsdk import logging
 
