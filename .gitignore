@@ -1,15 +1,12 @@
 .vs
 .vscode
 .idea
+.nvim.lua
 
 # C/C++ excludes
 .cache/clangd
 .gdbinit
 out
-
-# User scripts with templates
-postbuild
-postbuild.bat
 
 # CMake (from https://github.com/github/gitignore/blob/main/CMake.gitignore)
 CMakeLists.txt.user
