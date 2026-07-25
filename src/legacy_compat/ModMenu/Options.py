@@ -103,7 +103,7 @@ class Slider(Value[int]):
     MaxValue: int
     Increment: int
 
-    def __init__(
+    def __init__(  # noqa: PLR0917
         self,
         Caption: str,
         Description: str,

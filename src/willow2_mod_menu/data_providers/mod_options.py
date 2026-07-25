@@ -11,6 +11,7 @@ from mods_base import (
     NestedOption,
 )
 from willow2_mod_menu.description import get_mod_description
+from willow2_mod_menu.options_menu import dangerous_reload_current_page
 
 from . import (
     KB_TAG_HEADER,
@@ -35,6 +36,8 @@ KEYBINDS_NAME = "$WillowMenu.MenuOptionDisplayNames.KeyBinds"
 KEYBINDS_DESC = "$WillowMenu.MenuOptionDisplayNames.KeyBindsDesc"
 RESET_KEYBINDS_NAME = "$WillowMenu.MenuOptionDisplayNames.ResetKeyBinds"
 RESET_KEYBINDS_DESC = "$WillowMenu.MenuOptionDisplayNames.ResetKeyBindsDesc"
+RESET_OPTIONS_NAME = "Reset Options"
+RESET_OPTIONS_DESCRIPTION = "Revert the options to their default settings."
 
 DUMMY_ACTION = "DUMMY"
 
@@ -85,7 +88,22 @@ class ModOptionsDataProvider(OptionsDataProvider):
                 ),
             )
 
-        yield from self.mod.iter_display_options()
+        display_options = list(self.mod.iter_display_options())
+        yield from display_options
+
+        if self.has_value_options(display_options):
+
+            def on_reset(_: ButtonOption) -> None:
+                for mod_option in self.mod.options:
+                    mod_option.reset()
+
+                dangerous_reload_current_page()
+
+            yield ButtonOption(
+                RESET_OPTIONS_NAME,
+                description=RESET_OPTIONS_DESCRIPTION,
+                on_press=on_reset,
+            )
 
     @staticmethod
     def any_keybind_visible(options: Sequence[BaseOption]) -> bool:

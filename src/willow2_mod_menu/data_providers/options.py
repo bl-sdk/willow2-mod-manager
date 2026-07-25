@@ -13,6 +13,7 @@ from mods_base import (
     NestedOption,
     SliderOption,
     SpinnerOption,
+    ValueOption,
 )
 from willow2_mod_menu.options_menu import push_options
 
@@ -73,8 +74,63 @@ class OptionsDataProvider(DataProvider):
             for option in options
         )
 
+    @staticmethod
+    def any_value_option_visible(options: Sequence[BaseOption]) -> bool:
+        """
+        Recursively checks if any ValueOption in a sequence is visible.
+
+        Recurses into grouped options, but not nested ones. A grouped option which is not explicitly
+        hidden, but contains no visible children, does not count as visible.
+
+        Keybind options are always treated as hidden.
+
+        Args:
+            options: The list of options to check.
+        """
+        return any(
+            (
+                isinstance(option, GroupedOption)
+                and not option.is_hidden
+                and OptionsDataProvider.any_value_option_visible(option.children)
+            )
+            or (
+                not isinstance(option, KeybindOption)
+                and isinstance(option, ValueOption)
+                and not option.is_hidden
+            )
+            for option in options
+        )
+
+    @staticmethod
+    def has_value_options(options: Sequence[BaseOption], ignore_hidden: bool = True) -> bool:
+        """
+        Recursively checks if there are any ValueOptions.
+
+        Recurses into grouped and nested options.
+
+        Keybind options are not treated as ValueOptions.
+
+        Args:
+            options: The list of options to check.
+            ignore_hidden: Should hidden options be ignored.
+        """
+        return any(
+            (
+                isinstance(option, (GroupedOption, NestedOption))
+                and not option.is_hidden
+                and OptionsDataProvider.has_value_options(option.children)
+            )
+            or (
+                not isinstance(option, KeybindOption)
+                and isinstance(option, ValueOption)
+                and not (option.is_hidden and ignore_hidden)
+            )
+            for option in options
+        )
+
     def add_grouped_option(
         self,
+        *,
         data_provider: UObject,
         the_list: UObject,
         options: Sequence[BaseOption],
@@ -218,12 +274,12 @@ class OptionsDataProvider(DataProvider):
                     logging.dev_warning(f"Found recursive options group, not drawing: {option}")
                 case GroupedOption():
                     self.add_grouped_option(
-                        data_provider,
-                        the_list,
-                        options,
-                        group_stack,
-                        option,
-                        options_idx,
+                        data_provider=data_provider,
+                        the_list=the_list,
+                        options=options,
+                        group_stack=group_stack,
+                        option=option,
+                        options_idx=options_idx,
                     )
 
                 case KeybindOption():

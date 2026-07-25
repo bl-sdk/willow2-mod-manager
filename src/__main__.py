@@ -417,7 +417,7 @@ def hookup_warnings() -> None:
     dev_warn_logger = logging.Logger(logging.Level.DEV_WARNING)
 
     @wraps(warnings.showwarning)
-    def showwarning(
+    def showwarning(  # noqa: PLR0917
         message: Warning | str,
         category: type[Warning],
         filename: str,

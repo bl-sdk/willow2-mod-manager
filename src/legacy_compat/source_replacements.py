@@ -66,11 +66,15 @@ SourceReplacement(
     ),
     (b"import os", b"import os, sys"),
     (
-        rb'( +)exec_path = str\(file\)\.split\("Binaries\\+", 1\)\[1\]([\r\n]+)'
-        rb'( +)bl2tools.console_command\("exec " \+ exec_path, False\)([\r\n]+)',
-        rb"\1exec_path = os.path.relpath(file,"
-        rb' os.path.join(sys.executable, "..", ".."))\2'
-        rb"\3bl2tools.console_command(f'exec \"{exec_path}\"', False)\4",
+        (
+            rb'( +)exec_path = str\(file\)\.split\("Binaries\\+", 1\)\[1\]([\r\n]+)'
+            rb'( +)bl2tools.console_command\("exec " \+ exec_path, False\)([\r\n]+)'
+        ),
+        (
+            rb"\1exec_path = os.path.relpath(file,"
+            rb' os.path.join(sys.executable, "..", ".."))\2'
+            rb"\3bl2tools.console_command(f'exec \"{exec_path}\"', False)\4"
+        ),
     ),
 )
 
@@ -119,9 +123,11 @@ SourceReplacement(
     (rb"sequence\.CustomEnableCondition\.bComplete = True", b""),
     # This one's the same as reward reroller, need to manually convert to a list
     (
-        rb"caller\.FastTravelClip\.SendLocationData\(([\r\n]+ +)"
-        rb"travels,([\r\n]+ +)"
-        rb"caller\.LocationStationStrings,",
+        (
+            rb"caller\.FastTravelClip\.SendLocationData\(([\r\n]+ +)"
+            rb"travels,([\r\n]+ +)"
+            rb"caller\.LocationStationStrings,"
+        ),
         rb"caller.FastTravelClip.SendLocationData(\1travels,\2list(caller.LocationStationStrings),",
     ),
 )
@@ -138,8 +144,10 @@ SourceReplacement(
     # actually want it to be set to.
     (
         rb"inventory_template.Manufacturers = \(\(manufacturer\),\)",
-        b"inventory_template.Manufacturers = [(manufacturer[0], "
-        b"[((1, None), (1, 100), (0.5, None, None, 1), (1, None, None, 1))])]",
+        (
+            b"inventory_template.Manufacturers = [(manufacturer[0], "
+            b"[((1, None), (1, 100), (0.5, None, None, 1), (1, None, None, 1))])]"
+        ),
     ),
     # This one's a break just due to upgrading python. Hints were trying to be a string enum before
     # StrEnum was introduced, so stringifying them now returns the name, not the value. Make it a
@@ -158,10 +166,12 @@ if unrealsdk.__version_info__ >= (2, 0, 0):
         (("src", "Mods.ReignOfGiants"), ("sdk_mods", "Mods.ReignOfGiants")),
         (
             rb"(\S+\.DebugPawnMarkerInst) = (.+?)([\r\n])",
-            rb"_o = \2; _c = _o.Class;"
-            rb'_o.Class = new_unrealsdk.find_class("MaterialInstanceConstant");'
-            rb"\1 = _o;"
-            rb"_o.Class = _c\3",
+            (
+                rb"_o = \2; _c = _o.Class;"
+                rb'_o.Class = new_unrealsdk.find_class("MaterialInstanceConstant");'
+                rb"\1 = _o;"
+                rb"_o.Class = _c\3"
+            ),
         ),
     )
 

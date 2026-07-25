@@ -17,7 +17,7 @@ __all__: tuple[str, ...] = (
     "legacy_compat",
 )
 
-__version_info__: tuple[int, int] = (1, 7)
+__version_info__: tuple[int, int] = (1, 8)
 __version__: str = f"{__version_info__[0]}.{__version_info__[1]}"
 __author__: str = "bl-sdk"
 

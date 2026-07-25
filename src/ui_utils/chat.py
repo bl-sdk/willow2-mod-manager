@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 def show_chat_message(
     message: str,
     user: str | None = None,
-    timestamp: datetime | None | EllipsisType = ...,
+    timestamp: EllipsisType | datetime | None = ...,
 ) -> None:
     """
     Prints a message to chat - with protection against the offline crash.

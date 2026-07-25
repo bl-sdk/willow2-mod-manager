@@ -68,7 +68,7 @@ def show_hud_message(title: str, msg: str, duration: float = 2.5) -> None:
 
 def show_second_wind_notification(
     msg: str,
-    ui_sound: unreal.UObject | None | EllipsisType = ...,
+    ui_sound: EllipsisType | unreal.UObject | None = ...,
 ) -> None:
     """
     Displays a big notification message in the main in game hud.

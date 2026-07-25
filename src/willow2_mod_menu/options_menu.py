@@ -108,6 +108,19 @@ def push_mod_list(the_list: UObject) -> None:
     latest_list = WeakPointer(the_list)
 
 
+def dangerous_reload_current_page() -> None:
+    """
+    Don't call this unless you know what you're doing. This is not a public interface.
+
+    If an options screen is currently open, attempts to reload it, showing all the latest options.
+    """
+    if not data_provider_stack:
+        return
+    if (the_list := latest_list()) is None:
+        return
+    the_list.Refresh()
+
+
 # Avoid circular imports
 from .data_providers.mod_list import ModListDataProvider  # noqa: E402
 from .data_providers.mod_options import ModOptionsDataProvider  # noqa: E402

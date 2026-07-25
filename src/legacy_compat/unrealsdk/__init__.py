@@ -133,7 +133,7 @@ def GetEngine() -> UObject:
     return ENGINE
 
 
-def ConstructObject(
+def ConstructObject(  # noqa: PLR0917
     Class: UClass | str,
     Outer: UObject | None = ENGINE,
     Name: str = "None",
