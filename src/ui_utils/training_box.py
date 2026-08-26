@@ -35,6 +35,9 @@ class TrainingBox:
     Attributes:
         title: The title text to display at the top of the training box.
         message: The message to display in the main body of the training box.
+        tooltips: The tooltips to display at the bottom of the training box.
+                  None will use the default tooltips, an empty string will result in
+                  hidden tooltips.
         min_duration: How long to display the training box for before the user may close it.
         pauses_game: If the training box should pause the game while it is displayed.
         menu_hint: Which menu to hint at opening when you close this training box.
@@ -50,6 +53,7 @@ class TrainingBox:
     _: KW_ONLY
     title: str
     message: str
+    tooltips: str | None = None
     min_duration: float = 0
     pauses_game: bool = False
     menu_hint: EBackButtonScreen = EBackButtonScreen.CS_None
@@ -85,6 +89,11 @@ class TrainingBox:
             self.menu_hint,
             not self.pauses_game,
         )
+        if self.tooltips is not None:
+            if self.tooltips == "":
+                dialog.ShowTooltips(False)
+            else:
+                dialog.SetTooltips(self.tooltips)
         dialog.SetPriority(self.priority)
         dialog.ApplyLayout()
         self._gfx_object = WeakPointer(dialog)
